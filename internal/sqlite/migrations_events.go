@@ -625,7 +625,7 @@ var migrationsEvents = []schemaMigration{
 				updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 			);
 		`},
-	{36, `
+	{46, `
 			ALTER TABLE artifacts ADD COLUMN organization_id TEXT;
 			CREATE INDEX IF NOT EXISTS idx_artifacts_org_release ON artifacts(organization_id, release_version);
 		`},

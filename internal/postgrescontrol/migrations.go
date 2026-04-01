@@ -623,7 +623,7 @@ CREATE INDEX IF NOT EXISTS idx_metric_alert_rules_project_status
 `,
 	},
 	{
-		Version: 8,
+		Version: 7,
 		Name:    "project-environments-and-teams",
 		SQL: `
 CREATE TABLE IF NOT EXISTS project_environments (
@@ -644,7 +644,7 @@ CREATE INDEX IF NOT EXISTS idx_project_teams_team ON project_teams(team_id);
 `,
 	},
 	{
-		Version: 7,
+		Version: 8,
 		Name:    "project-memberships",
 		SQL: `
 CREATE TABLE IF NOT EXISTS project_memberships (

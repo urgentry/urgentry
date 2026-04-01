@@ -219,11 +219,8 @@ func (s *ReplayStore) ListReplayRecordingSegments(ctx context.Context, projectID
 	if err != nil {
 		return nil, err
 	}
-	// Filter to recording segments only.
-	var segments []store.ReplayAssetRef
-	for _, asset := range assets {
-		segments = append(segments, asset)
-	}
+	// All assets are recording segments in this context.
+	segments := append([]store.ReplayAssetRef{}, assets...)
 	return segments, nil
 }
 
