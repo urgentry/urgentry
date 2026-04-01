@@ -24,5 +24,11 @@ type CatalogStore interface {
 	UpdateProjectSettings(ctx context.Context, orgSlug, projectSlug string, update sharedstore.ProjectSettingsUpdate) (*sharedstore.ProjectSettings, error)
 	ListOrganizationAuditLogs(ctx context.Context, orgSlug string, limit int) ([]sharedstore.AuditLogEntry, error)
 	ListEnvironments(ctx context.Context, orgSlug string) ([]string, error)
+	ListProjectEnvironments(ctx context.Context, orgSlug, projectSlug string) ([]sharedstore.ProjectEnvironment, error)
+	GetProjectEnvironment(ctx context.Context, orgSlug, projectSlug, envName string) (*sharedstore.ProjectEnvironment, error)
+	UpdateProjectEnvironment(ctx context.Context, orgSlug, projectSlug, envName string, isHidden bool) (*sharedstore.ProjectEnvironment, error)
+	ListProjectTeams(ctx context.Context, orgSlug, projectSlug string) ([]sharedstore.Team, error)
+	AddProjectTeam(ctx context.Context, orgSlug, projectSlug, teamSlug string) (*sharedstore.Team, error)
+	RemoveProjectTeam(ctx context.Context, orgSlug, projectSlug, teamSlug string) (bool, error)
 	DeleteProject(ctx context.Context, orgSlug, projectSlug string) error
 }

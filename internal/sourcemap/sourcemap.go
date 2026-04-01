@@ -11,15 +11,16 @@ import (
 
 // Artifact represents a source map file associated with a release.
 type Artifact struct {
-	ID        string    `json:"id"`
-	ProjectID string    `json:"projectId"`
-	ReleaseID string    `json:"releaseId,omitempty"`
-	Name      string    `json:"name"`
-	Dist      string    `json:"dist,omitempty"`
-	ObjectKey string    `json:"-"`
-	Size      int64     `json:"size"`
-	Checksum  string    `json:"sha1,omitempty"`
-	CreatedAt time.Time `json:"dateCreated"`
+	ID             string    `json:"id"`
+	ProjectID      string    `json:"projectId,omitempty"`
+	OrganizationID string    `json:"organizationId,omitempty"`
+	ReleaseID      string    `json:"releaseId,omitempty"`
+	Name           string    `json:"name"`
+	Dist           string    `json:"dist,omitempty"`
+	ObjectKey      string    `json:"-"`
+	Size           int64     `json:"size"`
+	Checksum       string    `json:"sha1,omitempty"`
+	CreatedAt      time.Time `json:"dateCreated"`
 }
 
 // Store manages source map artifacts.

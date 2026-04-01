@@ -220,6 +220,18 @@ func (s *shadowingAdminStore) AddProjectMember(ctx context.Context, orgSlug, pro
 	return s.base.AddProjectMember(ctx, orgSlug, projectSlug, userID, role)
 }
 
+func (s *shadowingAdminStore) ListTeamProjects(ctx context.Context, orgSlug, teamSlug string) ([]controlplane.TeamProjectRecord, error) {
+	return s.base.ListTeamProjects(ctx, orgSlug, teamSlug)
+}
+func (s *shadowingAdminStore) ListUserTeams(ctx context.Context, orgSlug, userID string) ([]*controlplane.TeamRecord, error) {
+	return s.base.ListUserTeams(ctx, orgSlug, userID)
+}
+func (s *shadowingAdminStore) AddMemberToTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (*controlplane.TeamMemberRecord, error) {
+	return s.base.AddMemberToTeamByMemberID(ctx, orgSlug, memberID, teamSlug)
+}
+func (s *shadowingAdminStore) RemoveMemberFromTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (bool, error) {
+	return s.base.RemoveMemberFromTeamByMemberID(ctx, orgSlug, memberID, teamSlug)
+}
 func (s *shadowingAdminStore) AcceptInvite(ctx context.Context, inviteToken, displayName, password string) (*controlplane.InviteAcceptanceResult, error) {
 	result, err := s.base.AcceptInvite(ctx, inviteToken, displayName, password)
 	if err != nil || result == nil {

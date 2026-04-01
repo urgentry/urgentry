@@ -146,8 +146,12 @@ func parseAlertRule(ruleID, projectID, name, status, ruleType string, configJSON
 		var full alert.Rule
 		if err := json.Unmarshal(configJSON, &full); err == nil {
 			rule.RuleType = full.RuleType
+			rule.FilterMatch = full.FilterMatch
 			rule.Conditions = full.Conditions
 			rule.Actions = full.Actions
+			rule.Filters = full.Filters
+			rule.Frequency = full.Frequency
+			rule.Environment = full.Environment
 			rule.Config = full.Config
 		}
 	}

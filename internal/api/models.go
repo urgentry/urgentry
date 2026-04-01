@@ -142,7 +142,10 @@ type Release struct {
 	OrgSlug                  string     `json:"-"`
 	Version                  string     `json:"version"`
 	ShortVersion             string     `json:"shortVersion"`
+	Ref                      string     `json:"ref,omitempty"`
+	URL                      string     `json:"url,omitempty"`
 	DateCreated              time.Time  `json:"dateCreated"`
+	DateReleased             *time.Time `json:"dateReleased,omitempty"`
 	NewGroups                int        `json:"newGroups"`
 	SessionCount             int        `json:"sessionCount,omitempty"`
 	ErroredSessions          int        `json:"erroredSessions,omitempty"`
@@ -162,6 +165,33 @@ type Release struct {
 	NativeReprocessStatus    string     `json:"nativeReprocessStatus,omitempty"`
 	NativeReprocessLastError string     `json:"nativeReprocessLastError,omitempty"`
 	NativeReprocessUpdatedAt *time.Time `json:"nativeReprocessUpdatedAt,omitempty"`
+}
+
+// OrgEventRow is an event with project context for org-level event listing.
+type OrgEventRow struct {
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Message     string            `json:"message,omitempty"`
+	Level       string            `json:"level,omitempty"`
+	Platform    string            `json:"platform,omitempty"`
+	Culprit     string            `json:"culprit,omitempty"`
+	ProjectName string            `json:"project.name"`
+	Timestamp   time.Time         `json:"timestamp"`
+	Tags        map[string]string `json:"tags,omitempty"`
+}
+
+// SourceMapDebugResponse describes source map resolution debug info for an event.
+type SourceMapDebugResponse struct {
+	EventID    string                `json:"eventId"`
+	Release    string                `json:"release,omitempty"`
+	HasRelease bool                  `json:"hasRelease"`
+	Errors     []SourceMapDebugError `json:"errors"`
+}
+
+// SourceMapDebugError describes one source map resolution issue.
+type SourceMapDebugError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
 }
 
 // ReleaseHealth describes session-backed health for a release.

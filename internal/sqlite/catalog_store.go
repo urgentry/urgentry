@@ -296,6 +296,8 @@ func (s *CatalogStore) DeleteProject(ctx context.Context, orgSlug, projectSlug s
 		"metric_alert_rules",
 		"anomaly_events",
 		"inbound_filters",
+		"project_environments",
+		"project_teams",
 	}
 	for _, table := range cascadeTables {
 		if _, execErr := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE project_id = ?", pid); execErr != nil {
@@ -312,6 +314,61 @@ func (s *CatalogStore) DeleteProject(ctx context.Context, orgSlug, projectSlug s
 	}
 	err = tx.Commit()
 	return err
+}
+
+// ListProjectEnvironments returns environments observed for a project, merged
+// with any explicit project_environments rows that carry visibility state.
+func (s *CatalogStore) ListProjectEnvironments(ctx context.Context, orgSlug, projectSlug string) ([]store.ProjectEnvironment, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	return ListProjectEnvironments(ctx, s.db, project.ID)
+}
+
+// GetProjectEnvironment returns a single project environment by name.
+func (s *CatalogStore) GetProjectEnvironment(ctx context.Context, orgSlug, projectSlug, envName string) (*store.ProjectEnvironment, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	return GetProjectEnvironment(ctx, s.db, project.ID, envName)
+}
+
+// UpdateProjectEnvironment toggles the isHidden flag for a project environment.
+func (s *CatalogStore) UpdateProjectEnvironment(ctx context.Context, orgSlug, projectSlug, envName string, isHidden bool) (*store.ProjectEnvironment, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	return UpdateProjectEnvironment(ctx, s.db, project.ID, envName, isHidden)
+}
+
+// ListProjectTeams returns all teams associated with a project.
+func (s *CatalogStore) ListProjectTeams(ctx context.Context, orgSlug, projectSlug string) ([]store.Team, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	return ListProjectTeams(ctx, s.db, project.ID)
+}
+
+// AddProjectTeam associates a team with a project.
+func (s *CatalogStore) AddProjectTeam(ctx context.Context, orgSlug, projectSlug, teamSlug string) (*store.Team, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	return AddProjectTeam(ctx, s.db, orgSlug, project.ID, teamSlug)
+}
+
+// RemoveProjectTeam removes a team association from a project.
+func (s *CatalogStore) RemoveProjectTeam(ctx context.Context, orgSlug, projectSlug, teamSlug string) (bool, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return false, err
+	}
+	return RemoveProjectTeam(ctx, s.db, orgSlug, project.ID, teamSlug)
 }
 
 // isNoSuchTable checks if a SQLite error is a "no such table" error.

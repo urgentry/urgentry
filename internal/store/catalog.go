@@ -241,6 +241,12 @@ func SupportsArchiveTelemetrySurface(surface TelemetrySurface) bool {
 	return validTelemetrySurface(surface)
 }
 
+// ProjectEnvironment represents a project-scoped environment with visibility.
+type ProjectEnvironment struct {
+	Name     string `json:"name"`
+	IsHidden bool   `json:"isHidden"`
+}
+
 // OrganizationUpdate captures the mutable fields for an organization update.
 type OrganizationUpdate struct {
 	Name             string `json:"name"`

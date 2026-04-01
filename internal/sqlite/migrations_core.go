@@ -301,4 +301,25 @@ var migrationsCore = []schemaMigration{
 		);
 		CREATE INDEX IF NOT EXISTS idx_anomaly_events_project ON anomaly_events(project_id, detected_at DESC);
 	`},
+	{61, `
+		ALTER TABLE releases ADD COLUMN ref TEXT DEFAULT '';
+		ALTER TABLE releases ADD COLUMN url TEXT DEFAULT '';
+	`},
+	{62, `
+		CREATE TABLE IF NOT EXISTS project_environments (
+			project_id TEXT NOT NULL REFERENCES projects(id),
+			name TEXT NOT NULL,
+			is_hidden INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT DEFAULT (datetime('now')),
+			PRIMARY KEY (project_id, name)
+		);
+
+		CREATE TABLE IF NOT EXISTS project_teams (
+			project_id TEXT NOT NULL REFERENCES projects(id),
+			team_id TEXT NOT NULL REFERENCES teams(id),
+			created_at TEXT DEFAULT (datetime('now')),
+			PRIMARY KEY (project_id, team_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_project_teams_team ON project_teams(team_id);
+	`},
 }

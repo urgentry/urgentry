@@ -290,6 +290,222 @@ func DeleteProjectKey(ctx context.Context, db *sql.DB, orgSlug, projectSlug, key
 	return nil
 }
 
+// ListProjectEnvironments derives environments from events/transactions for
+// a project and merges with the project_environments table for visibility.
+func ListProjectEnvironments(ctx context.Context, db *sql.DB, projectID string) ([]store.ProjectEnvironment, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT DISTINCT e.environment FROM events e
+		 WHERE e.project_id = ? AND e.environment IS NOT NULL AND e.environment != ''
+		 UNION
+		 SELECT DISTINCT t.environment FROM transactions t
+		 WHERE t.project_id = ? AND t.environment IS NOT NULL AND t.environment != ''
+		 ORDER BY 1`,
+		projectID, projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var envNames []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		envNames = append(envNames, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Load explicit visibility state.
+	hiddenSet := make(map[string]bool)
+	visRows, err := db.QueryContext(ctx,
+		`SELECT name, is_hidden FROM project_environments WHERE project_id = ?`, projectID)
+	if err != nil && !strings.Contains(err.Error(), "no such table") {
+		return nil, err
+	}
+	if visRows != nil {
+		defer visRows.Close()
+		for visRows.Next() {
+			var name string
+			var hidden int
+			if err := visRows.Scan(&name, &hidden); err != nil {
+				return nil, err
+			}
+			hiddenSet[name] = hidden != 0
+		}
+		if err := visRows.Err(); err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]store.ProjectEnvironment, 0, len(envNames))
+	for _, name := range envNames {
+		out = append(out, store.ProjectEnvironment{
+			Name:     name,
+			IsHidden: hiddenSet[name],
+		})
+	}
+	return out, nil
+}
+
+// GetProjectEnvironment returns a single environment for a project.
+func GetProjectEnvironment(ctx context.Context, db *sql.DB, projectID, envName string) (*store.ProjectEnvironment, error) {
+	// Check if the environment exists in events or transactions.
+	var found int
+	err := db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM (
+		   SELECT 1 FROM events WHERE project_id = ? AND environment = ? LIMIT 1
+		   UNION ALL
+		   SELECT 1 FROM transactions WHERE project_id = ? AND environment = ? LIMIT 1
+		 )`,
+		projectID, envName, projectID, envName,
+	).Scan(&found)
+	if err != nil {
+		return nil, err
+	}
+	if found == 0 {
+		return nil, nil
+	}
+
+	var hidden int
+	err = db.QueryRowContext(ctx,
+		`SELECT is_hidden FROM project_environments WHERE project_id = ? AND name = ?`,
+		projectID, envName,
+	).Scan(&hidden)
+	if err != nil && err != sql.ErrNoRows && !strings.Contains(err.Error(), "no such table") {
+		return nil, err
+	}
+
+	return &store.ProjectEnvironment{Name: envName, IsHidden: hidden != 0}, nil
+}
+
+// UpdateProjectEnvironment upserts the isHidden flag for a project environment.
+func UpdateProjectEnvironment(ctx context.Context, db *sql.DB, projectID, envName string, isHidden bool) (*store.ProjectEnvironment, error) {
+	hiddenVal := 0
+	if isHidden {
+		hiddenVal = 1
+	}
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO project_environments (project_id, name, is_hidden) VALUES (?, ?, ?)
+		 ON CONFLICT (project_id, name) DO UPDATE SET is_hidden = excluded.is_hidden`,
+		projectID, envName, hiddenVal,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &store.ProjectEnvironment{Name: envName, IsHidden: isHidden}, nil
+}
+
+// ListProjectTeams returns teams associated with a project via the project_teams
+// join table, falling back to the single team_id FK on the projects table.
+func ListProjectTeams(ctx context.Context, db *sql.DB, projectID string) ([]store.Team, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at
+		 FROM teams t
+		 JOIN project_teams pt ON pt.team_id = t.id
+		 WHERE pt.project_id = ?
+		 ORDER BY t.created_at ASC`,
+		projectID,
+	)
+	if err != nil && strings.Contains(err.Error(), "no such table") {
+		// Fall back to legacy single FK.
+		return listProjectTeamsFallback(ctx, db, projectID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []store.Team
+	for rows.Next() {
+		var rec store.Team
+		var createdAt sql.NullString
+		if err := rows.Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.OrgID, &createdAt); err != nil {
+			return nil, err
+		}
+		rec.DateCreated = sqlutil.ParseDBTime(sqlutil.NullStr(createdAt))
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		// Include legacy single team_id if no join-table rows.
+		return listProjectTeamsFallback(ctx, db, projectID)
+	}
+	return out, nil
+}
+
+func listProjectTeamsFallback(ctx context.Context, db *sql.DB, projectID string) ([]store.Team, error) {
+	row := db.QueryRowContext(ctx,
+		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at
+		 FROM teams t
+		 JOIN projects p ON p.team_id = t.id
+		 WHERE p.id = ?`,
+		projectID,
+	)
+	var rec store.Team
+	var createdAt sql.NullString
+	if err := row.Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.OrgID, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return []store.Team{}, nil
+		}
+		return nil, err
+	}
+	rec.DateCreated = sqlutil.ParseDBTime(sqlutil.NullStr(createdAt))
+	return []store.Team{rec}, nil
+}
+
+// AddProjectTeam associates a team with a project.
+func AddProjectTeam(ctx context.Context, db *sql.DB, orgSlug, projectID, teamSlug string) (*store.Team, error) {
+	row := db.QueryRowContext(ctx,
+		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 WHERE o.slug = ? AND t.slug = ?`,
+		orgSlug, teamSlug,
+	)
+	var rec store.Team
+	var createdAt sql.NullString
+	if err := row.Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.OrgID, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	rec.DateCreated = sqlutil.ParseDBTime(sqlutil.NullStr(createdAt))
+
+	_, err := db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO project_teams (project_id, team_id) VALUES (?, ?)`,
+		projectID, rec.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
+// RemoveProjectTeam removes a team association from a project.
+func RemoveProjectTeam(ctx context.Context, db *sql.DB, orgSlug, projectID, teamSlug string) (bool, error) {
+	res, err := db.ExecContext(ctx,
+		`DELETE FROM project_teams
+		 WHERE project_id = ? AND team_id IN (
+		   SELECT t.id FROM teams t
+		   JOIN organizations o ON o.id = t.organization_id
+		   WHERE o.slug = ? AND t.slug = ?
+		 )`,
+		projectID, orgSlug, teamSlug,
+	)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
 func scanSQLiteKeyRows(rows *sql.Rows) ([]store.ProjectKeyMeta, error) {
 	var out []store.ProjectKeyMeta
 	for rows.Next() {

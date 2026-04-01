@@ -96,6 +96,18 @@ func (f *fakeAdminStore) UpdateProjectMemberRole(context.Context, string, string
 func (f *fakeAdminStore) AddProjectMember(context.Context, string, string, string, string) (*controlplane.ProjectMemberRecord, error) {
 	return nil, nil
 }
+func (f *fakeAdminStore) ListTeamProjects(context.Context, string, string) ([]controlplane.TeamProjectRecord, error) {
+	return nil, nil
+}
+func (f *fakeAdminStore) ListUserTeams(context.Context, string, string) ([]*controlplane.TeamRecord, error) {
+	return nil, nil
+}
+func (f *fakeAdminStore) AddMemberToTeamByMemberID(context.Context, string, string, string) (*controlplane.TeamMemberRecord, error) {
+	return nil, nil
+}
+func (f *fakeAdminStore) RemoveMemberFromTeamByMemberID(context.Context, string, string, string) (bool, error) {
+	return false, nil
+}
 
 func TestShadowingAdminStoreSyncsMembershipLifecycle(t *testing.T) {
 	db, err := sqlite.Open(t.TempDir())

@@ -551,6 +551,205 @@ func issueActivityFromStore(item store.IssueActivityEntry) IssueActivity {
 	}
 }
 
+// handleGetIssueEvent handles GET /api/0/organizations/{org_slug}/issues/{issue_id}/events/{event_id}/.
+func handleGetIssueEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		groupID := PathParam(r, "issue_id")
+		eventID := PathParam(r, "event_id")
+
+		evt, err := sqlite.GetGroupEvent(r.Context(), db, groupID, eventID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load event.")
+			return
+		}
+		if evt == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Event not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, apiEventFromWebEvent(*evt))
+	}
+}
+
+// handleBulkMutateProjectIssues handles PUT /api/0/projects/{org}/{proj}/issues/.
+func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+
+		project, err := catalog.GetProject(r.Context(), org, proj)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve project.")
+			return
+		}
+		if project == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
+			return
+		}
+
+		ids := r.URL.Query()["id"]
+		if len(ids) == 0 {
+			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+			return
+		}
+
+		var body bulkMutateRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+
+		validStatuses := map[string]bool{
+			"resolved":   true,
+			"unresolved": true,
+			"ignored":    true,
+		}
+		if body.Status != "" && !validStatuses[body.Status] {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
+			return
+		}
+
+		patch := store.IssuePatch{}
+		if body.Status != "" {
+			patch.Status = &body.Status
+		}
+		if body.AssignedTo != "" {
+			assign := strings.TrimSpace(body.AssignedTo)
+			patch.Assignee = &assign
+		}
+		if body.Status == "resolved" || body.Status == "unresolved" || body.Status == "ignored" {
+			empty := ""
+			substatus := strings.TrimSpace(body.StatusDetails.InRelease)
+			if body.StatusDetails.InNextRelease {
+				substatus = "next_release"
+			}
+			patch.ResolutionSubstatus = &substatus
+			patch.ResolvedInRelease = &empty
+			if body.Status == "unresolved" || body.Status == "ignored" {
+				patch.ResolutionSubstatus = &empty
+			}
+		}
+
+		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil {
+			httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
+			return
+		}
+
+		if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
+			return
+		}
+
+		resp := map[string]any{}
+		if body.Status != "" {
+			resp["status"] = body.Status
+			resp["statusDetails"] = body.StatusDetails
+		}
+		httputil.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleBulkDeleteProjectIssues handles DELETE /api/0/projects/{org}/{proj}/issues/.
+func handleBulkDeleteProjectIssues(catalog controlplane.CatalogStore, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+
+		project, err := catalog.GetProject(r.Context(), org, proj)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve project.")
+			return
+		}
+		if project == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
+			return
+		}
+
+		ids := r.URL.Query()["id"]
+		if len(ids) == 0 {
+			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+			return
+		}
+		if err := issues.BulkDeleteGroups(r.Context(), ids); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete issues.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleListIssueHashes handles GET /api/0/organizations/{org_slug}/issues/{issue_id}/hashes/.
+func handleListIssueHashes(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		groupID := PathParam(r, "issue_id")
+
+		hashes, err := sqlite.ListGroupHashes(r.Context(), db, groupID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list hashes.")
+			return
+		}
+		if hashes == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Issue not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, hashes)
+	}
+}
+
+// handleGetIssueTagDetail handles GET /api/0/organizations/{org_slug}/issues/{issue_id}/tags/{key}/.
+func handleGetIssueTagDetail(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		groupID := PathParam(r, "issue_id")
+		tagKey := PathParam(r, "key")
+
+		detail, err := sqlite.GetIssueTagDetail(r.Context(), db, groupID, tagKey)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load tag detail.")
+			return
+		}
+		if detail == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Tag not found for this issue.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, detail)
+	}
+}
+
+// handleListIssueTagValues handles GET /api/0/organizations/{org_slug}/issues/{issue_id}/tags/{key}/values/.
+func handleListIssueTagValues(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		groupID := PathParam(r, "issue_id")
+		tagKey := PathParam(r, "key")
+
+		values, err := sqlite.ListIssueTagValues(r.Context(), db, groupID, tagKey)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list tag values.")
+			return
+		}
+		if values == nil {
+			values = []sqlite.TagValueRow{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, values)
+	}
+}
+
 func authPrincipalFromContext(ctx context.Context) *auth.Principal {
 	return auth.PrincipalFromContext(ctx)
 }

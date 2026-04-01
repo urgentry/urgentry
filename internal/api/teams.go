@@ -5,9 +5,138 @@ import (
 	"strings"
 	"time"
 
+	authpkg "urgentry/internal/auth"
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
 )
+
+// teamProjectResponse is the Sentry-compatible team project shape.
+type teamProjectResponse struct {
+	ID          string    `json:"id"`
+	Slug        string    `json:"slug"`
+	Name        string    `json:"name"`
+	Platform    string    `json:"platform,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	DateCreated time.Time `json:"dateCreated"`
+}
+
+// handleListTeamProjects handles GET /api/0/teams/{org_slug}/{team_slug}/projects/.
+func handleListTeamProjects(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		team := PathParam(r, "team_slug")
+
+		projects, err := admin.ListTeamProjects(r.Context(), org, team)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list team projects.")
+			return
+		}
+		out := make([]teamProjectResponse, 0, len(projects))
+		for _, p := range projects {
+			out = append(out, teamProjectResponse{
+				ID:          p.ID,
+				Slug:        p.Slug,
+				Name:        p.Name,
+				Platform:    p.Platform,
+				Status:      p.Status,
+				DateCreated: p.DateCreated,
+			})
+		}
+		httputil.WriteJSON(w, http.StatusOK, out)
+	}
+}
+
+// handleListUserTeams handles GET /api/0/organizations/{org_slug}/user-teams/.
+func handleListUserTeams(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		principal := authpkg.PrincipalFromContext(r.Context())
+		if principal == nil || principal.User == nil {
+			httputil.WriteError(w, http.StatusUnauthorized, "Authentication required.")
+			return
+		}
+		teams, err := admin.ListUserTeams(r.Context(), org, principal.User.ID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list user teams.")
+			return
+		}
+		out := make([]teamDetailResponse, 0, len(teams))
+		for _, t := range teams {
+			out = append(out, teamDetailResponse{
+				ID:          t.ID,
+				Slug:        t.Slug,
+				Name:        t.Name,
+				DateCreated: t.CreatedAt,
+				IsMember:    true,
+				Avatar:      teamAvatar{Type: "letter_avatar"},
+				HasAccess:   true,
+				IsPending:   false,
+			})
+		}
+		httputil.WriteJSON(w, http.StatusOK, out)
+	}
+}
+
+// handleAddMemberToTeam handles POST /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/.
+func handleAddMemberToTeam(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		memberID := PathParam(r, "member_id")
+		team := PathParam(r, "team_slug")
+
+		rec, err := admin.AddMemberToTeamByMemberID(r.Context(), org, memberID, team)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to add member to team.")
+			return
+		}
+		if rec == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Member, organization, or team not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusCreated, &Member{
+			ID:             rec.ID,
+			UserID:         rec.UserID,
+			OrganizationID: rec.OrganizationID,
+			TeamID:         rec.TeamID,
+			Email:          rec.Email,
+			Name:           rec.Name,
+			Role:           rec.Role,
+			DateCreated:    rec.CreatedAt,
+		})
+	}
+}
+
+// handleRemoveMemberFromTeam handles DELETE /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/.
+func handleRemoveMemberFromTeam(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		memberID := PathParam(r, "member_id")
+		team := PathParam(r, "team_slug")
+
+		ok, err := admin.RemoveMemberFromTeamByMemberID(r.Context(), org, memberID, team)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to remove member from team.")
+			return
+		}
+		if !ok {
+			httputil.WriteError(w, http.StatusNotFound, "Team membership not found.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
 
 // teamDetailResponse is the Sentry-compatible team detail shape.
 type teamDetailResponse struct {

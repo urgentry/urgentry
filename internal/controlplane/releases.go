@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"time"
 
 	sharedstore "urgentry/internal/store"
 )
@@ -11,6 +12,8 @@ type ReleaseStore interface {
 	ListReleases(ctx context.Context, orgID string, limit int) ([]Release, error)
 	GetRelease(ctx context.Context, orgID, version string) (*Release, error)
 	GetReleaseBySlug(ctx context.Context, orgSlug, version string) (*Release, error)
+	DeleteRelease(ctx context.Context, orgSlug, version string) error
+	UpdateRelease(ctx context.Context, orgSlug, version string, ref, url *string, dateReleased *time.Time) (*Release, error)
 	AddDeploy(ctx context.Context, orgSlug, version string, deploy sharedstore.ReleaseDeploy) (*sharedstore.ReleaseDeploy, error)
 	ListDeploys(ctx context.Context, orgSlug, version string, limit int) ([]sharedstore.ReleaseDeploy, error)
 	AddCommit(ctx context.Context, orgSlug, version string, commit sharedstore.ReleaseCommit) (*sharedstore.ReleaseCommit, error)

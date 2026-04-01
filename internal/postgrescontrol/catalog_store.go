@@ -716,6 +716,221 @@ func (s *CatalogStore) ListEnvironments(ctx context.Context, orgSlug string) ([]
 	return envs, rows.Err()
 }
 
+// ListProjectEnvironments returns environments derived from events for a project.
+func (s *CatalogStore) ListProjectEnvironments(ctx context.Context, orgSlug, projectSlug string) ([]sharedstore.ProjectEnvironment, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT DISTINCT e.environment
+		 FROM events e
+		 WHERE e.project_id = $1 AND e.environment != ''
+		 ORDER BY e.environment ASC`,
+		project.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list project environments: %w", err)
+	}
+	defer rows.Close()
+
+	var envNames []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("scan project environment: %w", err)
+		}
+		envNames = append(envNames, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Load visibility state from project_environments table.
+	hiddenSet := make(map[string]bool)
+	visRows, err := s.db.QueryContext(ctx,
+		`SELECT name, is_hidden FROM project_environments WHERE project_id = $1`, project.ID)
+	if err == nil {
+		defer visRows.Close()
+		for visRows.Next() {
+			var name string
+			var hidden bool
+			if err := visRows.Scan(&name, &hidden); err != nil {
+				return nil, fmt.Errorf("scan project environment visibility: %w", err)
+			}
+			hiddenSet[name] = hidden
+		}
+	}
+
+	out := make([]sharedstore.ProjectEnvironment, 0, len(envNames))
+	for _, name := range envNames {
+		out = append(out, sharedstore.ProjectEnvironment{
+			Name:     name,
+			IsHidden: hiddenSet[name],
+		})
+	}
+	return out, nil
+}
+
+// GetProjectEnvironment returns a single project environment by name.
+func (s *CatalogStore) GetProjectEnvironment(ctx context.Context, orgSlug, projectSlug, envName string) (*sharedstore.ProjectEnvironment, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+
+	var found int
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM events WHERE project_id = $1 AND environment = $2 LIMIT 1`,
+		project.ID, envName,
+	).Scan(&found); err != nil {
+		return nil, fmt.Errorf("check project environment: %w", err)
+	}
+	if found == 0 {
+		return nil, nil
+	}
+
+	var hidden bool
+	err = s.db.QueryRowContext(ctx,
+		`SELECT is_hidden FROM project_environments WHERE project_id = $1 AND name = $2`,
+		project.ID, envName,
+	).Scan(&hidden)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("get project environment visibility: %w", err)
+	}
+
+	return &sharedstore.ProjectEnvironment{Name: envName, IsHidden: hidden}, nil
+}
+
+// UpdateProjectEnvironment toggles visibility for a project environment.
+func (s *CatalogStore) UpdateProjectEnvironment(ctx context.Context, orgSlug, projectSlug, envName string, isHidden bool) (*sharedstore.ProjectEnvironment, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO project_environments (project_id, name, is_hidden)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (project_id, name) DO UPDATE SET is_hidden = EXCLUDED.is_hidden`,
+		project.ID, envName, isHidden,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update project environment: %w", err)
+	}
+	return &sharedstore.ProjectEnvironment{Name: envName, IsHidden: isHidden}, nil
+}
+
+// ListProjectTeams returns teams associated with a project.
+func (s *CatalogStore) ListProjectTeams(ctx context.Context, orgSlug, projectSlug string) ([]sharedstore.Team, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at
+		 FROM teams t
+		 JOIN project_teams pt ON pt.team_id = t.id
+		 WHERE pt.project_id = $1
+		 ORDER BY t.created_at ASC`,
+		project.ID,
+	)
+	if err != nil {
+		// Fall back to legacy single FK if table doesn't exist.
+		return s.listProjectTeamsFallback(ctx, project.ID)
+	}
+	defer rows.Close()
+
+	var out []sharedstore.Team
+	for rows.Next() {
+		var rec sharedstore.Team
+		if err := rows.Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.OrgID, &rec.DateCreated); err != nil {
+			return nil, fmt.Errorf("scan project team: %w", err)
+		}
+		rec.DateCreated = rec.DateCreated.UTC()
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return s.listProjectTeamsFallback(ctx, project.ID)
+	}
+	return out, nil
+}
+
+func (s *CatalogStore) listProjectTeamsFallback(ctx context.Context, projectID string) ([]sharedstore.Team, error) {
+	var rec sharedstore.Team
+	err := s.db.QueryRowContext(ctx,
+		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at
+		 FROM teams t
+		 JOIN projects p ON p.team_id = t.id
+		 WHERE p.id = $1`,
+		projectID,
+	).Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.OrgID, &rec.DateCreated)
+	if err == sql.ErrNoRows {
+		return []sharedstore.Team{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list project teams fallback: %w", err)
+	}
+	rec.DateCreated = rec.DateCreated.UTC()
+	return []sharedstore.Team{rec}, nil
+}
+
+// AddProjectTeam associates a team with a project.
+func (s *CatalogStore) AddProjectTeam(ctx context.Context, orgSlug, projectSlug, teamSlug string) (*sharedstore.Team, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+	var rec sharedstore.Team
+	err = s.db.QueryRowContext(ctx,
+		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 WHERE o.slug = $1 AND t.slug = $2`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(teamSlug),
+	).Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.OrgID, &rec.DateCreated)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find team: %w", err)
+	}
+	rec.DateCreated = rec.DateCreated.UTC()
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO project_teams (project_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		project.ID, rec.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("add project team: %w", err)
+	}
+	return &rec, nil
+}
+
+// RemoveProjectTeam removes a team association from a project.
+func (s *CatalogStore) RemoveProjectTeam(ctx context.Context, orgSlug, projectSlug, teamSlug string) (bool, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return false, err
+	}
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM project_teams
+		 WHERE project_id = $1 AND team_id IN (
+		   SELECT t.id FROM teams t
+		   JOIN organizations o ON o.id = t.organization_id
+		   WHERE o.slug = $2 AND t.slug = $3
+		 )`,
+		project.ID, strings.TrimSpace(orgSlug), strings.TrimSpace(teamSlug),
+	)
+	if err != nil {
+		return false, fmt.Errorf("remove project team: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
 // DeleteProject removes a project and all dependent rows using Postgres CASCADE.
 func (s *CatalogStore) DeleteProject(ctx context.Context, orgSlug, projectSlug string) error {
 	project, err := s.GetProject(ctx, orgSlug, projectSlug)

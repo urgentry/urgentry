@@ -9,6 +9,7 @@ type OrgMemberRecord = sqlite.OrgMemberRecord
 type ProjectMemberRecord = sqlite.ProjectMemberRecord
 type TeamRecord = sqlite.TeamRecord
 type TeamMemberRecord = sqlite.TeamMemberRecord
+type TeamProjectRecord = sqlite.TeamProjectRecord
 type InviteRecord = sqlite.InviteRecord
 type InviteAcceptanceResult = sqlite.InviteAcceptanceResult
 type MonitorSchedule = sqlite.MonitorSchedule

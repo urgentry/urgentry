@@ -120,8 +120,12 @@ func parseAlertRule(id, projectID, name, status, configJSON, createdAt string) (
 		var full alert.Rule
 		if err := json.Unmarshal([]byte(configJSON), &full); err == nil {
 			r.RuleType = full.RuleType
+			r.FilterMatch = full.FilterMatch
 			r.Conditions = full.Conditions
 			r.Actions = full.Actions
+			r.Filters = full.Filters
+			r.Frequency = full.Frequency
+			r.Environment = full.Environment
 			r.Config = full.Config
 		}
 	}

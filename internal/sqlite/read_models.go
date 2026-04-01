@@ -86,6 +86,74 @@ func ListRecentEvents(ctx context.Context, db *sql.DB, limit int) ([]store.WebEv
 	return scanWebEvents(rows)
 }
 
+// OrgEvent extends WebEvent with project metadata for org-level event listing.
+type OrgEvent struct {
+	store.WebEvent
+	ProjectID   string
+	ProjectName string
+}
+
+// ListOrgEvents returns events across all projects in an organization, newest first.
+func ListOrgEvents(ctx context.Context, db *sql.DB, orgSlug string, query string, sortField string, limit int) ([]OrgEvent, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	orderCol := "e.ingested_at"
+	if sortField == "timestamp" || sortField == "-timestamp" {
+		orderCol = "e.occurred_at"
+	}
+	orderDir := "DESC"
+	if len(sortField) > 0 && sortField[0] != '-' {
+		orderDir = "ASC"
+	}
+
+	baseQuery := `SELECT e.event_id, e.group_id, e.title, e.message, e.level, e.platform,
+	        e.culprit, e.occurred_at, e.tags_json,
+	        COALESCE(e.processing_status, 'completed'), COALESCE(e.ingest_error, ''),
+	        e.project_id, COALESCE(p.name, p.slug)
+	 FROM events e
+	 JOIN projects p ON p.id = e.project_id
+	 JOIN organizations o ON o.id = p.organization_id
+	 WHERE o.slug = ?`
+	args := []any{orgSlug}
+	if query != "" {
+		baseQuery += ` AND (e.title LIKE ? OR e.message LIKE ? OR e.culprit LIKE ?)`
+		like := "%" + query + "%"
+		args = append(args, like, like, like)
+	}
+	baseQuery += ` ORDER BY ` + orderCol + ` ` + orderDir + ` LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := db.QueryContext(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []OrgEvent
+	for rows.Next() {
+		var ev OrgEvent
+		var groupID, title, message, level, platform, culprit, occurredAt, tagsJSON, processingStatus, ingestError sql.NullString
+		if err := rows.Scan(&ev.EventID, &groupID, &title, &message, &level, &platform,
+			&culprit, &occurredAt, &tagsJSON, &processingStatus, &ingestError,
+			&ev.ProjectID, &ev.ProjectName); err != nil {
+			return nil, err
+		}
+		ev.GroupID = sqlutil.NullStr(groupID)
+		ev.Title = sqlutil.NullStr(title)
+		ev.Message = sqlutil.NullStr(message)
+		ev.Level = sqlutil.NullStr(level)
+		ev.Platform = sqlutil.NullStr(platform)
+		ev.Culprit = sqlutil.NullStr(culprit)
+		ev.Timestamp = sqlutil.ParseDBTime(sqlutil.NullStr(occurredAt))
+		ev.Tags = sqlutil.ParseTags(sqlutil.NullStr(tagsJSON))
+		ev.ProcessingStatus = store.EventProcessingStatus(sqlutil.NullStr(processingStatus))
+		ev.IngestError = sqlutil.NullStr(ingestError)
+		events = append(events, ev)
+	}
+	return events, rows.Err()
+}
+
 func GetProjectEvent(ctx context.Context, db *sql.DB, projectID, eventID string) (*store.WebEvent, error) {
 	row := db.QueryRowContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json, payload_json,
@@ -211,4 +279,134 @@ func scanWebIssueWithProjectSlug(row *sql.Row) (*store.WebIssue, string, error) 
 	iss.ResolvedInRelease = sqlutil.NullStr(resolvedInRelease)
 	iss.MergedIntoGroupID = sqlutil.NullStr(mergedIntoGroupID)
 	return &iss, projectSlug, nil
+}
+
+// GetGroupEvent returns a single event within a group, verifying the event belongs to the group.
+func GetGroupEvent(ctx context.Context, db *sql.DB, groupID, eventID string) (*store.WebEvent, error) {
+	row := db.QueryRowContext(ctx,
+		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json, payload_json,
+		        COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
+		 FROM events WHERE group_id = ? AND event_id = ?`,
+		groupID, eventID,
+	)
+	return scanWebEventRow(row)
+}
+
+// GroupHashRow represents a fingerprint hash for a group.
+type GroupHashRow struct {
+	ID          string            `json:"id"`
+	LatestEvent GroupHashEventRef `json:"latestEvent"`
+}
+
+// GroupHashEventRef is a minimal event reference within a hash entry.
+type GroupHashEventRef struct {
+	EventID string `json:"eventID"`
+}
+
+// ListGroupHashes returns all distinct grouping keys (hashes) for a group.
+// Each hash includes a reference to the latest event with that grouping key.
+func ListGroupHashes(ctx context.Context, db *sql.DB, groupID string) ([]GroupHashRow, error) {
+	// A group's hash is its grouping_key. Return it along with the last_event_id.
+	row := db.QueryRowContext(ctx,
+		`SELECT grouping_key, COALESCE(last_event_id, '') FROM groups WHERE id = ?`, groupID)
+	var groupingKey, lastEventID string
+	if err := row.Scan(&groupingKey, &lastEventID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return []GroupHashRow{
+		{
+			ID:          groupingKey,
+			LatestEvent: GroupHashEventRef{EventID: lastEventID},
+		},
+	}, nil
+}
+
+// IssueTagDetail holds aggregated tag key information for an issue.
+type IssueTagDetail struct {
+	Key          string        `json:"key"`
+	Name         string        `json:"name"`
+	UniqueValues int           `json:"uniqueValues"`
+	TopValues    []TagValueRow `json:"topValues"`
+}
+
+// GetIssueTagDetail returns tag key info with top values for an issue.
+func GetIssueTagDetail(ctx context.Context, db *sql.DB, groupID, tagKey string) (*IssueTagDetail, error) {
+	path := "$." + tagKey
+	query := `SELECT
+		json_extract(tags_json, ?) AS tag_val,
+		COUNT(*) AS cnt,
+		MAX(occurred_at) AS last_seen,
+		MIN(occurred_at) AS first_seen
+	FROM events
+	WHERE group_id = ?
+	  AND json_extract(tags_json, ?) IS NOT NULL
+	  AND json_extract(tags_json, ?) != ''
+	GROUP BY tag_val
+	ORDER BY cnt DESC`
+
+	rows, err := db.QueryContext(ctx, query, path, groupID, path, path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var values []TagValueRow
+	for rows.Next() {
+		var r TagValueRow
+		if err := rows.Scan(&r.Value, &r.Count, &r.LastSeen, &r.FirstSeen); err != nil {
+			return nil, err
+		}
+		r.Key = tagKey
+		r.Name = r.Value
+		values = append(values, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil, nil
+	}
+	return &IssueTagDetail{
+		Key:          tagKey,
+		Name:         tagKey,
+		UniqueValues: len(values),
+		TopValues:    values,
+	}, nil
+}
+
+// ListIssueTagValues returns all values for a specific tag key within an issue's events.
+func ListIssueTagValues(ctx context.Context, db *sql.DB, groupID, tagKey string) ([]TagValueRow, error) {
+	path := "$." + tagKey
+	query := `SELECT
+		json_extract(tags_json, ?) AS tag_val,
+		COUNT(*) AS cnt,
+		MAX(occurred_at) AS last_seen,
+		MIN(occurred_at) AS first_seen
+	FROM events
+	WHERE group_id = ?
+	  AND json_extract(tags_json, ?) IS NOT NULL
+	  AND json_extract(tags_json, ?) != ''
+	GROUP BY tag_val
+	ORDER BY cnt DESC`
+
+	rows, err := db.QueryContext(ctx, query, path, groupID, path, path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []TagValueRow
+	for rows.Next() {
+		var r TagValueRow
+		if err := rows.Scan(&r.Value, &r.Count, &r.LastSeen, &r.FirstSeen); err != nil {
+			return nil, err
+		}
+		r.Key = tagKey
+		r.Name = r.Value
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }

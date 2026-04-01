@@ -18,6 +18,44 @@ var (
 	_ = strings.TrimSpace
 )
 
+// handleListOrgEvents handles GET /api/0/organizations/{org_slug}/events/.
+// Returns events across all projects in the organization (Discover events endpoint).
+func handleListOrgEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		query := strings.TrimSpace(r.URL.Query().Get("query"))
+		sortField := strings.TrimSpace(r.URL.Query().Get("sort"))
+		if sortField == "" {
+			sortField = "-timestamp"
+		}
+		limit := discoverLimit(r, 100)
+
+		rows, err := sqlite.ListOrgEvents(r.Context(), db, org, query, sortField, limit)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization events.")
+			return
+		}
+		data := make([]OrgEventRow, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, OrgEventRow{
+				ID:          row.EventID,
+				Title:       row.Title,
+				Message:     row.Message,
+				Level:       row.Level,
+				Platform:    row.Platform,
+				Culprit:     row.Culprit,
+				ProjectName: row.ProjectName,
+				Timestamp:   row.Timestamp,
+				Tags:        row.Tags,
+			})
+		}
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"data": data})
+	}
+}
+
 // handleListProjectEvents handles GET /api/0/projects/{org_slug}/{proj_slug}/events/.
 func handleListProjectEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

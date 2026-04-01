@@ -142,12 +142,20 @@ func mapRelease(row sqlite.Release, orgSlug string, summary sqlite.NativeRelease
 		t := summary.LastRunUpdatedAt
 		nativeReprocessUpdatedAt = &t
 	}
+	var dateReleased *time.Time
+	if !row.DateReleased.IsZero() {
+		t := row.DateReleased
+		dateReleased = &t
+	}
 	return &Release{
 		ID:                       row.ID,
 		OrgSlug:                  orgSlug,
 		Version:                  row.Version,
 		ShortVersion:             row.Version,
+		Ref:                      row.Ref,
+		URL:                      row.URL,
 		DateCreated:              row.CreatedAt,
+		DateReleased:             dateReleased,
 		NewGroups:                row.EventCount,
 		SessionCount:             row.SessionCount,
 		ErroredSessions:          row.ErroredSessions,
@@ -167,6 +175,80 @@ func mapRelease(row sqlite.Release, orgSlug string, summary sqlite.NativeRelease
 		NativeReprocessStatus:    summary.LastRunStatus,
 		NativeReprocessLastError: summary.LastRunLastError,
 		NativeReprocessUpdatedAt: nativeReprocessUpdatedAt,
+	}
+}
+
+// handleDeleteRelease handles DELETE /api/0/organizations/{org_slug}/releases/{version}/.
+func handleDeleteRelease(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		version := PathParam(r, "version")
+
+		if err := releases.DeleteRelease(r.Context(), org, version); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete release.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+type updateReleaseRequest struct {
+	Ref          *string    `json:"ref"`
+	URL          *string    `json:"url"`
+	DateReleased *time.Time `json:"dateReleased"`
+	Commits      []releaseCommitRequest `json:"commits"`
+}
+
+// handleUpdateRelease handles PUT /api/0/organizations/{org_slug}/releases/{version}/.
+func handleUpdateRelease(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, native *sqlite.NativeControlStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		version := PathParam(r, "version")
+
+		var body updateReleaseRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+
+		updated, err := releases.UpdateRelease(r.Context(), org, version, body.Ref, body.URL, body.DateReleased)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update release.")
+			return
+		}
+		if updated == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Release not found.")
+			return
+		}
+
+		// Apply any commits included in the update.
+		for _, c := range body.Commits {
+			_, _ = releases.AddCommit(r.Context(), org, version, sharedstore.ReleaseCommit{
+				CommitSHA:   c.CommitSHA,
+				Repository:  c.Repository,
+				AuthorName:  c.AuthorName,
+				AuthorEmail: c.AuthorEmail,
+				Message:     c.Message,
+				Files:       c.Files,
+			})
+		}
+
+		orgRecord, ok := getOrganizationFromCatalog(w, r, catalog, org)
+		if !ok {
+			return
+		}
+		summary, err := native.ReleaseSummary(r.Context(), orgRecord.ID, updated.Version)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to summarize release.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, mapRelease(*updated, org, summary))
 	}
 }
 

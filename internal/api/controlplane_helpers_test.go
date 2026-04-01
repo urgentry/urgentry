@@ -83,6 +83,30 @@ func (c testCatalog) ListEnvironments(context.Context, string) ([]string, error)
 	return nil, nil
 }
 
+func (c testCatalog) ListProjectEnvironments(context.Context, string, string) ([]sharedstore.ProjectEnvironment, error) {
+	return nil, nil
+}
+
+func (c testCatalog) GetProjectEnvironment(context.Context, string, string, string) (*sharedstore.ProjectEnvironment, error) {
+	return nil, nil
+}
+
+func (c testCatalog) UpdateProjectEnvironment(_ context.Context, _, _, _ string, _ bool) (*sharedstore.ProjectEnvironment, error) {
+	return nil, nil
+}
+
+func (c testCatalog) ListProjectTeams(context.Context, string, string) ([]sharedstore.Team, error) {
+	return nil, nil
+}
+
+func (c testCatalog) AddProjectTeam(context.Context, string, string, string) (*sharedstore.Team, error) {
+	return nil, nil
+}
+
+func (c testCatalog) RemoveProjectTeam(context.Context, string, string, string) (bool, error) {
+	return false, nil
+}
+
 func (c testCatalog) DeleteProject(context.Context, string, string) error {
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"urgentry/internal/auth"
 	"urgentry/internal/sqlite"
+	"urgentry/pkg/id"
 )
 
 type OrgMemberRecord = sqlite.OrgMemberRecord
@@ -685,6 +686,109 @@ func (s *AdminStore) AddProjectMember(ctx context.Context, orgSlug, projectSlug,
 	rec.Role = role
 	rec.CreatedAt = rec.CreatedAt.UTC()
 	return &rec, nil
+}
+
+// ListTeamProjects returns projects belonging to a team.
+func (s *AdminStore) ListTeamProjects(ctx context.Context, orgSlug, teamSlug string) ([]sqlite.TeamProjectRecord, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT p.id, p.slug, p.name, COALESCE(p.platform,''), COALESCE(p.status,''), p.created_at
+		 FROM projects p
+		 JOIN teams t ON t.id = p.team_id
+		 JOIN organizations o ON o.id = t.organization_id
+		 WHERE o.slug = $1 AND t.slug = $2
+		 ORDER BY p.created_at ASC`, orgSlug, teamSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []sqlite.TeamProjectRecord
+	for rows.Next() {
+		var rec sqlite.TeamProjectRecord
+		if err := rows.Scan(&rec.ID, &rec.Slug, &rec.Name, &rec.Platform, &rec.Status, &rec.DateCreated); err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
+// ListUserTeams returns teams the given user belongs to within an organization.
+func (s *AdminStore) ListUserTeams(ctx context.Context, orgSlug, userID string) ([]*TeamRecord, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT t.id, t.organization_id, o.slug, t.slug, t.name, t.created_at
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 JOIN team_members tm ON tm.team_id = t.id
+		 WHERE o.slug = $1 AND tm.user_id = $2
+		 ORDER BY t.created_at ASC`, orgSlug, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*TeamRecord
+	for rows.Next() {
+		var rec TeamRecord
+		if err := rows.Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.Slug, &rec.Name, &rec.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, &rec)
+	}
+	return out, rows.Err()
+}
+
+// AddMemberToTeamByMemberID adds an org member to a team by membership ID.
+func (s *AdminStore) AddMemberToTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (*TeamMemberRecord, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var userID, teamID, orgID, email, displayName string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT m.user_id, t.id, o.id, u.email, u.display_name
+		 FROM organization_members m
+		 JOIN organizations o ON o.id = m.organization_id
+		 JOIN teams t ON t.organization_id = o.id
+		 JOIN users u ON u.id = m.user_id
+		 WHERE o.slug = $1 AND m.id = $2 AND t.slug = $3`,
+		orgSlug, memberID, teamSlug).Scan(&userID, &teamID, &orgID, &email, &displayName); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	now := time.Now().UTC()
+	tmID := id.New()
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO team_members (id, team_id, user_id, role, created_at)
+		 VALUES ($1, $2, $3, 'member', $4)
+		 ON CONFLICT (team_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+		tmID, teamID, userID, now); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &TeamMemberRecord{
+		ID: tmID, TeamID: teamID, TeamSlug: teamSlug,
+		OrganizationID: orgID, OrganizationSlug: orgSlug,
+		UserID: userID, Email: email, Name: displayName,
+		Role: "member", CreatedAt: now,
+	}, nil
+}
+
+// RemoveMemberFromTeamByMemberID removes an org member from a team by membership ID.
+func (s *AdminStore) RemoveMemberFromTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM team_members
+		 WHERE user_id = (SELECT m.user_id FROM organization_members m JOIN organizations o ON o.id = m.organization_id WHERE o.slug = $1 AND m.id = $2)
+		 AND team_id = (SELECT t.id FROM teams t JOIN organizations o ON o.id = t.organization_id WHERE o.slug = $3 AND t.slug = $4)`,
+		orgSlug, memberID, orgSlug, teamSlug)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
 }
 
 func isDuplicateKeyError(err error) bool {

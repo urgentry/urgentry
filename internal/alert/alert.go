@@ -29,16 +29,20 @@ const (
 )
 
 type Rule struct {
-	ID         string          `json:"id"`
-	ProjectID  string          `json:"projectId"`
-	Name       string          `json:"name"`
-	RuleType   string          `json:"actionMatch"` // "all", "any", "none"
-	Status     string          `json:"status"`      // "active", "disabled"
-	Conditions []Condition     `json:"conditions"`
-	Actions    []Action        `json:"actions"`
-	Config     json.RawMessage `json:"config,omitempty"`
-	CreatedAt  time.Time       `json:"dateCreated"`
-	UpdatedAt  time.Time       `json:"dateModified"`
+	ID          string          `json:"id"`
+	ProjectID   string          `json:"projectId"`
+	Name        string          `json:"name"`
+	RuleType    string          `json:"actionMatch"` // "all", "any", "none"
+	FilterMatch string          `json:"filterMatch"` // "all", "any", "none"
+	Status      string          `json:"status"`      // "active", "disabled"
+	Conditions  []Condition     `json:"conditions"`
+	Actions     []Action        `json:"actions"`
+	Filters     []Filter        `json:"filters"`
+	Frequency   int             `json:"frequency"`              // minutes between alerts (throttle)
+	Environment string          `json:"environment,omitempty"`  // filter by environment ("" = all)
+	Config      json.RawMessage `json:"config,omitempty"`
+	CreatedAt   time.Time       `json:"dateCreated"`
+	UpdatedAt   time.Time       `json:"dateModified"`
 }
 
 type Condition struct {
@@ -52,6 +56,14 @@ type Action struct {
 	Type   string `json:"type"` // "email", "webhook", "slack"
 	Target string `json:"targetIdentifier,omitempty"`
 	Config any    `json:"config,omitempty"`
+}
+
+// Filter represents a Sentry-compatible issue alert filter (e.g. "only if
+// issue is assigned to X", "only if event attribute matches Y").
+type Filter struct {
+	ID    string `json:"id"`
+	Name  string `json:"name,omitempty"`
+	Value any    `json:"value,omitempty"`
 }
 
 type ProfileContext struct {

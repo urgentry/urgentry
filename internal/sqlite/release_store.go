@@ -17,6 +17,8 @@ type Release struct {
 	ID               string
 	OrganizationID   string
 	Version          string
+	Ref              string
+	URL              string
 	DateReleased     time.Time
 	CreatedAt        time.Time
 	EventCount       int // populated by queries that join with events
@@ -70,14 +72,14 @@ func (s *ReleaseStore) CreateRelease(ctx context.Context, orgSlug, version strin
 		}
 	}
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, organization_id, version, date_released, created_at
+		`SELECT id, organization_id, version, date_released, created_at, COALESCE(ref, ''), COALESCE(url, '')
 		   FROM releases
 		  WHERE organization_id = ? AND version = ?`,
 		orgID, version,
 	)
 	var rel Release
 	var dateReleased, createdAt sql.NullString
-	if err := row.Scan(&rel.ID, &rel.OrganizationID, &rel.Version, &dateReleased, &createdAt); err != nil {
+	if err := row.Scan(&rel.ID, &rel.OrganizationID, &rel.Version, &dateReleased, &createdAt, &rel.Ref, &rel.URL); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -108,7 +110,9 @@ func (s *ReleaseStore) ListReleases(ctx context.Context, orgID string, limit int
 		        COALESCE(SUM(CASE WHEN rs.status = 'crashed' THEN rs.quantity ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN rs.status = 'abnormal' THEN rs.quantity ELSE 0 END), 0),
 		        COUNT(DISTINCT CASE WHEN rs.distinct_id IS NOT NULL AND rs.distinct_id != '' THEN rs.distinct_id END),
-		        MAX(rs.created_at)
+		        MAX(rs.created_at),
+		        COALESCE(r.ref, ''),
+		        COALESCE(r.url, '')
 		 FROM releases r
 		 LEFT JOIN projects p ON p.organization_id = r.organization_id
 		 LEFT JOIN release_sessions rs ON rs.project_id = p.id AND rs.release_version = r.version
@@ -129,7 +133,8 @@ func (s *ReleaseStore) ListReleases(ctx context.Context, orgID string, limit int
 		var dateReleased, createdAt, lastSessionAt sql.NullString
 		if err := rows.Scan(&rel.ID, &rel.OrganizationID, &rel.Version,
 			&dateReleased, &createdAt, &rel.EventCount, &rel.SessionCount, &rel.ErroredSessions,
-			&rel.CrashedSessions, &rel.AbnormalSessions, &rel.AffectedUsers, &lastSessionAt); err != nil {
+			&rel.CrashedSessions, &rel.AbnormalSessions, &rel.AffectedUsers, &lastSessionAt,
+			&rel.Ref, &rel.URL); err != nil {
 			return nil, err
 		}
 		rel.DateReleased = parseTime(nullStr(dateReleased))
@@ -168,7 +173,9 @@ func (s *ReleaseStore) GetRelease(ctx context.Context, orgID, version string) (*
 		        COALESCE(SUM(CASE WHEN rs.status = 'crashed' THEN rs.quantity ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN rs.status = 'abnormal' THEN rs.quantity ELSE 0 END), 0),
 		        COUNT(DISTINCT CASE WHEN rs.distinct_id IS NOT NULL AND rs.distinct_id != '' THEN rs.distinct_id END),
-		        MAX(rs.created_at)
+		        MAX(rs.created_at),
+		        COALESCE(r.ref, ''),
+		        COALESCE(r.url, '')
 		 FROM releases r
 		 LEFT JOIN projects p ON p.organization_id = r.organization_id
 		 LEFT JOIN release_sessions rs ON rs.project_id = p.id AND rs.release_version = r.version
@@ -179,7 +186,8 @@ func (s *ReleaseStore) GetRelease(ctx context.Context, orgID, version string) (*
 	var dateReleased, createdAt, lastSessionAt sql.NullString
 	err := row.Scan(&rel.ID, &rel.OrganizationID, &rel.Version,
 		&dateReleased, &createdAt, &rel.EventCount, &rel.SessionCount, &rel.ErroredSessions,
-		&rel.CrashedSessions, &rel.AbnormalSessions, &rel.AffectedUsers, &lastSessionAt)
+		&rel.CrashedSessions, &rel.AbnormalSessions, &rel.AffectedUsers, &lastSessionAt,
+		&rel.Ref, &rel.URL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -202,6 +210,57 @@ func (s *ReleaseStore) GetRelease(ctx context.Context, orgID, version string) (*
 		rel.CrashFreeRate = 100
 	}
 	return &rel, nil
+}
+
+// DeleteRelease removes a release and its associated deploys and commits.
+// Events and issues are left intact.
+func (s *ReleaseStore) DeleteRelease(ctx context.Context, orgSlug, version string) error {
+	releaseID, err := s.lookupReleaseID(ctx, orgSlug, version)
+	if err != nil || releaseID == "" {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM release_deploys WHERE release_id = ?`, releaseID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM release_commits WHERE release_id = ?`, releaseID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM releases WHERE id = ?`, releaseID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// UpdateRelease updates mutable release metadata: ref, url, date_released.
+func (s *ReleaseStore) UpdateRelease(ctx context.Context, orgSlug, version string, ref, url *string, dateReleased *time.Time) (*Release, error) {
+	releaseID, err := s.lookupReleaseID(ctx, orgSlug, version)
+	if err != nil {
+		return nil, err
+	}
+	if releaseID == "" {
+		return nil, nil
+	}
+	if ref != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE releases SET ref = ? WHERE id = ?`, strings.TrimSpace(*ref), releaseID); err != nil {
+			return nil, err
+		}
+	}
+	if url != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE releases SET url = ? WHERE id = ?`, strings.TrimSpace(*url), releaseID); err != nil {
+			return nil, err
+		}
+	}
+	if dateReleased != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE releases SET date_released = ? WHERE id = ?`, dateReleased.UTC().Format(time.RFC3339), releaseID); err != nil {
+			return nil, err
+		}
+	}
+	return s.GetReleaseBySlug(ctx, orgSlug, version)
 }
 
 func (s *ReleaseStore) GetReleaseBySlug(ctx context.Context, orgSlug, version string) (*Release, error) {

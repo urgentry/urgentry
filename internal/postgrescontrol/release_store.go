@@ -108,6 +108,56 @@ func (s *ReleaseStore) GetReleaseBySlug(ctx context.Context, orgSlug, version st
 	return s.GetRelease(ctx, orgID, version)
 }
 
+// DeleteRelease removes a release and its associated deploys and commits.
+func (s *ReleaseStore) DeleteRelease(ctx context.Context, orgSlug, version string) error {
+	releaseID, err := s.lookupReleaseID(ctx, orgSlug, version)
+	if err != nil || releaseID == "" {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM release_deploys WHERE release_id = $1`, releaseID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM release_commits WHERE release_id = $1`, releaseID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM releases WHERE id = $1`, releaseID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// UpdateRelease updates mutable release metadata: ref, url, date_released.
+func (s *ReleaseStore) UpdateRelease(ctx context.Context, orgSlug, version string, ref, url *string, dateReleased *time.Time) (*sqlite.Release, error) {
+	releaseID, err := s.lookupReleaseID(ctx, orgSlug, version)
+	if err != nil {
+		return nil, err
+	}
+	if releaseID == "" {
+		return nil, nil
+	}
+	if ref != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE releases SET ref = $1 WHERE id = $2`, strings.TrimSpace(*ref), releaseID); err != nil {
+			return nil, err
+		}
+	}
+	if url != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE releases SET url = $1 WHERE id = $2`, strings.TrimSpace(*url), releaseID); err != nil {
+			return nil, err
+		}
+	}
+	if dateReleased != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE releases SET date_released = $1 WHERE id = $2`, dateReleased.UTC(), releaseID); err != nil {
+			return nil, err
+		}
+	}
+	return s.GetReleaseBySlug(ctx, orgSlug, version)
+}
+
 // AddDeploy stores one deployment marker for a release.
 func (s *ReleaseStore) AddDeploy(ctx context.Context, orgSlug, version string, deploy sharedstore.ReleaseDeploy) (*sharedstore.ReleaseDeploy, error) {
 	releaseID, err := s.lookupReleaseID(ctx, orgSlug, version)
@@ -404,7 +454,9 @@ const releaseSummarySelectSQL = `SELECT r.id, r.organization_id, r.version, r.da
        COALESCE((SELECT COUNT(*) FROM release_sessions rs JOIN projects p ON p.id = rs.project_id WHERE p.organization_id = r.organization_id AND rs.release = r.version AND rs.status = 'crashed'), 0) AS crashed_sessions,
        COALESCE((SELECT COUNT(*) FROM release_sessions rs JOIN projects p ON p.id = rs.project_id WHERE p.organization_id = r.organization_id AND rs.release = r.version AND rs.status = 'abnormal'), 0) AS abnormal_sessions,
        COALESCE((SELECT COUNT(DISTINCT rs.user_identifier) FROM release_sessions rs JOIN projects p ON p.id = rs.project_id WHERE p.organization_id = r.organization_id AND rs.release = r.version AND rs.user_identifier <> ''), 0) AS affected_users,
-       (SELECT MAX(rs.timestamp) FROM release_sessions rs JOIN projects p ON p.id = rs.project_id WHERE p.organization_id = r.organization_id AND rs.release = r.version) AS last_session_at
+       (SELECT MAX(rs.timestamp) FROM release_sessions rs JOIN projects p ON p.id = rs.project_id WHERE p.organization_id = r.organization_id AND rs.release = r.version) AS last_session_at,
+       COALESCE(r.ref, ''),
+       COALESCE(r.url, '')
   FROM releases r`
 
 func scanRelease(scanner rowScanner) (sqlite.Release, error) {
@@ -413,6 +465,7 @@ func scanRelease(scanner rowScanner) (sqlite.Release, error) {
 	err := scanner.Scan(
 		&item.ID, &item.OrganizationID, &item.Version, &dateReleased, &createdAt,
 		&item.EventCount, &item.SessionCount, &item.ErroredSessions, &item.CrashedSessions, &item.AbnormalSessions, &item.AffectedUsers, &lastSessionAt,
+		&item.Ref, &item.URL,
 	)
 	if err != nil {
 		return item, err
