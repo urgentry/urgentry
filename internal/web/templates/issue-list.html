@@ -1,0 +1,299 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Issues <span class="count">({{.UnresolvedCount}} unresolved{{if .Environment}} in {{.Environment}}{{end}})</span></h1>
+</div>
+
+<!-- Saved Searches -->
+{{if .SavedSearches}}
+<div class="saved-searches">
+  {{range .SavedSearches}}
+  <a href="/issues/?query={{.Query}}&filter={{.Filter}}{{if .Environment}}&environment={{.Environment}}{{end}}" class="saved-search-pill">
+    {{if .Favorite}}★ {{end}}
+    {{.Name}}
+    <button class="saved-search-delete" onclick="event.preventDefault(); event.stopPropagation(); deleteSearch('{{.ID}}')" title="Remove">&times;</button>
+  </a>
+  {{end}}
+</div>
+{{end}}
+
+<!-- Batch action bar -->
+<div class="batch-bar" id="batchBar" style="display:none">
+  <span class="batch-count"><span id="batchCount">0</span> selected</span>
+  <button class="btn btn-sm btn-resolve" onclick="batchAction('resolve')">Resolve</button>
+  <button class="btn btn-sm btn-archive" onclick="batchAction('ignore')">Ignore</button>
+  <button class="btn btn-sm" onclick="clearSelection()">Clear</button>
+</div>
+
+<!-- Filter bar -->
+<div class="sentry-filter-bar">
+  <div class="filter-controls">
+    {{if .Environments}}
+    <select class="filter-select" onchange="window.location.href='/issues/?environment='+this.value+'&sort={{.Sort}}&timerange={{.TimeRange}}{{if ne .Filter "all"}}&filter={{.Filter}}{{end}}{{if .Query}}&query={{.Query}}{{end}}'">
+      <option value="all"{{if eq .Environment ""}} selected{{end}}>All Envs</option>
+      {{range .Environments}}
+      <option value="{{.}}"{{if eq . $.Environment}} selected{{end}}>{{.}}</option>
+      {{end}}
+    </select>
+    {{end}}
+    <select class="filter-select" onchange="window.location.href='/issues/?timerange='+this.value+'&sort={{.Sort}}{{if ne .Filter "all"}}&filter={{.Filter}}{{end}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}'">
+      {{range .TimeRangeOptions}}
+      <option value="{{.Value}}"{{if eq .Value $.TimeRange}} selected{{end}}>{{.Label}}</option>
+      {{end}}
+    </select>
+    <select class="filter-select" onchange="window.location.href='/issues/?sort='+this.value+'&timerange={{.TimeRange}}{{if ne .Filter "all"}}&filter={{.Filter}}{{end}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}'">
+      <option value="last_seen"{{if eq .Sort "last_seen"}} selected{{end}}>Last Seen</option>
+      <option value="first_seen"{{if eq .Sort "first_seen"}} selected{{end}}>First Seen</option>
+      <option value="events"{{if eq .Sort "events"}} selected{{end}}>Events</option>
+      <option value="priority"{{if eq .Sort "priority"}} selected{{end}}>Priority</option>
+    </select>
+  </div>
+
+  <form class="search-form-sentry" method="GET" action="/issues/">
+    <div class="search-bar-sentry">
+      {{if and (ne .Filter "all") (ne .Filter "")}}
+      <span class="search-token">is:{{.Filter}} <a href="/issues/?filter=all&sort={{.Sort}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="token-remove">&times;</a></span>
+      {{end}}
+      <input type="text" name="query" value="{{.Query}}" placeholder="Search issues..." class="search-input-inline">
+      <input type="hidden" name="filter" value="{{.Filter}}">
+      <input type="hidden" name="sort" value="{{.Sort}}">
+      {{if .Environment}}<input type="hidden" name="environment" value="{{.Environment}}">{{end}}
+    </div>
+  </form>
+
+  <div class="filter-actions">
+    <a href="/issues/?filter=all&sort={{.Sort}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="filter-pill {{if eq .Filter "all"}}active{{end}}">All <span class="pill-count">{{.TotalCount}}</span></a>
+    <a href="/issues/?filter=unresolved&sort={{.Sort}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="filter-pill {{if eq .Filter "unresolved"}}active{{end}}">Unresolved <span class="pill-count">{{.UnresolvedCount}}</span></a>
+    <a href="/issues/?filter=resolved&sort={{.Sort}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="filter-pill {{if eq .Filter "resolved"}}active{{end}}">Resolved <span class="pill-count">{{.ResolvedCount}}</span></a>
+    <a href="/issues/?filter=ignored&sort={{.Sort}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="filter-pill {{if eq .Filter "ignored"}}active{{end}}">Ignored <span class="pill-count">{{.IgnoredCount}}</span></a>
+    <button class="save-search-btn" onclick="saveCurrentSearch()" title="Save current filter as a quick search">+ Save</button>
+  </div>
+</div>
+
+<!-- Issues table -->
+<div id="issue-content">
+{{if .Issues}}
+<div class="issues-table-wrapper">
+  <table class="issues-table">
+    <thead>
+      <tr>
+        <th class="col-check"><input type="checkbox" id="selectAll" aria-label="Select all" onchange="toggleSelectAll(this)"></th>
+        <th class="col-issue">Issue</th>
+        <th class="col-lastseen">Last Seen</th>
+        <th class="col-age">Age</th>
+        <th class="col-trend">24h</th>
+        <th class="col-events">Events</th>
+        <th class="col-users">Users</th>
+        <th class="col-priority">Priority</th>
+        <th class="col-assignee">Assignee</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Issues}}
+      <tr class="issue-row" data-id="{{.ID}}" data-href="/issues/{{.ID}}/">
+        <td class="col-check"><input type="checkbox" class="issue-check" data-id="{{.ID}}" aria-label="Select issue" onclick="event.stopPropagation(); updateBatchBar()"></td>
+        <td class="col-issue">
+          <div class="issue-cell">
+            <span class="severity-dot severity-{{.Level}}"></span>
+            <div class="issue-info">
+              <a href="/issues/{{.ID}}/" class="issue-title-link">{{.Title}}</a>
+              <div class="issue-subtitle">
+                <span class="issue-short-id">{{.ShortID}}</span>
+                {{if .Culprit}}<span class="issue-culprit-text">{{.Culprit}}</span>{{end}}
+                {{if .Release}}<span class="issue-release">{{.Release}}</span>{{end}}
+              </div>
+            </div>
+            <div class="issue-row-actions">
+              {{if ne .Status "resolved"}}
+              <button class="action-btn action-resolve" title="Resolve" aria-label="Resolve issue"
+                      hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"resolve"}'
+                      hx-swap="none" onclick="event.stopPropagation()">&#10003;</button>
+              {{end}}
+              {{if ne .Status "ignored"}}
+              <button class="action-btn action-ignore" title="Ignore" aria-label="Ignore issue"
+                      hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"ignore"}'
+                      hx-swap="none" onclick="event.stopPropagation()">&#10005;</button>
+              {{end}}
+              {{if or (eq .Status "resolved") (eq .Status "ignored")}}
+              <button class="action-btn action-reopen" title="Reopen" aria-label="Reopen issue"
+                      hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"reopen"}'
+                      hx-swap="none" onclick="event.stopPropagation()">&#8634;</button>
+              {{end}}
+            </div>
+          </div>
+        </td>
+        <td class="col-lastseen"><span class="{{.TimeClass}}">{{.TimeAgo}}</span></td>
+        <td class="col-age">{{.Age}}</td>
+        <td class="col-trend">
+          <div class="sparkline-mini">
+            {{range .Sparkline}}<div class="spark-bar" style="height:{{.}}px"></div>{{end}}
+          </div>
+        </td>
+        <td class="col-events">{{.EventCount}}</td>
+        <td class="col-users">{{.UserCount}}</td>
+        <td class="col-priority">
+          <span class="priority-icon priority-{{.Priority}}" title="{{.PriorityLabel}} - Click to cycle"
+                onclick="event.stopPropagation(); cyclePriority('{{.ID}}', {{.Priority}})">
+            {{if eq .Priority 0}}<span class="priority-bars p-critical">&#9608;&#9608;&#9608;&#9608;</span>
+            {{else if eq .Priority 1}}<span class="priority-bars p-high">&#9608;&#9608;&#9608;</span>
+            {{else if eq .Priority 3}}<span class="priority-bars p-low">&#9608;</span>
+            {{else}}<span class="priority-bars p-medium">&#9608;&#9608;</span>
+            {{end}}
+          </span>
+        </td>
+        <td class="col-assignee" onclick="event.stopPropagation()">
+          <div class="assignee-dropdown">
+            <div class="assignee-circle" title="{{if .Assignee}}{{.Assignee}}{{else}}Unassigned{{end}}" onclick="toggleAssignee(this.parentElement)">
+              {{if .Assignee}}<span class="assignee-initial">{{slice .Assignee 0 1}}</span>{{end}}
+            </div>
+            <div class="assignee-menu" style="display:none">
+              <input type="text" placeholder="Assign to..." class="assign-input" value="{{.Assignee}}"
+                     onkeydown="if(event.key==='Enter'){assignTo(this, '{{.ID}}'); event.stopPropagation();}">
+              <button onclick="assignTo(this.previousElementSibling, '{{.ID}}')" class="btn-sm">Assign</button>
+            </div>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination-sentry">
+  <span class="page-range">{{.RangeStart}}-{{.RangeEnd}} of {{.FilteredCount}}</span>
+  <div class="page-arrows">
+    {{if .HasPrev}}<a href="/issues/?page={{.PrevPage}}&sort={{.Sort}}{{if ne .Filter "all"}}&filter={{.Filter}}{{end}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="page-arrow">&lsaquo;</a>{{else}}<span class="page-arrow disabled">&lsaquo;</span>{{end}}
+    {{if .HasNext}}<a href="/issues/?page={{.NextPage}}&sort={{.Sort}}{{if ne .Filter "all"}}&filter={{.Filter}}{{end}}{{if .Environment}}&environment={{.Environment}}{{end}}{{if .Query}}&query={{.Query}}{{end}}" class="page-arrow">&rsaquo;</a>{{else}}<span class="page-arrow disabled">&rsaquo;</span>{{end}}
+  </div>
+</div>
+{{else}}
+<div class="empty-state">
+  <div class="empty-icon">&#10024;</div>
+  <div class="empty-title">No issues found</div>
+  <div class="empty-text">{{if .Query}}No issues match your search.{{else}}All quiet. Nice work.{{end}}</div>
+  {{if ne .Filter "all"}}
+  <a href="/issues/" class="btn btn-primary">View all issues</a>
+  {{end}}
+</div>
+{{end}}
+</div>
+
+<script>
+// Make table rows clickable
+document.querySelectorAll('.issue-row[data-href]').forEach(function(row) {
+  row.addEventListener('click', function(e) {
+    if (e.target.closest('a, button, input, .assignee-dropdown')) return;
+    window.location.href = this.dataset.href;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Batch actions
+// ---------------------------------------------------------------------------
+function toggleSelectAll(el) {
+  var checks = document.querySelectorAll('.issue-check');
+  checks.forEach(function(c) { c.checked = el.checked; });
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  var checked = document.querySelectorAll('.issue-check:checked');
+  var bar = document.getElementById('batchBar');
+  document.getElementById('batchCount').textContent = checked.length;
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+}
+
+function batchAction(action) {
+  var checked = document.querySelectorAll('.issue-check:checked');
+  var ids = [];
+  checked.forEach(function(c) { ids.push(c.dataset.id); });
+  Promise.all(ids.map(function(id) {
+    return fetch('/issues/' + id + '/status', {
+      method: 'POST',
+      headers: {'HX-Request': 'true', 'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'action=' + action
+    });
+  })).then(function() { location.reload(); });
+}
+
+function clearSelection() {
+  document.querySelectorAll('.issue-check').forEach(function(c) { c.checked = false; });
+  var sa = document.getElementById('selectAll');
+  if (sa) sa.checked = false;
+  updateBatchBar();
+}
+
+// ---------------------------------------------------------------------------
+// Priority cycling
+// ---------------------------------------------------------------------------
+function cyclePriority(id, current) {
+  var next = (current + 1) % 4;
+  fetch('/issues/' + id + '/priority', {
+    method: 'POST',
+    headers: {'HX-Request': 'true', 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'priority=' + next
+  }).then(function() { location.reload(); });
+}
+
+// ---------------------------------------------------------------------------
+// Assignee dropdown
+// ---------------------------------------------------------------------------
+function toggleAssignee(dropdown) {
+  var menu = dropdown.querySelector('.assignee-menu');
+  if (!menu) return;
+  var visible = menu.style.display !== 'none';
+  // Close all other open menus first
+  document.querySelectorAll('.assignee-menu').forEach(function(m) { m.style.display = 'none'; });
+  if (!visible) {
+    menu.style.display = 'flex';
+    menu.querySelector('input').focus();
+  }
+}
+
+function assignTo(input, id) {
+  var val = input.value.trim();
+  fetch('/issues/' + id + '/assign', {
+    method: 'POST',
+    headers: {'HX-Request': 'true', 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'assignee=' + encodeURIComponent(val)
+  }).then(function() { location.reload(); });
+}
+
+// Close assignee dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.assignee-dropdown')) {
+    document.querySelectorAll('.assignee-menu').forEach(function(m) { m.style.display = 'none'; });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Saved Searches
+// ---------------------------------------------------------------------------
+function saveCurrentSearch() {
+  var name = prompt('Name for this search:');
+  if (!name) return;
+  var params = new URLSearchParams(window.location.search);
+  fetch('/api/ui/searches', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name,
+      query: params.get('query') || '',
+      filter: params.get('filter') || 'all',
+      environment: params.get('environment') || ''
+    })
+  }).then(function(resp) {
+    if (resp.ok) window.location.reload();
+    else alert('Failed to save search');
+  });
+}
+
+function deleteSearch(id) {
+  fetch('/api/ui/searches/' + id, { method: 'DELETE' }).then(function(resp) {
+    if (resp.ok) window.location.reload();
+  });
+}
+</script>
+{{end}}

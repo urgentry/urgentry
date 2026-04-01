@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urgentry-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urgentry
+      role: scheduler
+  template:
+    metadata:
+      labels:
+        app: urgentry
+        role: scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: urgentry:latest
+          imagePullPolicy: IfNotPresent
+          args: ["serve", "--role=scheduler", "--addr=:8083"]
+          ports:
+            - containerPort: 8083
+              name: scheduler
+          envFrom:
+            - configMapRef:
+                name: urgentry-config
+            - secretRef:
+                name: urgentry-secret
+          env:
+            - name: URGENTRY_DATA_DIR
+              value: /data
+          volumeMounts:
+            - name: urgentry-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: scheduler
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: scheduler
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: urgentry-data
+          persistentVolumeClaim:
+            claimName: urgentry-data

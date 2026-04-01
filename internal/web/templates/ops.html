@@ -1,0 +1,335 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Operator</h1>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Runtime</div>
+  <table class="settings-table">
+    <tr>
+      <td class="settings-label">Organization</td>
+      <td class="mono">{{.OrganizationSlug}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Role</td>
+      <td>{{.Runtime.Role}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Environment</td>
+      <td>{{.Runtime.Env}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Version</td>
+      <td class="mono">{{if .Runtime.Version}}{{.Runtime.Version}}{{else}}dev{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Async Backend</td>
+      <td>{{if .Runtime.AsyncBackend}}{{.Runtime.AsyncBackend}}{{else}}sqlite{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Cache Backend</td>
+      <td>{{if .Runtime.CacheBackend}}{{.Runtime.CacheBackend}}{{else}}sqlite{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Blob Backend</td>
+      <td>{{if .Runtime.BlobBackend}}{{.Runtime.BlobBackend}}{{else}}file{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Queue Backlog</td>
+      <td>{{.QueueDepth}} jobs</td>
+    </tr>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Install State</div>
+  <table class="settings-table">
+    {{if .Install}}
+    <tr>
+      <td class="settings-label">Install ID</td>
+      <td class="mono">{{.Install.InstallID}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Region</td>
+      <td>{{if .Install.Region}}{{.Install.Region}}{{else}}-{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Environment</td>
+      <td>{{if .Install.Environment}}{{.Install.Environment}}{{else}}-{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Deployed Version</td>
+      <td class="mono">{{if .Install.Version}}{{.Install.Version}}{{else}}dev{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Bootstrap</td>
+      <td>{{if .Install.BootstrapCompleted}}complete{{else}}pending{{end}}{{if .Install.BootstrapCompletedAt}} · {{.Install.BootstrapCompletedAt}}{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Maintenance</td>
+      <td>{{if .Install.MaintenanceMode}}enabled{{else}}disabled{{end}}{{if .Install.MaintenanceStartedAt}} · {{.Install.MaintenanceStartedAt}}{{end}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Reason</td>
+      <td>{{if .Install.MaintenanceReason}}{{.Install.MaintenanceReason}}{{else}}-{{end}}</td>
+    </tr>
+    {{else}}
+    <tr>
+      <td colspan="2">Install state has not been recorded yet.</td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Diagnostics Export</div>
+  <p><a href="{{.DiagnosticsURL}}">Download redacted diagnostics JSON</a></p>
+  <ul>
+    {{range .Redactions}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Service Health</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Status</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Services}}
+        {{range .Services}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td><span class="issue-status-badge {{.Status}}">{{.Status}}</span></td>
+          <td class="mono">{{if .Detail}}{{.Detail}}{{else}}-{{end}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr><td colspan="3">No service checks configured.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Install SLOs</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Plane</th>
+        <th>Health</th>
+        <th>Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .SLOs}}
+        {{range .SLOs}}
+        <tr>
+          <td>{{.Plane}}</td>
+          <td><span class="issue-status-badge {{.Health}}">{{.Health}}</span></td>
+          <td>{{if .Summary}}{{.Summary}}{{else}}within contract{{end}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr><td colspan="3">No SLO state available.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Operator Alerts</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Plane</th>
+        <th>Name</th>
+        <th>Severity</th>
+        <th>Health</th>
+        <th>Trigger</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Alerts}}
+        {{range .Alerts}}
+        <tr>
+          <td>{{.Plane}}</td>
+          <td>{{.Name}}</td>
+          <td>{{.Severity}}</td>
+          <td><span class="issue-status-badge {{.Health}}">{{.Health}}</span></td>
+          <td>{{.Trigger}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr><td colspan="5">No operator alerts configured.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Backfills</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Kind</th>
+        <th>Status</th>
+        <th>Scope</th>
+        <th>Progress</th>
+        <th>Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Backfills}}
+        {{range .Backfills}}
+        <tr>
+          <td class="mono">{{.ID}}</td>
+          <td>{{.Kind}}</td>
+          <td><span class="issue-status-badge {{.Status}}">{{.Status}}</span></td>
+          <td class="mono">{{.Scope}}</td>
+          <td>{{.Progress}}</td>
+          <td>{{.UpdatedAt}}</td>
+        </tr>
+        {{if .LastError}}
+        <tr>
+          <td></td>
+          <td colspan="5" class="mono">last error: {{.LastError}}</td>
+        </tr>
+        {{end}}
+        {{end}}
+      {{else}}
+        <tr><td colspan="6">No backfill runs yet.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Retention Outcomes</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Surface</th>
+        <th>Type</th>
+        <th>Record</th>
+        <th>Blob</th>
+        <th>Archived</th>
+        <th>Restored</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .RetentionOutcomes}}
+        {{range .RetentionOutcomes}}
+        <tr>
+          <td>{{.Project}}</td>
+          <td>{{.Surface}}</td>
+          <td>{{.RecordType}}</td>
+          <td class="mono">{{.RecordID}}</td>
+          <td>{{.BlobState}}</td>
+          <td>{{.ArchivedAt}}</td>
+          <td>{{if .RestoredAt}}{{.RestoredAt}}{{else}}-{{end}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr><td colspan="7">No retention outcomes recorded yet.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Install Ledger</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Status</th>
+        <th>Source</th>
+        <th>Actor</th>
+        <th>Detail</th>
+        <th>Metadata</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .InstallAudits}}
+        {{range .InstallAudits}}
+        <tr>
+          <td>{{.Action}}</td>
+          <td><span class="issue-status-badge {{.Status}}">{{.Status}}</span></td>
+          <td>{{.Source}}</td>
+          <td>{{.Actor}}</td>
+          <td>{{if .Detail}}{{.Detail}}{{else}}-{{end}}</td>
+          <td class="mono">{{if .Metadata}}{{.Metadata}}{{else}}{}{{end}}</td>
+          <td>{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr><td colspan="7">No install-wide operator actions recorded yet.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Recent Audit Activity</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Actor</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .AuditLogs}}
+        {{range .AuditLogs}}
+        <tr>
+          <td>{{.Action}}</td>
+          <td>{{.Actor}}</td>
+          <td>{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr><td colspan="3">No audit history recorded yet.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<style>
+.settings-section {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.settings-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.settings-label {
+  font-weight: 500;
+  color: var(--text-secondary, #9CA0B0);
+  width: 180px;
+}
+</style>
+{{end}}

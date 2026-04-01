@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{if .Title}}{{.Title}} — {{end}}Urgentry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Inter", sans-serif;
+      --bg: #0f172a;
+      --panel: rgba(15, 23, 42, 0.86);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --border: rgba(148, 163, 184, 0.24);
+      --error: #fca5a5;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 40%),
+        linear-gradient(160deg, #020617 0%, #0f172a 65%, #111827 100%);
+      color: var(--text);
+    }
+    .card {
+      width: min(420px, calc(100vw - 2rem));
+      padding: 2rem;
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 80px rgba(2, 6, 23, 0.55);
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+    }
+    p {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text);
+      padding: 0.85rem 0.95rem;
+      font: inherit;
+      margin-bottom: 1rem;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: #020617;
+      font: inherit;
+      font-weight: 700;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+    }
+    .error {
+      margin: 0 0 1rem;
+      color: var(--error);
+      font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Sign in</h1>
+    <p>Use the local Urgentry account configured for this instance.</p>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form method="post" action="/login/">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

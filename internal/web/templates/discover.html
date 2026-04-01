@@ -1,0 +1,204 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">{{.Title}}</h1>
+  <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+    <a href="{{.ExportCSVURL}}" class="btn btn-sm">Export CSV</a>
+    <a href="{{.ExportJSONURL}}" class="btn btn-sm">Export JSON</a>
+  </div>
+</div>
+
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="section-header" style="padding: 0 0 0.5rem;">{{.Guide.Title}}</div>
+  <div class="empty-text">{{.Guide.Body}}</div>
+  {{if .Guide.Steps}}
+  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
+    {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  </ul>
+  {{end}}
+  {{if .Guide.ActionURL}}
+  <div style="margin-top:0.9rem;">
+    <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
+  </div>
+  {{end}}
+</div>
+
+{{if .StarterViews}}
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="section-header" style="padding: 0 0 0.75rem;">Starter Views</div>
+  <div class="metrics-grid" style="align-items:start;">
+    {{range .StarterViews}}
+    <div class="metric-card">
+      <div class="metric-label">{{.Dataset}}</div>
+      <div class="activity-text" style="margin-bottom:0.4rem;">{{.Name}}</div>
+      <div class="empty-text">{{.Description}}</div>
+      <div style="margin-top:0.85rem;">
+        <a href="{{.OpenURL}}" class="btn btn-sm">Open view</a>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+<div class="metrics-grid" style="align-items:start;">
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Query Builder</div>
+    <form method="GET" action="{{.Action}}">
+      <div class="search-bar-sentry" style="flex-wrap: wrap; gap: 0.75rem;">
+        <input type="text" name="query" value="{{.State.Query}}" placeholder="Search terms, release:..., environment:..." class="search-input-inline" style="min-width: 260px; flex: 1;">
+        <select name="dataset" class="filter-select">
+          <option value="issues" {{if eq .State.Dataset "issues"}}selected{{end}}>Issues</option>
+          <option value="logs" {{if eq .State.Dataset "logs"}}selected{{end}}>Logs</option>
+          <option value="transactions" {{if eq .State.Dataset "transactions"}}selected{{end}}>Transactions</option>
+        </select>
+        <select name="visualization" class="filter-select">
+          <option value="table" {{if or (eq .State.Visualization "") (eq .State.Visualization "table")}}selected{{end}}>Table</option>
+          <option value="stat" {{if eq .State.Visualization "stat"}}selected{{end}}>Stat</option>
+          <option value="series" {{if eq .State.Visualization "series"}}selected{{end}}>Series</option>
+        </select>
+        <input type="text" name="columns" value="{{.State.Columns}}" placeholder="Columns: timestamp, transaction" class="search-input-inline" style="min-width: 220px;">
+        <input type="text" name="aggregate" value="{{.State.Aggregate}}" placeholder="Aggregates: count, p95(duration.ms)" class="search-input-inline" style="min-width: 240px;">
+        <input type="text" name="group_by" value="{{.State.GroupBy}}" placeholder="Group by: project, environment" class="search-input-inline" style="min-width: 220px;">
+        <input type="text" name="order_by" value="{{.State.OrderBy}}" placeholder="Sort: -count, project" class="search-input-inline" style="min-width: 200px;">
+        <select name="time_range" class="filter-select">
+          <option value="" {{if eq .State.TimeRange ""}}selected{{end}}>Default range</option>
+          <option value="1h" {{if eq .State.TimeRange "1h"}}selected{{end}}>Last hour</option>
+          <option value="6h" {{if eq .State.TimeRange "6h"}}selected{{end}}>Last 6 hours</option>
+          <option value="24h" {{if eq .State.TimeRange "24h"}}selected{{end}}>Last 24 hours</option>
+          <option value="7d" {{if eq .State.TimeRange "7d"}}selected{{end}}>Last 7 days</option>
+        </select>
+        <select name="rollup" class="filter-select">
+          <option value="" {{if eq .State.Rollup ""}}selected{{end}}>Default rollup</option>
+          <option value="5m" {{if eq .State.Rollup "5m"}}selected{{end}}>5 minutes</option>
+          <option value="1h" {{if eq .State.Rollup "1h"}}selected{{end}}>1 hour</option>
+          <option value="1d" {{if eq .State.Rollup "1d"}}selected{{end}}>1 day</option>
+        </select>
+        <input type="text" name="environment" value="{{.State.Environment}}" placeholder="Environment" class="search-input-inline" style="min-width: 160px;">
+        {{if .State.SavedID}}<input type="hidden" name="saved" value="{{.State.SavedID}}">{{end}}
+        <button type="submit" class="btn btn-sm">Run query</button>
+      </div>
+      <div class="empty-text" style="padding-top:0.65rem;">Use comma-separated builder grammar. Examples: columns <code>timestamp, transaction, duration.ms</code>, aggregates <code>count, p95(duration.ms)</code>, group by <code>project, environment</code>, sort <code>-p95, project</code>.</div>
+    </form>
+    <form method="POST" action="/discover/save-query" style="margin-top: 0.75rem;">
+      <div class="search-bar-sentry" style="gap: 0.75rem; flex-wrap: wrap;">
+        <input type="text" name="name" value="{{.State.SaveName}}" placeholder="Save query as..." class="search-input-inline" style="min-width: 220px;">
+        <input type="text" name="description" value="{{.State.SaveDescription}}" placeholder="Short description" class="search-input-inline" style="min-width: 240px; flex: 1;">
+        <select name="visibility" class="filter-select">
+          <option value="private" {{if or (eq .State.SaveVisibility "") (eq .State.SaveVisibility "private")}}selected{{end}}>Just me</option>
+          <option value="organization" {{if eq .State.SaveVisibility "organization"}}selected{{end}}>Organization</option>
+        </select>
+        <label style="display:flex; align-items:center; gap:0.4rem; color:var(--text-muted,#6b7280); font-size:0.92rem;">
+          <input type="checkbox" name="favorite" value="1" {{if .State.SaveFavorite}}checked{{end}} style="margin:0;">
+          Favorite
+        </label>
+        <input type="hidden" name="dataset" value="{{.State.Dataset}}">
+        <input type="hidden" name="query" value="{{.State.Query}}">
+        <input type="hidden" name="filter" value="{{.State.Filter}}">
+        <input type="hidden" name="environment" value="{{.State.Environment}}">
+        <input type="hidden" name="visualization" value="{{.State.Visualization}}">
+        <input type="hidden" name="columns" value="{{.State.Columns}}">
+        <input type="hidden" name="aggregate" value="{{.State.Aggregate}}">
+        <input type="hidden" name="group_by" value="{{.State.GroupBy}}">
+        <input type="hidden" name="order_by" value="{{.State.OrderBy}}">
+        <input type="hidden" name="time_range" value="{{.State.TimeRange}}">
+        <input type="hidden" name="rollup" value="{{.State.Rollup}}">
+        <button type="submit" class="btn btn-sm">Save query</button>
+      </div>
+    </form>
+    {{if .Error}}
+    <div class="empty-state" style="padding: 1rem 0 0;">
+      <div class="empty-text">{{.Error}}</div>
+      {{if .ErrorDetails}}
+      <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
+        {{range .ErrorDetails}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+      </ul>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Saved Queries</div>
+    {{if .SavedQueries}}
+    <div class="activity-feed">
+      {{range .SavedQueries}}
+      <div class="activity-row" style="align-items:flex-start; gap:0.75rem;">
+        <span class="activity-icon" style="background: var(--accent-color, #5b6cff);"></span>
+        <div style="display:flex; flex:1; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
+          <a href="{{.URL}}" style="text-decoration:none; flex:1;">
+            <div class="activity-text">{{if .Favorite}}★ {{end}}{{.Name}} <span class="alert-secondary">· {{.Dataset}}{{if eq .Visibility "organization"}} · shared{{end}}</span></div>
+            {{if .Description}}<div class="empty-text" style="padding-top:0.25rem;">{{.Description}}</div>{{end}}
+            {{if .Tags}}<div class="empty-text" style="padding-top:0.25rem;">Tags: {{range $i, $tag := .Tags}}{{if $i}}, {{end}}{{$tag}}{{end}}</div>{{end}}
+          </a>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a href="{{.OpenURL}}" class="btn btn-sm">Open</a>
+            <form method="POST" action="/discover/queries/{{.ID}}/favorite">
+              <input type="hidden" name="favorite" value="{{if .Favorite}}0{{else}}1{{end}}">
+              <input type="hidden" name="return_to" value="{{$.CurrentURL}}">
+              <button type="submit" class="btn btn-sm">{{if .Favorite}}Unfavorite{{else}}Favorite{{end}}</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state" style="padding: 0;">
+      <div class="empty-text">Saved queries appear here after you save one.</div>
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{if or .Explain.CostLabel .Explain.Notes .Explain.QueryJSON}}
+<div class="card" style="margin-top: 1.25rem; padding: 1rem;">
+  <div class="section-header" style="padding: 0 0 0.75rem;">Query Explain</div>
+  {{if .Explain.CostLabel}}<div class="alert-secondary" style="margin-bottom:0.75rem;">{{.Explain.CostLabel}}</div>{{end}}
+  {{if .Explain.Notes}}
+  <ul style="margin:0 0 0.75rem; padding-left:1.2rem; color:var(--text-secondary);">
+    {{range .Explain.Notes}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  </ul>
+  {{end}}
+  {{if .Explain.QueryJSON}}
+  <pre style="margin:0; padding:0.85rem 1rem; border-radius:12px; background:rgba(15,23,42,0.06); overflow:auto; white-space:pre-wrap;">{{.Explain.QueryJSON}}</pre>
+  {{end}}
+</div>
+{{end}}
+
+{{if eq .Result.Type "stat"}}
+<div class="metric-card" style="margin-top: 1.25rem;">
+  <div class="metric-label">{{if .Result.StatLabel}}{{.Result.StatLabel}}{{else}}Result{{end}}</div>
+  <div class="metric-value">{{if .Result.StatValue}}{{.Result.StatValue}}{{else}}0{{end}}</div>
+</div>
+{{else}}
+<div class="card" style="margin-top: 1.25rem;">
+  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Results</div>
+  {{if .Result.Rows}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        {{range .Result.Columns}}<th>{{.}}</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Result.Rows}}
+      <tr>
+        {{range .}}
+        <td>
+          {{if .Href}}<a href="{{.Href}}">{{.Text}}</a>{{else}}{{if .Text}}{{.Text}}{{else}}-{{end}}{{end}}
+        </td>
+        {{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 1rem;">
+    <div class="empty-text">No matching results.</div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}

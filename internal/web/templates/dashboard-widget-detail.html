@@ -1,0 +1,147 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+    <h1 class="page-title" style="margin:0;">{{.WidgetView.Widget.Title}}</h1>
+    <span class="alert-secondary">{{.WidgetView.Contract.Kind}} · {{.WidgetView.Contract.Dataset}}</span>
+    <a href="{{.DashboardURL}}" class="btn btn-sm">Back to dashboard</a>
+  </div>
+  {{if .WidgetView.Widget.Description}}<div class="empty-text" style="margin-top:0.5rem;">{{.WidgetView.Widget.Description}}</div>{{end}}
+</div>
+
+<div class="metrics-grid" style="align-items:start;">
+  <div class="card" style="padding:1rem;">
+    <div class="section-header" style="padding:0 0 0.75rem;">Widget Contract</div>
+    <div style="display:grid; gap:0.75rem;">
+      <div>
+        <div class="alert-secondary">Dashboard</div>
+        <div><a href="{{.DashboardURL}}">{{.Dashboard.Title}}</a></div>
+      </div>
+      <div>
+        <div class="alert-secondary">Source</div>
+        <div>{{if .WidgetView.Contract.SourceURL}}<a href="{{.WidgetView.Contract.SourceURL}}">{{.WidgetView.Contract.SourceLabel}}</a>{{else}}{{.WidgetView.Contract.SourceLabel}}{{end}}</div>
+      </div>
+      <div>
+        <div class="alert-secondary">Dataset</div>
+        <div>{{.WidgetView.Contract.Dataset}}</div>
+      </div>
+      <div>
+        <div class="alert-secondary">Visualization</div>
+        <div>{{.WidgetView.Contract.Kind}}</div>
+      </div>
+      <div>
+        <div class="alert-secondary">Dashboard filters</div>
+        {{if .WidgetView.Contract.Filters}}
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.35rem;">
+          {{range .WidgetView.Contract.Filters}}
+          <span class="alert-secondary">{{.}}</span>
+          {{end}}
+        </div>
+        {{else}}
+        <div>No dashboard-level filters</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:1rem;">
+    <div class="section-header" style="padding:0 0 0.75rem;">Actions</div>
+    {{if .WidgetView.Error}}
+    <div class="empty-text">Live export and snapshot are unavailable until this widget query succeeds.</div>
+    {{else}}
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <a href="{{.WidgetView.ExportCSVURL}}" class="btn btn-sm">Export live CSV</a>
+      <a href="{{.WidgetView.ExportJSONURL}}" class="btn btn-sm">Export live JSON</a>
+      <form method="POST" action="{{.WidgetView.SnapshotAction}}">
+        <button type="submit" class="btn btn-sm">Create frozen snapshot</button>
+      </form>
+    </div>
+    {{end}}
+    {{if .WidgetView.ThresholdText}}
+    <div class="alert-secondary" style="margin-top:0.85rem;">Thresholds: {{.WidgetView.ThresholdText}}</div>
+    {{end}}
+  </div>
+
+  <div class="card" style="padding:1rem;">
+    <div class="section-header" style="padding:0 0 0.75rem;">Scheduled reports</div>
+    <form method="POST" action="{{.ReportCreateAction}}">
+      <label for="widget-report-recipient">Recipient</label>
+      <input id="widget-report-recipient" name="recipient" type="email" placeholder="team@example.com" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
+      <label for="widget-report-cadence" style="display:block; margin-top:0.75rem;">Cadence</label>
+      <select id="widget-report-cadence" name="cadence" class="filter-select" style="margin-top:0.35rem;">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+      </select>
+      <button type="submit" class="btn btn-sm" style="margin-top:0.75rem;">Add scheduled report</button>
+    </form>
+    {{if .ReportSchedules}}
+    <div class="activity-feed" style="margin-top:1rem;">
+      {{range .ReportSchedules}}
+      <div class="activity-row" style="align-items:flex-start; justify-content:space-between; gap:0.75rem;">
+        <div class="activity-text">
+          <strong>{{.Recipient}}</strong>
+          <span class="alert-secondary">· {{.Cadence}} · next {{.NextRunAt}}</span>
+          {{if .LastRunAt}}<div class="empty-text" style="padding-top:0.35rem;">Last run {{.LastRunAt}}{{if .LastSnapshotURL}} · <a href="{{.LastSnapshotURL}}">Open last snapshot</a>{{end}}</div>{{end}}
+          {{if .LastError}}<div class="empty-text" style="padding-top:0.35rem;">Last error: {{.LastError}}</div>{{end}}
+        </div>
+        <form method="POST" action="/dashboards/{{$.Dashboard.ID}}/widgets/{{$.WidgetView.Widget.ID}}/reports/{{.ID}}/delete">
+          <button type="submit" class="btn btn-sm">Delete</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-text" style="padding-top:0.75rem;">Scheduled reports freeze this widget with its dashboard filters and queue the share link in the Tiny outbox.</div>
+    {{end}}
+  </div>
+</div>
+
+<div class="card" style="margin-top:1.25rem; padding:1rem;">
+  <div class="section-header" style="padding:0 0 0.75rem;">Query Explain</div>
+  {{if .WidgetView.Explain.CostLabel}}<div class="alert-secondary" style="margin-bottom:0.75rem;">{{.WidgetView.Explain.CostLabel}}</div>{{end}}
+  {{if .WidgetView.Explain.Notes}}
+  <ul style="margin:0 0 0.75rem; padding-left:1.2rem; color:var(--text-secondary);">
+    {{range .WidgetView.Explain.Notes}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  </ul>
+  {{end}}
+  {{if .WidgetView.Explain.QueryJSON}}
+  <pre style="margin:0; padding:0.85rem 1rem; border-radius:12px; background:rgba(15,23,42,0.06); overflow:auto; white-space:pre-wrap;">{{.WidgetView.Explain.QueryJSON}}</pre>
+  {{end}}
+</div>
+
+<div class="card" style="margin-top:1.25rem;">
+  <div class="section-header" style="padding:1rem 1.25rem 0.25rem;">Results</div>
+  {{if .WidgetView.Error}}
+  <div class="empty-state" style="padding:1rem;">
+    <div class="empty-text">{{.WidgetView.Error}}</div>
+  </div>
+  {{else if eq .WidgetView.Result.Type "stat"}}
+  <div class="metric-card" style="margin:1rem;{{if eq .WidgetView.ThresholdClass "threshold-warning"}} border-color: rgba(245,158,11,0.55); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.25);{{else if eq .WidgetView.ThresholdClass "threshold-critical"}} border-color: rgba(239,68,68,0.6); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);{{end}}">
+    <div class="metric-label">{{if .WidgetView.Result.StatLabel}}{{.WidgetView.Result.StatLabel}}{{else}}Result{{end}}</div>
+    <div class="metric-value">{{if .WidgetView.Result.StatValue}}{{.WidgetView.Result.StatValue}}{{else}}0{{end}}</div>
+  </div>
+  {{else if .WidgetView.Result.Rows}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        {{range .WidgetView.Result.Columns}}<th>{{.}}</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{range .WidgetView.Result.Rows}}
+      <tr>
+        {{range .}}
+        <td>{{if .Href}}<a href="{{.Href}}">{{.Text}}</a>{{else}}{{if .Text}}{{.Text}}{{else}}-{{end}}{{end}}</td>
+        {{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding:1rem;">
+    <div class="empty-text">No matching results.</div>
+  </div>
+  {{end}}
+</div>
+{{end}}

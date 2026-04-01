@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: urgentry-bootstrap
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: urgentry-bootstrap
+          image: urgentry:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -lc
+            - |
+              set -eu
+              until output="$(urgentry self-hosted preflight --control-dsn "$URGENTRY_CONTROL_DATABASE_URL" --telemetry-dsn "$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$URGENTRY_TELEMETRY_BACKEND" 2>/dev/null)" &&
+              ! printf '%s' "$output" | grep -q '"ok": false'; do
+                sleep 2
+              done
+              printf '%s\n' "$output"
+              urgentry self-hosted migrate-control --dsn "$URGENTRY_CONTROL_DATABASE_URL"
+              urgentry self-hosted migrate-telemetry --dsn "$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$URGENTRY_TELEMETRY_BACKEND"
+              urgentry self-hosted status --control-dsn "$URGENTRY_CONTROL_DATABASE_URL" --telemetry-dsn "$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$URGENTRY_TELEMETRY_BACKEND"
+          envFrom:
+            - configMapRef:
+                name: urgentry-config
+            - secretRef:
+                name: urgentry-secret

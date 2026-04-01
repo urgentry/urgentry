@@ -1,0 +1,12 @@
+{
+  "frames": [
+    {"function": "jsonMarshal", "filename": "encode.go", "lineno": 55},
+    {"function": "scoreRules", "filename": "rules.go", "lineno": 21},
+    {"function": "checkout", "filename": "checkout.go", "lineno": 41},
+    {"function": "rootHandler", "filename": "app.go", "lineno": 1}
+  ],
+  "samples": [
+    {"frames": [0, 1, 2, 3], "weight": 4},
+    {"frames": [1, 2, 3], "weight": 3}
+  ]
+}

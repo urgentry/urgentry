@@ -1,0 +1,316 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">{{.Profile.Title}}</h1>
+  <p class="detail-subtitle mono">{{.Profile.ID}}</p>
+</div>
+
+<div class="detail-layout">
+  <div class="detail-main">
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Profile Metadata</h3>
+      <div class="section-body">
+        <div class="context-card">
+          <div class="context-card-body">
+            <div class="context-row"><span class="key">Transaction</span><span class="value">{{.Profile.Transaction}}</span></div>
+            <div class="context-row"><span class="key">Trace</span><span class="value mono">{{.Profile.TraceID}}</span></div>
+            <div class="context-row"><span class="key">Platform</span><span class="value">{{.Profile.Platform}}</span></div>
+            <div class="context-row"><span class="key">Release</span><span class="value">{{.Profile.Release}}</span></div>
+            <div class="context-row"><span class="key">Environment</span><span class="value">{{.Profile.Environment}}</span></div>
+            <div class="context-row"><span class="key">Duration</span><span class="value">{{.Profile.Duration}}</span></div>
+            <div class="context-row"><span class="key">Seen</span><span class="value">{{.Profile.TimeAgo}}</span></div>
+          </div>
+        </div>
+        {{if .Links}}
+        <div class="context-card" style="margin-top: 1rem;">
+          <div class="context-card-header">Related Links</div>
+          <div class="context-card-body">
+            {{range .Links}}
+            <div class="context-row"><span class="key">{{.Label}}</span><span class="value"><a href="{{.URL}}">{{.Value}}</a></span></div>
+            {{end}}
+          </div>
+        </div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Query Controls</h3>
+      <div class="section-body">
+        <div class="card" style="padding: 1rem;">
+          <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
+            <label style="display: flex; flex-direction: column; gap: 0.35rem; min-width: 220px;">
+              <span>Thread</span>
+              <select name="thread">
+                {{range .Controls.Threads}}
+                <option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+                {{end}}
+              </select>
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 0.35rem; min-width: 220px;">
+              <span>Compare Against</span>
+              <select name="compare">
+                {{range .Controls.Comparands}}
+                <option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+                {{end}}
+              </select>
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <span>Frame Filter</span>
+              <input type="text" name="frame" value="{{.Controls.Frame}}" placeholder="dbQuery">
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <span>Max Depth</span>
+              <input type="number" min="1" max="256" name="max_depth" value="{{.Controls.MaxDepth}}">
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <span>Max Nodes</span>
+              <input type="number" min="1" max="2048" name="max_nodes" value="{{.Controls.MaxNodes}}">
+            </label>
+            <button type="submit" class="btn btn-sm">Apply</button>
+            <a href="/profiles/{{.Profile.ID}}/" class="btn btn-sm">Reset</a>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Profile Summary</h3>
+      <div class="section-body">
+        <div class="context-card">
+          <div class="context-card-body">
+            <div class="context-row"><span class="key">Samples</span><span class="value">{{.Summary.SampleCount}}</span></div>
+            <div class="context-row"><span class="key">Frames</span><span class="value">{{.Summary.FrameCount}}</span></div>
+            <div class="context-row"><span class="key">Functions</span><span class="value">{{.Summary.FunctionCount}}</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Top-Down Call Tree</h3>
+      <div class="section-body">
+        {{if .TopDownRows}}
+        <table class="events-table">
+          <thead>
+            <tr><th>Frame</th><th>Inclusive</th><th>Self</th><th>Samples</th><th>%</th></tr>
+          </thead>
+          <tbody>
+            {{range .TopDownRows}}
+            <tr>
+              <td style="padding-left: {{.IndentPX}}px;">{{.Name}}</td>
+              <td class="mono">{{.InclusiveWeight}}</td>
+              <td class="mono">{{.SelfWeight}}</td>
+              <td class="mono">{{.SampleCount}}</td>
+              <td class="mono">{{.Percent}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No top-down call tree available for this filter set.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Bottom-Up Hotspots</h3>
+      <div class="section-body">
+        {{if .BottomUpRows}}
+        <table class="events-table">
+          <thead>
+            <tr><th>Frame</th><th>Inclusive</th><th>Self</th><th>Samples</th><th>%</th></tr>
+          </thead>
+          <tbody>
+            {{range .BottomUpRows}}
+            <tr>
+              <td style="padding-left: {{.IndentPX}}px;">{{.Name}}</td>
+              <td class="mono">{{.InclusiveWeight}}</td>
+              <td class="mono">{{.SelfWeight}}</td>
+              <td class="mono">{{.SampleCount}}</td>
+              <td class="mono">{{.Percent}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No bottom-up hotspot data available for this filter set.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Flamegraph</h3>
+      <div class="section-body">
+        {{if .FlamegraphRows}}
+          {{range .FlamegraphRows}}
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.45rem;">
+            <div style="min-width: 240px; padding-left: {{.IndentPX}}px;">{{.Name}}</div>
+            <div style="flex: 1; background: rgba(70, 85, 130, 0.14); border-radius: 999px; overflow: hidden;">
+              <div style="width: {{.BarWidth}}%; min-width: 2.5rem; background: linear-gradient(90deg, #5B6CFF, #7F56D9); color: white; padding: 0.2rem 0.5rem; white-space: nowrap;">{{.Percent}}</div>
+            </div>
+            <div class="mono" style="min-width: 72px; text-align: right;">{{.InclusiveWeight}}</div>
+          </div>
+          {{end}}
+        {{else}}
+        <div class="empty-inline">No flamegraph data available for this filter set.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Hot Path</h3>
+      <div class="section-body">
+        {{if .HotPathRows}}
+        <table class="events-table">
+          <thead>
+            <tr><th>Step</th><th>Frame</th><th>Inclusive</th><th>Samples</th><th>%</th></tr>
+          </thead>
+          <tbody>
+            {{range .HotPathRows}}
+            <tr>
+              <td class="mono">{{.Step}}</td>
+              <td>{{.Name}}</td>
+              <td class="mono">{{.InclusiveWeight}}</td>
+              <td class="mono">{{.SampleCount}}</td>
+              <td class="mono">{{.Percent}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{if .HotPathTruncated}}
+        <div class="empty-inline" style="margin-top: 0.75rem;">The hot path is truncated by the current depth or node limits.</div>
+        {{end}}
+        {{else}}
+        <div class="empty-inline">No hot path available for this filter set.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Comparison</h3>
+      <div class="section-body">
+        {{if .Comparison}}
+        <div class="context-card" style="margin-bottom: 1rem;">
+          <div class="context-card-body">
+            <div class="context-row"><span class="key">Candidate</span><span class="value">{{.Comparison.CandidateLabel}}</span></div>
+            <div class="context-row"><span class="key">Confidence</span><span class="value">{{.Comparison.Confidence}}</span></div>
+            {{if .Comparison.Notes}}
+            <div class="context-row"><span class="key">Notes</span><span class="value">{{range $index, $note := .Comparison.Notes}}{{if $index}}<br>{{end}}{{$note}}{{end}}</span></div>
+            {{end}}
+          </div>
+        </div>
+        <div style="display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+          <div class="context-card">
+            <div class="context-card-header">Top Regressions</div>
+            <div class="context-card-body">
+              {{if .Comparison.Regressions}}
+              <table class="events-table">
+                <thead>
+                  <tr><th>Function</th><th>Baseline</th><th>Candidate</th><th>Delta</th></tr>
+                </thead>
+                <tbody>
+                  {{range .Comparison.Regressions}}
+                  <tr>
+                    <td>{{.Name}}</td>
+                    <td class="mono">{{.BaselineWeight}}</td>
+                    <td class="mono">{{.CandidateWeight}}</td>
+                    <td class="mono {{.DeltaClass}}">{{.DeltaLabel}}</td>
+                  </tr>
+                  {{end}}
+                </tbody>
+              </table>
+              {{else}}
+              <div class="empty-inline">No regressions detected for the selected comparison.</div>
+              {{end}}
+            </div>
+          </div>
+          <div class="context-card">
+            <div class="context-card-header">Top Improvements</div>
+            <div class="context-card-body">
+              {{if .Comparison.Improvements}}
+              <table class="events-table">
+                <thead>
+                  <tr><th>Function</th><th>Baseline</th><th>Candidate</th><th>Delta</th></tr>
+                </thead>
+                <tbody>
+                  {{range .Comparison.Improvements}}
+                  <tr>
+                    <td>{{.Name}}</td>
+                    <td class="mono">{{.BaselineWeight}}</td>
+                    <td class="mono">{{.CandidateWeight}}</td>
+                    <td class="mono {{.DeltaClass}}">{{.DeltaLabel}}</td>
+                  </tr>
+                  {{end}}
+                </tbody>
+              </table>
+              {{else}}
+              <div class="empty-inline">No improvements detected for the selected comparison.</div>
+              {{end}}
+            </div>
+          </div>
+        </div>
+        {{else if .ComparisonError}}
+        <div class="empty-inline">{{.ComparisonError}}</div>
+        {{else}}
+        <div class="empty-inline">Select another profile in the query controls to compare performance.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Top Frames</h3>
+      <div class="section-body">
+        {{if .TopFrames}}
+        <table class="events-table">
+          <thead>
+            <tr><th>Frame</th><th>Samples</th></tr>
+          </thead>
+          <tbody>
+            {{range .TopFrames}}
+            <tr>
+              <td>{{.Name}}</td>
+              <td class="mono">{{.Count}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No frame breakdown available for this profile.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Top Functions</h3>
+      <div class="section-body">
+        {{if .TopFunctions}}
+        <table class="events-table">
+          <thead>
+            <tr><th>Function</th><th>Samples</th></tr>
+          </thead>
+          <tbody>
+            {{range .TopFunctions}}
+            <tr>
+              <td>{{.Name}}</td>
+              <td class="mono">{{.Count}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No function breakdown available for this profile.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Raw JSON</h3>
+      <div class="section-body">
+        <div class="raw-json visible">{{.RawJSON}}</div>
+      </div>
+    </section>
+  </div>
+</div>
+{{end}}

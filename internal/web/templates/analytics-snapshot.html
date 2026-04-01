@@ -1,0 +1,91 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{.Snapshot.Title}}</h1>
+    <div class="empty-text" style="padding-top:0.35rem;">Frozen analytics snapshot. Created {{.Snapshot.CreatedAt}}. Expires {{.Snapshot.ExpiresAt}}.</div>
+  </div>
+  <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+    <a href="{{.ExportCSV}}" class="btn btn-sm">Export snapshot CSV</a>
+    <a href="{{.ExportJSON}}" class="btn btn-sm">Export snapshot JSON</a>
+  </div>
+</div>
+
+<div class="card" style="padding:1rem; margin-bottom:1.25rem;">
+  <div class="section-header" style="padding:0 0 0.5rem;">Share details</div>
+  <div class="activity-feed">
+    <div class="activity-row">
+      <span class="activity-text"><strong>Source</strong> <span class="alert-secondary">· {{.Snapshot.SourceType}}</span></span>
+    </div>
+    <div class="activity-row">
+      <span class="activity-text"><strong>Snapshot link</strong> <span class="alert-secondary">· <a href="{{.ShareURL}}">{{.ShareURL}}</a></span></span>
+    </div>
+    {{if .Snapshot.Body.SourceLabel}}
+    <div class="activity-row">
+      <span class="activity-text"><strong>Source label</strong> <span class="alert-secondary">· {{.Snapshot.Body.SourceLabel}}</span></span>
+    </div>
+    {{end}}
+    {{if .Snapshot.Body.Dataset}}
+    <div class="activity-row">
+      <span class="activity-text"><strong>Dataset</strong> <span class="alert-secondary">· {{.Snapshot.Body.Dataset}}</span></span>
+    </div>
+    {{end}}
+    {{if .Snapshot.Body.Visualization}}
+    <div class="activity-row">
+      <span class="activity-text"><strong>Visualization</strong> <span class="alert-secondary">· {{.Snapshot.Body.Visualization}}</span></span>
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{if or .Snapshot.Body.Filters .Snapshot.Body.CostLabel .Snapshot.Body.QueryJSON}}
+<div class="card" style="padding:1rem; margin-bottom:1.25rem;">
+  <div class="section-header" style="padding:0 0 0.5rem;">Snapshot contract</div>
+  {{if .Snapshot.Body.Filters}}
+  <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+    {{range .Snapshot.Body.Filters}}
+    <span class="alert-secondary">{{.}}</span>
+    {{end}}
+  </div>
+  {{end}}
+  {{if .Snapshot.Body.CostLabel}}<div class="alert-secondary" style="margin-bottom:0.75rem;">{{.Snapshot.Body.CostLabel}}</div>{{end}}
+  {{if .Snapshot.Body.QueryJSON}}
+  <pre style="margin:0; padding:0.85rem 1rem; border-radius:12px; background:rgba(15,23,42,0.06); overflow:auto; white-space:pre-wrap;">{{.Snapshot.Body.QueryJSON}}</pre>
+  {{end}}
+</div>
+{{end}}
+
+{{if eq .Result.Type "stat"}}
+<div class="metric-card">
+  <div class="metric-label">{{if .Result.StatLabel}}{{.Result.StatLabel}}{{else}}Result{{end}}</div>
+  <div class="metric-value">{{if .Result.StatValue}}{{.Result.StatValue}}{{else}}0{{end}}</div>
+</div>
+{{else}}
+<div class="card">
+  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Snapshot data</div>
+  {{if .Result.Rows}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        {{range .Result.Columns}}<th>{{.}}</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Result.Rows}}
+      <tr>
+        {{range .}}
+        <td>{{if .Text}}{{.Text}}{{else}}-{{end}}</td>
+        {{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 1rem;">
+    <div class="empty-text">This snapshot did not capture any rows.</div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}

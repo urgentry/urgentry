@@ -1,0 +1,174 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Monitors</h1>
+</div>
+
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div style="padding: 1rem 1.25rem 0.25rem;">
+    <h2 class="page-title" style="font-size: 1rem; margin-bottom: 0.5rem;">Create monitor</h2>
+    <p class="alert-secondary" style="margin-bottom: 1rem;">Tiny mode stores cron monitors in SQLite, persists check-ins, and marks missed runs from the scheduler.</p>
+  </div>
+  <form method="post" action="/monitors/" style="display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); padding: 0 1.25rem 1.25rem;">
+    <label>
+      <span class="alert-muted">Project ID</span>
+      <input type="text" name="project_id" value="{{.DefaultProject}}" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Slug</span>
+      <input type="text" name="slug" placeholder="nightly-import" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Status</span>
+      <select name="status" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+        <option value="active">active</option>
+        <option value="disabled">disabled</option>
+      </select>
+    </label>
+    <label>
+      <span class="alert-muted">Environment</span>
+      <input type="text" name="environment" placeholder="production" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Schedule type</span>
+      <select name="schedule_type" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+        <option value="interval">interval</option>
+        <option value="crontab">crontab</option>
+      </select>
+    </label>
+    <label>
+      <span class="alert-muted">Schedule value</span>
+      <input type="number" min="1" step="1" name="schedule_value" placeholder="5" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Schedule unit</span>
+      <input type="text" name="schedule_unit" placeholder="minute" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Crontab</span>
+      <input type="text" name="schedule_crontab" placeholder="*/15 * * * *" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Check-in margin (min)</span>
+      <input type="number" min="0" step="1" name="checkin_margin" placeholder="1" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Max runtime (sec)</span>
+      <input type="number" min="0" step="1" name="max_runtime" placeholder="300" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <label>
+      <span class="alert-muted">Timezone</span>
+      <input type="text" name="timezone" value="UTC" style="width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--surface); color: var(--text-primary);">
+    </label>
+    <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end;">
+      <button type="submit" class="btn btn-sm">Create monitor</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <table class="alert-table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Slug</th>
+        <th>Status</th>
+        <th>Environment</th>
+        <th>Schedule</th>
+        <th>Last Check-in</th>
+        <th>Next Check-in</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Monitors}}
+        {{range .Monitors}}
+        <tr>
+          <td class="alert-mono">{{.ProjectID}}</td>
+          <td class="alert-name">{{.Slug}}</td>
+          <td>
+            {{if eq .Status "active"}}
+              <span class="alert-badge active">active</span>
+            {{else}}
+              <span class="alert-badge">{{.Status}}</span>
+            {{end}}
+          </td>
+          <td class="alert-secondary">{{if .Environment}}{{.Environment}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-secondary">
+            <div>{{.Schedule}}</div>
+            {{if .Threshold}}<div class="alert-muted">{{.Threshold}}</div>{{end}}
+          </td>
+          <td class="alert-muted">{{if .LastCheckInAt}}{{.LastCheckInAt}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-muted">{{if .NextCheckInAt}}{{.NextCheckInAt}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-muted">{{.CreatedAt}}</td>
+          <td>
+            <a class="btn btn-sm" href="/monitors/{{.ProjectID}}/{{.Slug}}/" style="display:inline-flex; margin-bottom:0.5rem;">View</a>
+            <details>
+              <summary style="cursor: pointer; color: var(--accent);">Edit</summary>
+              <form method="post" action="/monitors/{{.Slug}}/update" style="margin-top: 0.75rem; display: grid; gap: 0.5rem;">
+                <input type="hidden" name="project_id" value="{{.ProjectID}}">
+                <input type="hidden" name="slug" value="{{.Slug}}">
+                <label>
+                  <span class="alert-muted">Status</span>
+                  <select name="status" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                    <option value="active" {{if eq .Status "active"}}selected{{end}}>active</option>
+                    <option value="disabled" {{if eq .Status "disabled"}}selected{{end}}>disabled</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="alert-muted">Environment</span>
+                  <input type="text" name="environment" value="{{.Environment}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Schedule type</span>
+                  <input type="text" name="schedule_type" value="{{.ScheduleType}}" placeholder="interval" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Schedule value</span>
+                  <input type="number" min="1" step="1" name="schedule_value" value="{{.ScheduleValue}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Schedule unit</span>
+                  <input type="text" name="schedule_unit" value="{{.ScheduleUnit}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Crontab</span>
+                  <input type="text" name="schedule_crontab" value="{{.ScheduleCron}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Check-in margin (min)</span>
+                  <input type="number" min="0" step="1" name="checkin_margin" value="{{.CheckInMargin}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Max runtime (sec)</span>
+                  <input type="number" min="0" step="1" name="max_runtime" value="{{.MaxRuntime}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <label>
+                  <span class="alert-muted">Timezone</span>
+                  <input type="text" name="timezone" value="{{.Timezone}}" style="width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.65rem; background: var(--surface); color: var(--text-primary);">
+                </label>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                  <button type="submit" class="btn btn-sm">Save</button>
+                </div>
+              </form>
+              <form method="post" action="/monitors/{{.Slug}}/delete" style="margin-top: 0.5rem;" onsubmit="return confirm('Delete this monitor?');">
+                <input type="hidden" name="project_id" value="{{.ProjectID}}">
+                <button type="submit" class="btn btn-sm btn-archive">Delete</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="9" class="alert-empty">
+            No monitors configured yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

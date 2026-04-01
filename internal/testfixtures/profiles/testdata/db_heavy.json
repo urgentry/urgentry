@@ -1,0 +1,10 @@
+{
+  "frames": [
+    {"function": "checkout", "filename": "checkout.go", "lineno": 41},
+    {"function": "dbQuery", "filename": "db.go", "lineno": 12}
+  ],
+  "samples": [
+    {"frames": [0], "weight": 3},
+    {"frames": [1], "weight": 7}
+  ]
+}

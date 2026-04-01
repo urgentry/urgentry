@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urgentry-ingest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urgentry
+      role: ingest
+  template:
+    metadata:
+      labels:
+        app: urgentry
+        role: ingest
+    spec:
+      containers:
+        - name: ingest
+          image: urgentry:latest
+          imagePullPolicy: IfNotPresent
+          args: ["serve", "--role=ingest", "--addr=:8081"]
+          ports:
+            - containerPort: 8081
+              name: ingest
+          envFrom:
+            - configMapRef:
+                name: urgentry-config
+            - secretRef:
+                name: urgentry-secret
+          env:
+            - name: URGENTRY_DATA_DIR
+              value: /data
+          volumeMounts:
+            - name: urgentry-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: ingest
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: ingest
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: urgentry-data
+          persistentVolumeClaim:
+            claimName: urgentry-data

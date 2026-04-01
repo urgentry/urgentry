@@ -1,0 +1,18 @@
+namespace: urgentry-system
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres.yaml
+  - minio.yaml
+  - valkey.yaml
+  - nats.yaml
+  - minio-bootstrap-job.yaml
+  - selfhosted-bootstrap-job.yaml
+  - urgentry-data-pvc.yaml
+  - urgentry-api-deployment.yaml
+  - urgentry-ingest-deployment.yaml
+  - urgentry-worker-deployment.yaml
+  - urgentry-scheduler-deployment.yaml
+  - urgentry-services.yaml

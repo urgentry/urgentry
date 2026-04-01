@@ -1,0 +1,59 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <a href="/feedback/" style="color: #9CA0B0; text-decoration: none; font-size: 14px;">&larr; All Feedback</a>
+    <h1 class="page-title" style="margin: 0;">Feedback from {{.Feedback.Name}}</h1>
+  </div>
+</div>
+
+<div class="card" style="padding: 24px; margin-bottom: 16px;">
+  <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px 16px; font-size: 14px;">
+    <span style="color: #9CA0B0; font-weight: 500;">Name</span>
+    <span>{{.Feedback.Name}}</span>
+
+    <span style="color: #9CA0B0; font-weight: 500;">Email</span>
+    <span>{{if .Feedback.Email}}<a href="mailto:{{.Feedback.Email}}" style="color: #c9a0ff;">{{.Feedback.Email}}</a>{{else}}<span style="color: #555;">-</span>{{end}}</span>
+
+    <span style="color: #9CA0B0; font-weight: 500;">Submitted</span>
+    <span>{{.Feedback.CreatedAt}}</span>
+
+    <span style="color: #9CA0B0; font-weight: 500;">Comments</span>
+    <span style="white-space: pre-wrap;">{{.Feedback.Comments}}</span>
+  </div>
+</div>
+
+<div class="card" style="padding: 24px;">
+  <h2 style="font-size: 15px; margin: 0 0 16px; color: #E0E0E0;">Associated Context</h2>
+
+  <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px 16px; font-size: 14px;">
+    <span style="color: #9CA0B0; font-weight: 500;">Event</span>
+    <span>
+      {{if .Feedback.EventID}}
+        <a href="/events/{{.Feedback.EventID}}/" style="color: #c9a0ff; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">{{.Feedback.EventID}}</a>
+      {{else}}
+        <span style="color: #555;">No linked event</span>
+      {{end}}
+    </span>
+
+    <span style="color: #9CA0B0; font-weight: 500;">Issue</span>
+    <span>
+      {{if .Feedback.GroupID}}
+        <a href="/issues/{{.Feedback.GroupID}}/" style="color: #c9a0ff; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">{{.Feedback.GroupID}}</a>
+      {{else}}
+        <span style="color: #555;">No linked issue</span>
+      {{end}}
+    </span>
+
+    <span style="color: #9CA0B0; font-weight: 500;">Replay</span>
+    <span>
+      {{if .ReplayID}}
+        <a href="/replays/{{.ReplayID}}/" style="color: #c9a0ff; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">{{.ReplayID}}</a>
+      {{else}}
+        <span style="color: #555;">No linked replay</span>
+      {{end}}
+    </span>
+  </div>
+</div>
+{{end}}

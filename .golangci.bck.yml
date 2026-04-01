@@ -1,0 +1,38 @@
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - errcheck
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  disable:
+    - exhaustive  # too noisy for early development
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      # HTTP response writer errors are connection drops — nothing to do
+      - (net/http.ResponseWriter).Write
+      - (*encoding/json.Encoder).Encode
+      - (io).Copy
+  gosec:
+    excludes:
+      - G404  # math/rand is fine for non-crypto IDs
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+    disabled-checks:
+      - commentedOutCode
+      - ifElseChain
+
+issues:
+  max-issues-per-linter: 20
+  max-same-issues: 5
+  exclude-dirs:
+    - vendor

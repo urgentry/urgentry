@@ -1,0 +1,51 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Logs</h1>
+</div>
+
+<form method="GET" action="/logs/" class="search-form-sentry" style="margin-bottom: 1.25rem;">
+  <div class="search-bar-sentry" style="flex-wrap: wrap;">
+    <input type="text" name="query" value="{{.Query}}" placeholder="Search log messages, logger, release..." class="search-input-inline" style="min-width: 260px; flex: 1;">
+    <button type="submit" class="btn btn-sm">Search</button>
+  </div>
+</form>
+
+<div class="card">
+  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Persisted Logs</div>
+  {{if .Logs}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Level</th>
+        <th>Message</th>
+        <th>Logger</th>
+        <th>Trace</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Logs}}
+      <tr>
+        <td class="mono">{{if .ProjectSlug}}{{.ProjectSlug}}{{else}}-{{end}}</td>
+        <td><span class="severity-dot severity-{{.Level}}"></span> {{.Level}}</td>
+        <td>
+          <a href="/events/{{.EventID}}/">{{if .Title}}{{.Title}}{{else}}{{.Message}}{{end}}</a>
+          {{if .Release}}<div class="alert-secondary">{{.Release}}{{if .Environment}} · {{.Environment}}{{end}}</div>{{end}}
+        </td>
+        <td class="mono">{{if .Logger}}{{.Logger}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .TraceID}}{{.TraceID}}{{else}}-{{end}}</td>
+        <td class="{{.TimeClass}}">{{.TimeAgo}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No logs found.</div>
+  </div>
+  {{end}}
+</div>
+{{end}}

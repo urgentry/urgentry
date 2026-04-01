@@ -1,0 +1,419 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Settings</h1>
+</div>
+
+<!-- General -->
+<div class="settings-section">
+  <div class="section-header">General</div>
+  <form method="post" action="/settings/project" class="settings-form">
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Project Name</span>
+        <input type="text" name="name" value="{{.ProjectName}}" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Platform</span>
+        <input type="text" name="platform" value="{{.Platform}}">
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Status</span>
+        <select name="status">
+          <option value="active" {{if eq .ProjectStatus "active"}}selected{{end}}>active</option>
+          <option value="disabled" {{if eq .ProjectStatus "disabled"}}selected{{end}}>disabled</option>
+        </select>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Event Retention (days)</span>
+        <input type="number" min="1" name="event_retention_days" value="{{.EventRetentionDays}}" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Attachment Retention (days)</span>
+        <input type="number" min="1" name="attachment_retention_days" value="{{.AttachmentRetentionDays}}" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Debug File Retention (days)</span>
+        <input type="number" min="1" name="debug_retention_days" value="{{.DebugRetentionDays}}" required>
+      </label>
+    </div>
+    <div class="section-header" style="margin-top: 1rem;">Telemetry Retention</div>
+    <table class="events-table" style="margin-top: 12px;">
+      <thead>
+        <tr>
+          <th>Surface</th>
+          <th>Retention (days)</th>
+          <th>Tier</th>
+          <th>Archive Retention (days)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .TelemetryPolicies}}
+        <tr>
+          <td>{{.Label}}</td>
+          <td><input type="number" min="1" name="telemetry_{{.Surface}}_days" value="{{.RetentionDays}}" required></td>
+          <td>
+            <select name="telemetry_{{.Surface}}_tier">
+              <option value="delete" {{if eq .StorageTier "delete"}}selected{{end}}>delete</option>
+              {{if .SupportsArchive}}
+              <option value="archive" {{if eq .StorageTier "archive"}}selected{{end}}>archive</option>
+              {{end}}
+            </select>
+          </td>
+          <td>
+            {{if .SupportsArchive}}
+            <input type="number" min="0" name="telemetry_{{.Surface}}_archive_days" value="{{.ArchiveDays}}">
+            {{else}}
+            <span class="text-muted">not supported</span>
+            {{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <div class="section-header" style="margin-top: 1rem;">Replay Controls</div>
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Replay Sample Rate</span>
+        <input type="number" min="0" max="1" step="0.01" name="replay_sample_rate" value="{{printf "%.2f" .ReplayPolicy.SampleRate}}" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Replay Size Cap (bytes)</span>
+        <input type="number" min="1" step="1" name="replay_max_bytes" value="{{.ReplayPolicy.MaxBytes}}" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Scrub Field Names</span>
+        <input type="text" name="replay_scrub_fields" value="{{.ReplayPolicy.ScrubFields}}" placeholder="password, token, email">
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Scrub Selectors</span>
+        <input type="text" name="replay_scrub_selectors" value="{{.ReplayPolicy.ScrubSelectors}}" placeholder=".secret, [data-private]">
+      </label>
+    </div>
+    <div class="settings-form-actions">
+      <button type="submit" class="btn btn-primary">Save project settings</button>
+    </div>
+  </form>
+  <table class="settings-table">
+    <tr>
+      <td class="settings-label">Slug</td>
+      <td class="mono">{{.ProjectSlug}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Status</td>
+      <td><span class="issue-status-badge {{.ProjectStatus}}">{{.ProjectStatus}}</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- Keys & DSN -->
+<div class="settings-section">
+  <div class="section-header">Keys &amp; DSN</div>
+  {{if .DSN}}
+  <div class="dsn-box">
+    <label class="settings-label">DSN</label>
+    <div class="dsn-value">
+      <code id="dsn-text">{{.DSN}}</code>
+      <button class="btn btn-sm btn-copy" onclick="copyDSN()" title="Copy DSN">Copy</button>
+    </div>
+  </div>
+  {{end}}
+
+  {{if .Keys}}
+  <table class="events-table" style="margin-top: 16px;">
+    <thead>
+      <tr>
+        <th>Public Key</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Keys}}
+      <tr>
+        <td class="mono">{{.PublicKey}}</td>
+        <td><span class="issue-status-badge {{.Status}}">{{.Status}}</span></td>
+        <td class="mono">{{.CreatedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No project keys configured.</div>
+  </div>
+  {{end}}
+</div>
+
+<!-- Data -->
+<div class="settings-section">
+  <div class="section-header">Data</div>
+  <table class="settings-table">
+    <tr>
+      <td class="settings-label">Total Events</td>
+      <td>{{.EventCount}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Total Issues</td>
+      <td>{{.GroupCount}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Database Size</td>
+      <td>{{.DBSize}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Event Retention</td>
+      <td>{{.EventRetentionDays}} days</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Attachment Retention</td>
+      <td>{{.AttachmentRetentionDays}} days</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Debug File Retention</td>
+      <td>{{.DebugRetentionDays}} days</td>
+    </tr>
+    {{range .TelemetryPolicies}}
+    <tr>
+      <td class="settings-label">{{.Label}}</td>
+      <td>{{.RetentionDays}} days · {{.StorageTier}}{{if gt .ArchiveDays 0}} · archive {{.ArchiveDays}} days{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Ownership Rules</div>
+  <form method="post" action="/settings/ownership" class="settings-form">
+    <input type="hidden" name="project_id" value="{{.ProjectID}}">
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Rule Name</span>
+        <input type="text" name="name" placeholder="Payments" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Pattern</span>
+        <input type="text" name="pattern" placeholder="path:payments.go" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Assignee</span>
+        <input type="text" name="assignee" placeholder="payments@team" required>
+      </label>
+    </div>
+    <div class="settings-form-actions">
+      <button type="submit" class="btn btn-primary">Add ownership rule</button>
+    </div>
+  </form>
+  {{if .OwnershipRules}}
+  <table class="events-table" style="margin-top: 16px;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Pattern</th>
+        <th>Assignee</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .OwnershipRules}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td class="mono">{{.Pattern}}</td>
+        <td class="mono">{{.Assignee}}</td>
+        <td>{{.CreatedAt}}</td>
+        <td>
+          <form method="post" action="/settings/ownership/{{.ID}}/delete" style="margin:0;">
+            <input type="hidden" name="project_id" value="{{$.ProjectID}}">
+            <button type="submit" class="btn btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No ownership rules configured yet.</div>
+  </div>
+  {{end}}
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Code Mappings</div>
+  <form method="post" action="/settings/code-mappings" class="settings-form">
+    <input type="hidden" name="project_id" value="{{.ProjectID}}">
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Stack Root</span>
+        <input type="text" name="stack_root" placeholder="src/" value="">
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Source Root</span>
+        <input type="text" name="source_root" placeholder="app/src/" value="">
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Repository URL</span>
+        <input type="url" name="repo_url" placeholder="https://github.com/org/repo" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Default Branch</span>
+        <input type="text" name="default_branch" placeholder="main" value="">
+      </label>
+    </div>
+    <div class="settings-form-actions">
+      <button type="submit" class="btn btn-primary">Add code mapping</button>
+    </div>
+  </form>
+  {{if .CodeMappings}}
+  <table class="events-table" style="margin-top: 16px;">
+    <thead>
+      <tr>
+        <th>Stack Root</th>
+        <th>Source Root</th>
+        <th>Repository</th>
+        <th>Branch</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .CodeMappings}}
+      <tr>
+        <td class="mono">{{.StackRoot}}</td>
+        <td class="mono">{{.SourceRoot}}</td>
+        <td class="mono"><a href="{{.RepoURL}}" target="_blank" rel="noopener">{{.RepoURL}}</a></td>
+        <td class="mono">{{.DefaultBranch}}</td>
+        <td>{{.CreatedAt}}</td>
+        <td>
+          <form method="post" action="/settings/code-mappings/{{.ID}}/delete" style="margin:0;">
+            <input type="hidden" name="project_id" value="{{$.ProjectID}}">
+            <button type="submit" class="btn btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No code mappings configured yet. Add a mapping to link stack trace files to your source code repository.</div>
+  </div>
+  {{end}}
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Recent Audit Activity</div>
+  {{if .AuditLogs}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Actor</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .AuditLogs}}
+      <tr>
+        <td>{{.Action}}</td>
+        <td class="mono">{{.Actor}}</td>
+        <td>{{.CreatedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No audit activity recorded yet.</div>
+  </div>
+  {{end}}
+</div>
+
+<script>
+function copyDSN() {
+  var text = document.getElementById('dsn-text').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.querySelector('.btn-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>
+
+<style>
+.settings-section {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.settings-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.settings-label {
+  font-weight: 500;
+  color: var(--text-secondary, #9CA0B0);
+  width: 180px;
+}
+.settings-form {
+  margin-bottom: 16px;
+}
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.settings-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-form-field input,
+.settings-form-field select {
+  width: 100%;
+  background: var(--bg-tertiary, #13131e);
+  color: var(--text-primary, #F5F6FA);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.settings-form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+.dsn-box {
+  padding: 12px 0;
+}
+.dsn-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  background: var(--bg-tertiary, #13131e);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.dsn-value code {
+  flex: 1;
+  font-size: 13px;
+  word-break: break-all;
+}
+.btn-copy {
+  white-space: nowrap;
+  cursor: pointer;
+}
+</style>
+{{end}}

@@ -1,0 +1,167 @@
+package app
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"urgentry/internal/alert"
+	"urgentry/internal/auth"
+	"urgentry/internal/config"
+	"urgentry/internal/controlplane"
+	"urgentry/internal/issue"
+	"urgentry/internal/notify"
+	"urgentry/internal/pipeline"
+	"urgentry/internal/postgrescontrol"
+	"urgentry/internal/sqlite"
+	"urgentry/internal/store"
+)
+
+type bootstrapResult struct {
+	Created  bool
+	Email    string
+	Password string
+	PAT      string
+}
+
+type runtimeControlPlane struct {
+	services       controlplane.Services
+	keyStore       auth.KeyStore
+	authStore      auth.Store
+	alertStore     alert.RuleStore
+	alertHistory   pipeline.AlertHistoryStore
+	outbox         notify.EmailOutbox
+	deliveries     notify.DeliveryRecorder
+	lifecycle      store.LifecycleStore
+	operatorAudits store.OperatorAuditStore
+	monitorStore   controlplane.MonitorStore
+	ownershipStore controlplane.OwnershipStore
+	groupStore     issue.GroupStore
+	close          func() error
+	defaultKey     func(context.Context) (string, error)
+	bootstrap      func(context.Context, config.Config) (*bootstrapResult, error)
+}
+
+func openRuntimeControlPlane(ctx context.Context, cfg config.Config, queryDB *sql.DB) (runtimeControlPlane, error) {
+	if controlDSN := strings.TrimSpace(cfg.ControlDSN); controlDSN != "" {
+		controlDB, err := postgrescontrol.Open(ctx, controlDSN)
+		if err != nil {
+			return runtimeControlPlane{}, fmt.Errorf("open control plane: %w", err)
+		}
+		control := buildPostgresRuntimeControlPlane(controlDB, queryDB)
+		if err := syncPostgresControlPlaneShadows(ctx, controlDB, sqlite.NewPrincipalShadowStore(queryDB)); err != nil {
+			_ = control.close()
+			return runtimeControlPlane{}, fmt.Errorf("sync control-plane sqlite shadows: %w", err)
+		}
+		return control, nil
+	}
+	return buildSQLiteRuntimeControlPlane(queryDB), nil
+}
+
+func buildSQLiteRuntimeControlPlane(queryDB *sql.DB) runtimeControlPlane {
+	keyStore := sqlite.NewKeyStore(queryDB)
+	authStore := sqlite.NewAuthStore(queryDB)
+	services := controlplane.SQLiteServices(queryDB)
+	return runtimeControlPlane{
+		services:       services,
+		keyStore:       keyStore,
+		authStore:      authStore,
+		alertStore:     services.Alerts,
+		alertHistory:   sqlite.NewAlertHistoryStore(queryDB),
+		outbox:         services.Outbox,
+		deliveries:     services.Deliveries,
+		lifecycle:      sqlite.NewLifecycleStore(queryDB),
+		operatorAudits: sqlite.NewOperatorAuditStore(queryDB),
+		monitorStore:   services.Monitors,
+		ownershipStore: services.Ownership,
+		groupStore:     sqlite.NewGroupStore(queryDB),
+		close:          func() error { return nil },
+		defaultKey: func(ctx context.Context) (string, error) {
+			return sqlite.EnsureDefaultKey(ctx, queryDB)
+		},
+		bootstrap: func(ctx context.Context, cfg config.Config) (*bootstrapResult, error) {
+			result, err := authStore.EnsureBootstrapAccess(ctx, sqlite.BootstrapOptions{
+				DefaultOrganizationID: "default-org",
+				Email:                 cfg.BootstrapEmail,
+				DisplayName:           "Bootstrap Admin",
+				Password:              cfg.BootstrapPassword,
+				PersonalAccessToken:   cfg.BootstrapPAT,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &bootstrapResult{
+				Created:  result.Created,
+				Email:    result.Email,
+				Password: result.Password,
+				PAT:      result.PAT,
+			}, nil
+		},
+	}
+}
+
+func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControlPlane {
+	baseAuthStore := postgrescontrol.NewAuthStore(controlDB)
+	shadowStore := sqlite.NewPrincipalShadowStore(queryDB)
+	authStore := newShadowingAuthStore(baseAuthStore, shadowStore)
+	groupStore := postgrescontrol.NewGroupStore(controlDB)
+	adminStore := newShadowingAdminStore(postgrescontrol.NewAdminStore(controlDB), shadowStore)
+	services := controlplane.Services{
+		Catalog:      postgrescontrol.NewCatalogStore(controlDB),
+		Admin:        adminStore,
+		Issues:       groupStore,
+		IssueReads:   postgrescontrol.NewIssueReadStore(controlDB, queryDB),
+		Ownership:    postgrescontrol.NewOwnershipStore(controlDB),
+		Releases:     postgrescontrol.NewReleaseStore(controlDB),
+		Alerts:       postgrescontrol.NewAlertStore(controlDB),
+		MetricAlerts: postgrescontrol.NewMetricAlertStore(controlDB),
+		Outbox:       postgrescontrol.NewNotificationOutboxStore(controlDB),
+		Deliveries:   postgrescontrol.NewNotificationDeliveryStore(controlDB),
+		Monitors:     postgrescontrol.NewMonitorStore(controlDB),
+	}
+	return runtimeControlPlane{
+		services:       services,
+		keyStore:       baseAuthStore,
+		authStore:      authStore,
+		alertStore:     services.Alerts,
+		alertHistory:   postgrescontrol.NewAlertHistoryStore(controlDB),
+		outbox:         services.Outbox,
+		deliveries:     services.Deliveries,
+		lifecycle:      postgrescontrol.NewLifecycleStore(controlDB),
+		operatorAudits: postgrescontrol.NewOperatorAuditStore(controlDB),
+		monitorStore:   services.Monitors,
+		ownershipStore: services.Ownership,
+		groupStore:     groupStore,
+		close:          controlDB.Close,
+		defaultKey: func(ctx context.Context) (string, error) {
+			return postgrescontrol.EnsureDefaultKey(ctx, controlDB)
+		},
+		bootstrap: func(ctx context.Context, cfg config.Config) (*bootstrapResult, error) {
+			result, err := baseAuthStore.EnsureBootstrapAccess(ctx, postgrescontrol.BootstrapOptions{
+				DefaultOrganizationID: "default-org",
+				Email:                 cfg.BootstrapEmail,
+				DisplayName:           "Bootstrap Admin",
+				Password:              cfg.BootstrapPassword,
+				PersonalAccessToken:   cfg.BootstrapPAT,
+			})
+			if err != nil {
+				return nil, err
+			}
+			if result.Created {
+				if err := syncBootstrapUserShadow(ctx, baseAuthStore, shadowStore, result.Email, result.Password); err != nil {
+					return nil, err
+				}
+				if err := syncPostgresControlPlaneShadows(ctx, controlDB, shadowStore); err != nil {
+					return nil, err
+				}
+			}
+			return &bootstrapResult{
+				Created:  result.Created,
+				Email:    result.Email,
+				Password: result.Password,
+				PAT:      result.PAT,
+			}, nil
+		},
+	}
+}

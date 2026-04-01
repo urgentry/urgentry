@@ -1,0 +1,37 @@
+{
+  "suite": "fast",
+  "budgets": [
+    {
+      "package": "urgentry/internal/api",
+      "max_seconds": 25
+    },
+    {
+      "package": "urgentry/internal/app",
+      "max_seconds": 210
+    },
+    {
+      "package": "urgentry/internal/postgrescontrol",
+      "max_seconds": 210
+    },
+    {
+      "package": "urgentry/internal/selfhostedops",
+      "max_seconds": 160
+    },
+    {
+      "package": "urgentry/internal/sqlite",
+      "max_seconds": 15
+    },
+    {
+      "package": "urgentry/internal/telemetrybridge",
+      "max_seconds": 210
+    },
+    {
+      "package": "urgentry/internal/telemetryquery",
+      "max_seconds": 210
+    },
+    {
+      "package": "urgentry/internal/web",
+      "max_seconds": 12
+    }
+  ]
+}

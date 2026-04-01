@@ -1,0 +1,159 @@
+package api
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"urgentry/internal/auth"
+	"urgentry/internal/sqlite"
+)
+
+func newSQLiteAuthorizedServer(t *testing.T, db *sql.DB, deps Dependencies) (*httptest.Server, string) {
+	return newSQLiteAuthorizedServerWithBootstrap(t, db, deps, "owner@example.com", "Owner", "gpat_test_admin_token")
+}
+
+func newSQLiteAuthorizedServerWithBootstrap(t *testing.T, db *sql.DB, deps Dependencies, email, displayName, patToken string) (*httptest.Server, string) {
+	t.Helper()
+
+	seedSQLiteAuth(t, db)
+
+	authStore := sqlite.NewAuthStore(db)
+	bootstrap, err := authStore.EnsureBootstrapAccess(context.Background(), sqlite.BootstrapOptions{
+		DefaultOrganizationID: "test-org-id",
+		Email:                 email,
+		DisplayName:           displayName,
+		Password:              "test-password-123",
+		PersonalAccessToken:   patToken,
+	})
+	if err != nil {
+		t.Fatalf("bootstrap auth: %v", err)
+	}
+	if bootstrap.PAT == "" {
+		t.Fatal("bootstrap PAT is empty")
+	}
+
+	deps.DB = db
+	deps.Auth = auth.NewAuthorizer(authStore, "urgentry_session", "urgentry_csrf", 30*24*time.Hour)
+	deps.TokenManager = authStore
+	deps = sqliteAuthorizedDependencies(t, db, deps)
+
+	return httptest.NewServer(NewRouter(deps)), bootstrap.PAT
+}
+
+func authzJSONRequest(t *testing.T, ts *httptest.Server, method, path, token string, body any) *http.Response {
+	t.Helper()
+
+	var payload []byte
+	if body != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
+			t.Fatalf("marshal request: %v", err)
+		}
+	}
+
+	req, err := http.NewRequest(method, ts.URL+path, bytes.NewReader(payload))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	return resp
+}
+
+func TestOrganizationMembershipLifecycle(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	createTeam := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/teams/", pat, map[string]any{
+		"slug": "platform",
+		"name": "Platform",
+	})
+	if createTeam.StatusCode != http.StatusCreated {
+		t.Fatalf("create team status = %d, want 201", createTeam.StatusCode)
+	}
+	createTeam.Body.Close()
+
+	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/invites/", pat, map[string]any{
+		"email":    "new-user@example.com",
+		"role":     "member",
+		"teamSlug": "platform",
+	})
+	if createInvite.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite status = %d, want 201", createInvite.StatusCode)
+	}
+
+	var invite CreatedInvite
+	decodeBody(t, createInvite, &invite)
+	if invite.Token == "" {
+		t.Fatal("expected invite token")
+	}
+
+	acceptInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/invites/"+invite.Token+"/accept/", "", map[string]any{
+		"displayName": "New User",
+		"password":    "temporary-pass-123",
+	})
+	if acceptInvite.StatusCode != http.StatusCreated {
+		t.Fatalf("accept invite status = %d, want 201", acceptInvite.StatusCode)
+	}
+
+	var accepted struct {
+		User struct {
+			ID          string
+			Email       string
+			DisplayName string
+		}
+	}
+	decodeBody(t, acceptInvite, &accepted)
+	if accepted.User.ID == "" {
+		t.Fatal("expected accepted user id")
+	}
+
+	listMembers := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/members/", pat, nil)
+	if listMembers.StatusCode != http.StatusOK {
+		t.Fatalf("list org members status = %d, want 200", listMembers.StatusCode)
+	}
+	var orgMembers []Member
+	decodeBody(t, listMembers, &orgMembers)
+	if len(orgMembers) != 2 {
+		t.Fatalf("org member count = %d, want 2", len(orgMembers))
+	}
+
+	listTeamMembers := authzJSONRequest(t, ts, http.MethodGet, "/api/0/teams/test-org/platform/members/", pat, nil)
+	if listTeamMembers.StatusCode != http.StatusOK {
+		t.Fatalf("list team members status = %d, want 200", listTeamMembers.StatusCode)
+	}
+	var teamMembers []Member
+	decodeBody(t, listTeamMembers, &teamMembers)
+	if len(teamMembers) != 1 || teamMembers[0].Email != "new-user@example.com" {
+		t.Fatalf("unexpected team members: %+v", teamMembers)
+	}
+
+	removeTeamMember := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/teams/test-org/platform/members/"+accepted.User.ID+"/", pat, nil)
+	if removeTeamMember.StatusCode != http.StatusNoContent {
+		t.Fatalf("remove team member status = %d, want 204", removeTeamMember.StatusCode)
+	}
+	removeTeamMember.Body.Close()
+
+	removeOrgMember := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/organizations/test-org/members/"+accepted.User.ID+"/", pat, nil)
+	if removeOrgMember.StatusCode != http.StatusNoContent {
+		t.Fatalf("remove org member status = %d, want 204", removeOrgMember.StatusCode)
+	}
+	removeOrgMember.Body.Close()
+}

@@ -1,0 +1,15 @@
+{
+  "thread_metadata": {
+    "main": {"name": "main", "is_main": true},
+    "worker-1": {"name": "worker-1"}
+  },
+  "frames": [
+    {"function": "checkout", "filename": "checkout.go", "lineno": 41, "in_app": true},
+    {"function": "dbQuery", "filename": "db.go", "lineno": 12},
+    {"function": "checkout", "filename": "checkout.go", "lineno": 41, "in_app": true}
+  ],
+  "samples": [
+    {"thread_id": "main", "frames": [0, 1], "weight": 4, "elapsed_since_start_ns": 1000},
+    {"thread_id": "worker-1", "frames": [2, 1], "weight": 2, "elapsed_since_start_ns": 2000}
+  ]
+}

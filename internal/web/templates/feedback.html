@@ -1,0 +1,46 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">User Feedback</h1>
+</div>
+
+<div class="card">
+  <table class="issue-table" style="width: 100%;">
+    <thead>
+      <tr>
+        <th style="padding: 0.75rem 1rem;">Name</th>
+        <th style="padding: 0.75rem 1rem;">Email</th>
+        <th style="padding: 0.75rem 1rem;">Comments</th>
+        <th style="padding: 0.75rem 1rem;">Event</th>
+        <th style="padding: 0.75rem 1rem;">Submitted</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Feedback}}
+        {{range .Feedback}}
+        <tr>
+          <td style="padding: 0.75rem 1rem; font-weight: 500;"><a href="/feedback/{{.ID}}/" style="color: #c9a0ff; text-decoration: none;">{{.Name}}</a></td>
+          <td style="padding: 0.75rem 1rem; color: #9CA0B0;">{{.Email}}</td>
+          <td style="padding: 0.75rem 1rem; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{.Comments}}</td>
+          <td style="padding: 0.75rem 1rem;">
+            {{if .EventID}}
+              <a href="/events/{{.EventID}}/" style="color: #c9a0ff; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">{{.EventID}}</a>
+            {{else}}
+              <span style="color: #555;">-</span>
+            {{end}}
+          </td>
+          <td style="padding: 0.75rem 1rem; color: #9CA0B0;">{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="5" style="padding: 2rem 1rem; text-align: center; color: #9CA0B0;">
+            No user feedback submitted yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

@@ -1,0 +1,329 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{.Replay.Title}}</h1>
+    <p class="detail-subtitle mono">{{.Replay.ID}}</p>
+  </div>
+  <div class="replay-header-status">
+    <span class="status-pill {{.StatusClass}}">{{.ProcessingStatus}}</span>
+  </div>
+</div>
+
+<div class="detail-layout replay-detail-layout">
+  <div class="detail-main">
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Replay Player</h3>
+      <div class="section-body">
+        <div class="context-card">
+          <div class="context-card-body">
+            <div class="replay-overview-grid">
+              <div class="context-row"><span class="key">URL</span><span class="value">{{.Replay.URL}}</span></div>
+              <div class="context-row"><span class="key">User</span><span class="value">{{.Replay.User}}</span></div>
+              <div class="context-row"><span class="key">Release</span><span class="value">{{.Replay.Release}}</span></div>
+              <div class="context-row"><span class="key">Environment</span><span class="value">{{.Replay.Environment}}</span></div>
+              <div class="context-row"><span class="key">Seen</span><span class="value">{{.Replay.TimeAgo}}</span></div>
+              <div class="context-row"><span class="key">Duration</span><span class="value">{{.Duration}}</span></div>
+              <div class="context-row"><span class="key">Timeline</span><span class="value">{{.TimelineStart}} → {{.TimelineEnd}}</span></div>
+              <div class="context-row"><span class="key">Linked traces</span><span class="value">{{.TraceCount}}</span></div>
+              <div class="context-row"><span class="key">Linked issues</span><span class="value">{{.LinkedIssueCount}}</span></div>
+              <div class="context-row"><span class="key">Assets</span><span class="value">{{len .Attachments}} ({{.AssetBytes}})</span></div>
+            </div>
+            {{if .IngestError}}
+            <div class="replay-inline-warning">
+              <strong>Replay ingest warning:</strong> {{.IngestError}}
+            </div>
+            {{end}}
+          </div>
+        </div>
+
+        <div class="replay-preview-card">
+          {{if .VideoURL}}
+          <video controls preload="metadata" class="replay-video">
+            <source src="{{.VideoURL}}" type="video/mp4">
+          </video>
+          {{else}}
+          <div class="replay-preview-placeholder">
+            <strong>No video asset available.</strong>
+            <span>Use the scrubber and focused pane below to inspect the indexed replay timeline.</span>
+          </div>
+          {{end}}
+        </div>
+
+        {{if .Timeline}}
+        <div class="replay-player-shell" id="replayPlayer" data-pane="{{.SelectedPane}}">
+          <div class="replay-scrubber">
+            <input id="replayScrubber" class="replay-scrubber-input" type="range" min="0" max="{{sub (len .Timeline) 1}}" value="{{.SelectedIndex}}">
+            <div class="replay-scrubber-meta">
+              <span>Focused marker: <strong id="replayFocusTime">{{if .Selected}}{{.Selected.TimeLabel}}{{end}}</strong></span>
+              <span>Pane: <strong id="replayFocusPane">{{if .Selected}}{{.Selected.PaneLabel}}{{else}}Timeline{{end}}</strong></span>
+              <span>Kind: <strong id="replayFocusKind">{{if .Selected}}{{.Selected.KindLabel}}{{end}}</strong></span>
+            </div>
+          </div>
+
+          <div class="filter-tabs replay-pane-tabs">
+            {{range .PaneTabs}}
+            <a class="filter-tab {{if .Active}}active{{end}}" href="{{.URL}}">
+              {{.Label}}
+              <span class="badge">{{.Count}}</span>
+            </a>
+            {{end}}
+          </div>
+
+          <div class="replay-focus-card">
+            <div class="replay-focus-header">
+              <div>
+                <div class="detail-subtitle" id="replayFocusLabel">{{if .Selected}}{{.Selected.PaneLabel}} · {{.Selected.KindLabel}}{{end}}</div>
+                <h2 class="replay-focus-title" id="replayFocusTitle">{{if .Selected}}{{.Selected.Title}}{{else}}Replay timeline{{end}}</h2>
+                <p class="replay-focus-summary" id="replayFocusSummary">{{if .Selected}}{{.Selected.Summary}}{{else}}Select a replay marker to inspect it.{{end}}</p>
+              </div>
+              {{if .Selected}}
+              <span class="level-badge {{if .Selected.Level}}{{.Selected.Level}}{{else}}debug{{end}}" id="replayFocusLevel">{{if .Selected.Level}}{{.Selected.Level}}{{else}}{{.Selected.KindLabel}}{{end}}</span>
+              {{else}}
+              <span class="level-badge debug" id="replayFocusLevel">timeline</span>
+              {{end}}
+            </div>
+
+            <div class="replay-focus-grid">
+              <div class="context-row" id="replayFocusMessageRow" {{if not .Selected.Message}}style="display:none"{{end}}>
+                <span class="key">Message</span>
+                <span class="value" id="replayFocusMessage">{{if .Selected}}{{.Selected.Message}}{{end}}</span>
+              </div>
+              <div class="context-row" id="replayFocusURLRow" {{if not .Selected.URL}}style="display:none"{{end}}>
+                <span class="key">URL</span>
+                <span class="value mono" id="replayFocusURL">{{if .Selected}}{{.Selected.URL}}{{end}}</span>
+              </div>
+              <div class="context-row" id="replayFocusMethodRow" {{if not .Selected.Method}}style="display:none"{{end}}>
+                <span class="key">Method</span>
+                <span class="value" id="replayFocusMethod">{{if .Selected}}{{.Selected.Method}}{{end}}</span>
+              </div>
+              <div class="context-row" id="replayFocusStatusRow" {{if not .Selected.StatusCode}}style="display:none"{{end}}>
+                <span class="key">Status</span>
+                <span class="value" id="replayFocusStatus">{{if .Selected}}{{.Selected.StatusCode}}{{end}}</span>
+              </div>
+              <div class="context-row" id="replayFocusDurationRow" {{if not .Selected.Duration}}style="display:none"{{end}}>
+                <span class="key">Duration</span>
+                <span class="value" id="replayFocusDuration">{{if .Selected}}{{.Selected.Duration}}{{end}}</span>
+              </div>
+              <div class="context-row" id="replayFocusSelectorRow" {{if not .Selected.Selector}}style="display:none"{{end}}>
+                <span class="key">Selector</span>
+                <span class="value mono" id="replayFocusSelector">{{if .Selected}}{{.Selected.Selector}}{{end}}</span>
+              </div>
+              <div class="context-row" id="replayFocusTextRow" {{if not .Selected.Text}}style="display:none"{{end}}>
+                <span class="key">Text</span>
+                <span class="value" id="replayFocusText">{{if .Selected}}{{.Selected.Text}}{{end}}</span>
+              </div>
+            </div>
+
+            <div class="replay-focus-links">
+              <a id="replayFocusIssueLink" class="pill" href="{{if .Selected}}{{.Selected.LinkedIssueURL}}{{end}}" {{if or (not .Selected) (not .Selected.LinkedIssueURL)}}style="display:none"{{end}}>
+                Issue: <span id="replayFocusIssueLabel">{{if .Selected}}{{if .Selected.LinkedIssueTitle}}{{.Selected.LinkedIssueTitle}}{{else}}{{.Selected.LinkedIssueID}}{{end}}{{end}}</span>
+              </a>
+              <a id="replayFocusEventLink" class="pill" href="{{if .Selected}}{{.Selected.LinkedEventURL}}{{end}}" {{if or (not .Selected) (not .Selected.LinkedEventURL)}}style="display:none"{{end}}>
+                Event: <span id="replayFocusEventLabel">{{if .Selected}}{{.Selected.LinkedEventID}}{{end}}</span>
+              </a>
+              <a id="replayFocusTraceLink" class="pill" href="{{if .Selected}}{{.Selected.TraceURL}}{{end}}" {{if or (not .Selected) (not .Selected.TraceURL)}}style="display:none"{{end}}>
+                Trace: <span id="replayFocusTraceLabel">{{if .Selected}}{{.Selected.TraceID}}{{end}}</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="replay-timeline-list" id="replayTimelineList">
+            {{range $index, $item := .Timeline}}
+            <a
+              id="item-{{$item.ID}}"
+              class="replay-timeline-item {{if $item.Selected}}selected{{end}}"
+              href="{{$item.Href}}"
+              data-index="{{$index}}"
+              data-anchor="{{$item.ID}}"
+              data-ts="{{$item.TimestampMS}}"
+              data-pane-label="{{$item.PaneLabel}}"
+              data-kind-label="{{$item.KindLabel}}"
+              data-title="{{$item.Title}}"
+              data-summary="{{$item.Summary}}"
+              data-time="{{$item.TimeLabel}}"
+              data-level="{{$item.Level}}"
+              data-message="{{$item.Message}}"
+              data-url="{{$item.URL}}"
+              data-method="{{$item.Method}}"
+              data-status="{{$item.StatusCode}}"
+              data-duration="{{$item.Duration}}"
+              data-selector="{{$item.Selector}}"
+              data-text="{{$item.Text}}"
+              data-issue-url="{{$item.LinkedIssueURL}}"
+              data-issue-label="{{if $item.LinkedIssueTitle}}{{$item.LinkedIssueTitle}}{{else}}{{$item.LinkedIssueID}}{{end}}"
+              data-event-url="{{$item.LinkedEventURL}}"
+              data-event-label="{{$item.LinkedEventID}}"
+              data-trace-url="{{$item.TraceURL}}"
+              data-trace-label="{{$item.TraceID}}"
+            >
+              <div class="replay-timeline-marker replay-kind-{{$item.Kind}}"></div>
+              <div class="replay-timeline-copy">
+                <div class="replay-timeline-title-row">
+                  <strong>{{$item.Title}}</strong>
+                  <span class="mono">{{$item.TimeLabel}}</span>
+                </div>
+                <div class="replay-timeline-summary">{{$item.Summary}}</div>
+              </div>
+              <div class="replay-timeline-badges">
+                <span class="pill">{{$item.PaneLabel}}</span>
+                {{if $item.LinkedIssueID}}<span class="pill">Issue</span>{{end}}
+              </div>
+            </a>
+            {{end}}
+          </div>
+        </div>
+        {{else}}
+        <div class="empty-inline">No indexed replay timeline is available for this replay yet.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Session Summary</h3>
+      <div class="section-body">
+        <div class="context-card">
+          <div class="context-card-body">
+            <div class="context-row"><span class="key">Assets</span><span class="value">{{len .Attachments}}</span></div>
+            <div class="context-row"><span class="key">Stored Bytes</span><span class="value">{{.AssetBytes}}</span></div>
+            <div class="context-row"><span class="key">Kinds</span><span class="value">
+              {{if .AssetKinds}}
+                {{range $index, $kind := .AssetKinds}}{{if $index}}, {{end}}{{$kind.Name}} ({{$kind.Count}}){{end}}
+              {{else}}
+                none
+              {{end}}
+            </span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Assets</h3>
+      <div class="section-body">
+        {{if .Attachments}}
+        <table class="events-table">
+          <thead>
+            <tr><th>Name</th><th>Content Type</th><th>Size</th><th></th></tr>
+          </thead>
+          <tbody>
+            {{range .Attachments}}
+            <tr>
+              <td>{{.Name}}</td>
+              <td>{{.ContentType}}</td>
+              <td>{{.Size}}</td>
+              <td>{{if .DownloadURL}}<a href="{{.DownloadURL}}">Download</a>{{else}}Unavailable{{end}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No replay assets stored for this replay.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Raw JSON</h3>
+      <div class="section-body">
+        <div class="raw-json visible">{{.RawJSON}}</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var player = document.getElementById('replayPlayer');
+    var scrubber = document.getElementById('replayScrubber');
+    if (!player || !scrubber) return;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.replay-timeline-item'));
+    if (rows.length === 0) return;
+    var pane = player.getAttribute('data-pane') || 'timeline';
+
+    function setField(id, value, rowID) {
+      var row = document.getElementById(rowID);
+      var el = document.getElementById(id);
+      if (!row || !el) return;
+      if (value) {
+        row.style.display = '';
+        el.textContent = value;
+      } else {
+        row.style.display = 'none';
+        el.textContent = '';
+      }
+    }
+
+    function setLink(id, labelID, href, label) {
+      var el = document.getElementById(id);
+      var labelEl = document.getElementById(labelID);
+      if (!el || !labelEl) return;
+      if (href && label) {
+        el.style.display = '';
+        el.href = href;
+        labelEl.textContent = label;
+      } else {
+        el.style.display = 'none';
+        el.removeAttribute('href');
+        labelEl.textContent = '';
+      }
+    }
+
+    function apply(index, pushState) {
+      if (index < 0 || index >= rows.length) return;
+      rows.forEach(function(row) { row.classList.remove('selected'); });
+      var row = rows[index];
+      row.classList.add('selected');
+      scrubber.value = String(index);
+
+      document.getElementById('replayFocusTime').textContent = row.dataset.time || '';
+      document.getElementById('replayFocusPane').textContent = row.dataset.paneLabel || 'Timeline';
+      document.getElementById('replayFocusKind').textContent = row.dataset.kindLabel || '';
+      document.getElementById('replayFocusLabel').textContent = (row.dataset.paneLabel || 'Timeline') + ' · ' + (row.dataset.kindLabel || '');
+      document.getElementById('replayFocusTitle').textContent = row.dataset.title || 'Replay marker';
+      document.getElementById('replayFocusSummary').textContent = row.dataset.summary || '';
+
+      var level = document.getElementById('replayFocusLevel');
+      level.textContent = row.dataset.level || row.dataset.kindLabel || 'timeline';
+      level.className = 'level-badge ' + (row.dataset.level || 'debug');
+
+      setField('replayFocusMessage', row.dataset.message || '', 'replayFocusMessageRow');
+      setField('replayFocusURL', row.dataset.url || '', 'replayFocusURLRow');
+      setField('replayFocusMethod', row.dataset.method || '', 'replayFocusMethodRow');
+      setField('replayFocusStatus', row.dataset.status || '', 'replayFocusStatusRow');
+      setField('replayFocusDuration', row.dataset.duration || '', 'replayFocusDurationRow');
+      setField('replayFocusSelector', row.dataset.selector || '', 'replayFocusSelectorRow');
+      setField('replayFocusText', row.dataset.text || '', 'replayFocusTextRow');
+
+      setLink('replayFocusIssueLink', 'replayFocusIssueLabel', row.dataset.issueUrl || '', row.dataset.issueLabel || '');
+      setLink('replayFocusEventLink', 'replayFocusEventLabel', row.dataset.eventUrl || '', row.dataset.eventLabel || '');
+      setLink('replayFocusTraceLink', 'replayFocusTraceLabel', row.dataset.traceUrl || '', row.dataset.traceLabel || '');
+
+      if (pushState && window.history && window.history.replaceState) {
+        var params = new URLSearchParams(window.location.search);
+        params.set('pane', pane);
+        params.set('anchor', row.dataset.anchor || '');
+        params.set('ts', row.dataset.ts || '0');
+        var next = window.location.pathname + '?' + params.toString() + '#item-' + (row.dataset.anchor || '');
+        window.history.replaceState(null, '', next);
+      }
+    }
+
+    rows.forEach(function(row) {
+      row.addEventListener('click', function(evt) {
+        if (evt.metaKey || evt.ctrlKey || evt.shiftKey || evt.altKey) return;
+        evt.preventDefault();
+        apply(parseInt(row.dataset.index || '0', 10), true);
+      });
+    });
+
+    scrubber.addEventListener('input', function() {
+      apply(parseInt(scrubber.value || '0', 10), true);
+    });
+
+    var selectedIndex = rows.findIndex(function(row) { return row.classList.contains('selected'); });
+    apply(selectedIndex >= 0 ? selectedIndex : 0, false);
+  })();
+</script>
+{{end}}

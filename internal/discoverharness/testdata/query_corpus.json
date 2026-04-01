@@ -1,0 +1,151 @@
+[
+  {
+    "name": "issues_unresolved_release",
+    "mode": "table",
+    "benchmark": true,
+    "query": {
+      "version": 1,
+      "dataset": "issues",
+      "scope": {
+        "kind": "organization",
+        "organization": "acme"
+      },
+      "select": [
+        {"alias": "issue.id", "expr": {"field": "issue.id"}},
+        {"alias": "project", "expr": {"field": "project"}},
+        {"alias": "title", "expr": {"field": "title"}},
+        {"alias": "status", "expr": {"field": "status"}},
+        {"alias": "count", "expr": {"field": "count"}}
+      ],
+      "where": {
+        "op": "and",
+        "args": [
+          {"op": "=", "field": "status", "value": "unresolved"},
+          {"op": "=", "field": "release", "value": "frontend@1.0.0"}
+        ]
+      },
+      "limit": 10
+    },
+    "expect_table": {
+      "columns": ["issue.id", "project", "title", "status", "count"],
+      "rows": [
+        {
+          "issue.id": "grp-a",
+          "project": "frontend",
+          "title": "ImportError",
+          "status": "unresolved",
+          "count": 5
+        }
+      ]
+    },
+    "explain_contains": ["FROM groups g"]
+  },
+  {
+    "name": "transactions_multi_aggregate_by_project",
+    "mode": "table",
+    "benchmark": true,
+    "query": {
+      "version": 1,
+      "dataset": "transactions",
+      "scope": {
+        "kind": "organization",
+        "organization": "acme",
+        "project_ids": ["proj-a", "proj-b"]
+      },
+      "select": [
+        {"alias": "project", "expr": {"field": "project"}},
+        {"alias": "transaction", "expr": {"field": "transaction"}},
+        {"alias": "count", "expr": {"call": "count"}},
+        {"alias": "p95", "expr": {"call": "p95", "args": [{"field": "duration.ms"}]}}
+      ],
+      "group_by": [{"field": "project"}, {"field": "transaction"}],
+      "order_by": [{"expr": {"alias": "p95"}, "direction": "desc"}],
+      "time_range": {
+        "kind": "absolute",
+        "start": "2026-03-29T10:00:00Z",
+        "end": "2026-03-29T13:00:00Z"
+      },
+      "limit": 10
+    },
+    "expect_table": {
+      "columns": ["project", "transaction", "count", "p95"],
+      "rows": [
+        {"project": "backend", "transaction": "checkout", "count": 1, "p95": 240},
+        {"project": "frontend", "transaction": "checkout", "count": 1, "p95": 120},
+        {"project": "backend", "transaction": "invoice", "count": 1, "p95": 80}
+      ]
+    },
+    "explain_contains": ["FROM transactions t"]
+  },
+  {
+    "name": "transactions_p95_by_name",
+    "mode": "table",
+    "benchmark": true,
+    "query": {
+      "version": 1,
+      "dataset": "transactions",
+      "scope": {
+        "kind": "organization",
+        "organization": "acme",
+        "project_ids": ["proj-a", "proj-b"]
+      },
+      "select": [
+        {"alias": "transaction", "expr": {"field": "transaction"}},
+        {"alias": "p95", "expr": {"call": "p95", "args": [{"field": "duration.ms"}]}}
+      ],
+      "group_by": [{"field": "transaction"}],
+      "order_by": [{"expr": {"alias": "p95"}, "direction": "desc"}],
+      "time_range": {
+        "kind": "absolute",
+        "start": "2026-03-29T10:00:00Z",
+        "end": "2026-03-29T13:00:00Z"
+      },
+      "limit": 10
+    },
+    "expect_table": {
+      "columns": ["transaction", "p95"],
+      "rows": [
+        {"transaction": "checkout", "p95": 240},
+        {"transaction": "invoice", "p95": 80}
+      ]
+    },
+    "explain_contains": ["FROM transactions t"]
+  },
+  {
+    "name": "logs_hourly_count",
+    "mode": "series",
+    "benchmark": true,
+    "query": {
+      "version": 1,
+      "dataset": "logs",
+      "scope": {
+        "kind": "organization",
+        "organization": "acme"
+      },
+      "select": [
+        {"alias": "count", "expr": {"call": "count"}}
+      ],
+      "time_range": {
+        "kind": "absolute",
+        "start": "2026-03-29T10:00:00Z",
+        "end": "2026-03-29T13:00:00Z"
+      },
+      "rollup": {"interval": "1h"},
+      "limit": 10
+    },
+    "expect_series": {
+      "columns": ["count"],
+      "points": [
+        {
+          "bucket": "2026-03-29T10:00:00Z",
+          "values": {"count": 1}
+        },
+        {
+          "bucket": "2026-03-29T11:00:00Z",
+          "values": {"count": 2}
+        }
+      ]
+    },
+    "explain_contains": ["FROM events e"]
+  }
+]

@@ -1,0 +1,50 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Releases</h1>
+</div>
+
+<div class="card">
+  <table class="issue-table" style="width: 100%;">
+    <thead>
+      <tr>
+        <th style="padding: 0.75rem 1rem;">Version</th>
+        <th style="padding: 0.75rem 1rem;">Events</th>
+        <th style="padding: 0.75rem 1rem;">Sessions</th>
+        <th style="padding: 0.75rem 1rem;">Errored</th>
+        <th style="padding: 0.75rem 1rem;">Crashed</th>
+        <th style="padding: 0.75rem 1rem;">Abnormal</th>
+        <th style="padding: 0.75rem 1rem;">Affected Users</th>
+        <th style="padding: 0.75rem 1rem;">Crash-Free</th>
+        <th style="padding: 0.75rem 1rem;">Last Session</th>
+        <th style="padding: 0.75rem 1rem;">Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Releases}}
+        {{range .Releases}}
+        <tr>
+          <td style="padding: 0.75rem 1rem; font-weight: 500; font-family: 'JetBrains Mono', monospace;"><a href="/releases/{{.Version}}/">{{.Version}}</a></td>
+          <td style="padding: 0.75rem 1rem;">{{.EventCount}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.SessionCount}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.ErroredSessions}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.CrashedSessions}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.AbnormalSessions}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.AffectedUsers}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.CrashFreeRate}}</td>
+          <td style="padding: 0.75rem 1rem; color: #9CA0B0;">{{.LastSeen}}</td>
+          <td style="padding: 0.75rem 1rem; color: #9CA0B0;">{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="10" style="padding: 2rem 1rem; text-align: center; color: #9CA0B0;">
+            No releases tracked yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

@@ -1,0 +1,217 @@
+package api
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	attachmentstore "urgentry/internal/attachment"
+	"urgentry/internal/sqlite"
+	"urgentry/internal/store"
+)
+
+func TestAPIListEvents_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+
+	insertSQLiteGroup(t, db, "grp-api-evt", "EventListErr", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-1", "grp-api-evt", "EventListErr", "error")
+	insertSQLiteEvent(t, db, "evt-api-2", "grp-api-evt", "EventListErr", "error")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/projects/test-org/test-project/events/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var events []Event
+	decodeBody(t, resp, &events)
+
+	// Should contain at least the 2 SQLite events.
+	if len(events) < 2 {
+		t.Errorf("expected at least 2 events, got %d", len(events))
+	}
+
+	// Verify at least one event has the expected title.
+	found := false
+	for _, evt := range events {
+		if evt.Title == "EventListErr" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected to find event with title 'EventListErr'")
+	}
+}
+
+func TestAPIGetProjectEvent_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+
+	insertSQLiteGroup(t, db, "grp-api-gevt", "SingleEvent", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-single", "grp-api-gevt", "SingleEvent", "error")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/projects/test-org/test-project/events/evt-api-single/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var evt Event
+	decodeBody(t, resp, &evt)
+	if evt.EventID != "evt-api-single" {
+		t.Errorf("EventID = %q, want 'evt-api-single'", evt.EventID)
+	}
+}
+
+func TestAPIEventAttachments_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+	insertSQLiteGroup(t, db, "grp-api-att", "AttachmentError", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-att", "grp-api-att", "AttachmentError", "error")
+
+	blobStore, err := store.NewFileBlobStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("blob store: %v", err)
+	}
+	attachments := sqlite.NewAttachmentStore(db, blobStore)
+	if err := attachments.SaveAttachment(t.Context(), &attachmentstore.Attachment{
+		ID:          "att-1",
+		EventID:     "evt-api-att",
+		ProjectID:   "test-proj-id",
+		Name:        "crash.txt",
+		ContentType: "text/plain",
+		CreatedAt:   time.Now().UTC(),
+	}, []byte("crash payload")); err != nil {
+		t.Fatalf("save attachment: %v", err)
+	}
+
+	ts := httptest.NewServer(NewRouter(sqliteAuthorizedDependencies(t, db, Dependencies{
+		DB:          db,
+		Attachments: attachments,
+	})))
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/events/evt-api-att/attachments/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list attachments status = %d, want 200", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+
+	var items []Attachment
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		t.Fatalf("decode attachments: %v", err)
+	}
+	if len(items) != 1 || items[0].Name != "crash.txt" {
+		t.Fatalf("unexpected attachments: %+v", items)
+	}
+
+	download := authGet(t, ts, "/api/0/events/evt-api-att/attachments/att-1/")
+	if download.StatusCode != http.StatusOK {
+		t.Fatalf("download attachment status = %d, want 200", download.StatusCode)
+	}
+	if got := download.Header.Get("Content-Type"); got != "text/plain" {
+		t.Fatalf("content type = %q, want text/plain", got)
+	}
+	body, err := io.ReadAll(download.Body)
+	if err != nil {
+		t.Fatalf("read attachment body: %v", err)
+	}
+	_ = download.Body.Close()
+	if string(body) != "crash payload" {
+		t.Fatalf("attachment payload = %q, want %q", string(body), "crash payload")
+	}
+}
+
+func TestAPIUploadEventAttachment_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+	insertSQLiteGroup(t, db, "grp-api-up-att", "AttachmentUpload", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-up-att", "grp-api-up-att", "AttachmentUpload", "error")
+
+	blobStore, err := store.NewFileBlobStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("blob store: %v", err)
+	}
+	attachments := sqlite.NewAttachmentStore(db, blobStore)
+
+	ts := httptest.NewServer(NewRouter(sqliteAuthorizedDependencies(t, db, Dependencies{
+		DB:          db,
+		Attachments: attachments,
+		BlobStore:   blobStore,
+	})))
+	defer ts.Close()
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	part, err := writer.CreateFormFile("file", "upload.log")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write([]byte("upload payload")); err != nil {
+		t.Fatalf("write attachment: %v", err)
+	}
+	if err := writer.WriteField("event_id", "evt-api-up-att"); err != nil {
+		t.Fatalf("WriteField event_id: %v", err)
+	}
+	if err := writer.WriteField("content_type", "text/plain"); err != nil {
+		t.Fatalf("WriteField content_type: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close writer: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/0/projects/test-org/test-project/attachments/", &buf)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", testToken)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("upload attachment: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("upload attachment status = %d, want 201", resp.StatusCode)
+	}
+	var created Attachment
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created attachment: %v", err)
+	}
+	_ = resp.Body.Close()
+	if created.EventID != "evt-api-up-att" || created.Name != "upload.log" {
+		t.Fatalf("unexpected created attachment: %+v", created)
+	}
+
+	list := authGet(t, ts, "/api/0/events/evt-api-up-att/attachments/")
+	if list.StatusCode != http.StatusOK {
+		t.Fatalf("list attachments status = %d, want 200", list.StatusCode)
+	}
+	var items []Attachment
+	decodeBody(t, list, &items)
+	if len(items) != 1 || items[0].ID != created.ID {
+		t.Fatalf("unexpected listed attachments: %+v", items)
+	}
+
+	download := authGet(t, ts, "/api/0/events/evt-api-up-att/attachments/"+created.ID+"/")
+	if download.StatusCode != http.StatusOK {
+		t.Fatalf("download attachment status = %d, want 200", download.StatusCode)
+	}
+	payload, err := io.ReadAll(download.Body)
+	if err != nil {
+		t.Fatalf("read uploaded attachment body: %v", err)
+	}
+	_ = download.Body.Close()
+	if string(payload) != "upload payload" {
+		t.Fatalf("attachment payload = %q, want %q", string(payload), "upload payload")
+	}
+}

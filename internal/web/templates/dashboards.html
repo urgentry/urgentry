@@ -1,0 +1,84 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Dashboards</h1>
+</div>
+
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="section-header" style="padding: 0 0 0.5rem;">{{.Guide.Title}}</div>
+  <div class="empty-text">{{.Guide.Body}}</div>
+  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
+    {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  </ul>
+  <div style="margin-top:0.9rem;">
+    <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
+  </div>
+</div>
+
+<div class="metrics-grid" style="align-items:start;">
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Starter Packs</div>
+    <div style="display:grid; gap:0.9rem;">
+      {{range .Templates}}
+      <form method="POST" action="/dashboards/starter/{{.Slug}}/create" style="border:1px solid var(--border-color); border-radius:0.9rem; padding:0.9rem; display:grid; gap:0.55rem;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
+          <div>
+            <div class="activity-text">{{.Name}}</div>
+            <div class="alert-secondary">{{.Description}}</div>
+          </div>
+          <span class="alert-secondary">{{.WidgetCount}} widgets</span>
+        </div>
+        <div class="empty-text">Best for: {{.IdealFor}}</div>
+        <div class="empty-text">Includes: {{range $i, $item := .Highlights}}{{if $i}}, {{end}}{{$item}}{{end}}</div>
+        <div>
+          <button type="submit" class="btn btn-sm">Create starter dashboard</button>
+        </div>
+      </form>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Create Dashboard</div>
+    <form method="POST" action="/dashboards/">
+      <div style="display:grid; gap:0.75rem;">
+        <input type="text" name="title" placeholder="Team overview" class="search-input-inline">
+        <input type="text" name="description" placeholder="What this dashboard tracks" class="search-input-inline">
+        <select name="visibility" class="filter-select">
+          <option value="private">Private</option>
+          <option value="organization">Organization</option>
+        </select>
+        <button type="submit" class="btn btn-sm">Create dashboard</button>
+      </div>
+    </form>
+    {{if .Error}}
+    <div class="empty-state" style="padding: 1rem 0 0;">
+      <div class="empty-text">{{.Error}}</div>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Your Dashboards</div>
+    {{if .Dashboards}}
+    <div class="activity-feed">
+      {{range .Dashboards}}
+      <a href="/dashboards/{{.ID}}/" class="activity-row" style="text-decoration:none;">
+        <span class="activity-icon" style="background: var(--accent-color, #5b6cff);"></span>
+        <span class="activity-text">
+          {{.Title}}
+          <span class="alert-secondary">· {{.Visibility}} · {{len .Widgets}} widgets</span>
+          {{if .Description}}<div class="alert-secondary">{{.Description}}</div>{{end}}
+        </span>
+      </a>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state" style="padding: 0;">
+      <div class="empty-text">No dashboards yet. Start with a starter pack or build one from scratch.</div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}

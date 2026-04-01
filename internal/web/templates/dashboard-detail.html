@@ -1,0 +1,202 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+    <h1 class="page-title" style="margin:0;">{{.Dashboard.Title}}</h1>
+    <span class="alert-secondary">Refresh: {{.DashboardRefreshLabel}}</span>
+    {{range .DashboardFilters}}
+    <span class="alert-secondary">{{.}}</span>
+    {{end}}
+  </div>
+</div>
+
+{{if .DashboardConfig.Annotations}}
+<div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+  <div class="section-header" style="padding: 0 0 0.75rem;">Annotations</div>
+  <div style="display:grid; gap:0.75rem;">
+    {{range .DashboardConfig.Annotations}}
+    <div style="padding:0.75rem 0.875rem; border-radius:12px; border:1px solid rgba(148,163,184,0.25); {{if eq .Level "warning"}}background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.35);{{else if eq .Level "critical"}}background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.35);{{else if eq .Level "info"}}background:rgba(59,130,246,0.10); border-color:rgba(59,130,246,0.28);{{else}}background:rgba(15,23,42,0.04);{{end}}">
+      <div class="alert-secondary" style="margin-bottom:0.35rem; text-transform:uppercase;">{{.Level}}</div>
+      <div>{{.Text}}</div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+<div class="metrics-grid" style="align-items:start;">
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Dashboard Settings</div>
+    <form method="POST" action="/dashboards/{{.Dashboard.ID}}/update">
+      <div style="display:grid; gap:0.75rem;">
+        <input type="text" name="title" value="{{.Dashboard.Title}}" class="search-input-inline">
+        <input type="text" name="description" value="{{.Dashboard.Description}}" class="search-input-inline" placeholder="Description">
+        <select name="visibility" class="filter-select">
+          <option value="private" {{if eq .Dashboard.Visibility "private"}}selected{{end}}>Private</option>
+          <option value="organization" {{if eq .Dashboard.Visibility "organization"}}selected{{end}}>Organization</option>
+        </select>
+        <select name="refresh_seconds" class="filter-select">
+          <option value="0" {{if eq .DashboardRefreshSeconds 0}}selected{{end}}>Manual refresh</option>
+          <option value="30" {{if eq .DashboardRefreshSeconds 30}}selected{{end}}>Refresh every 30 seconds</option>
+          <option value="60" {{if eq .DashboardRefreshSeconds 60}}selected{{end}}>Refresh every minute</option>
+          <option value="300" {{if eq .DashboardRefreshSeconds 300}}selected{{end}}>Refresh every 5 minutes</option>
+        </select>
+        <input type="text" name="filter_environment" value="{{.DashboardConfig.Filters.Environment}}" class="search-input-inline" placeholder="Dashboard filter: environment">
+        <input type="text" name="filter_release" value="{{.DashboardConfig.Filters.Release}}" class="search-input-inline" placeholder="Dashboard filter: release">
+        <input type="text" name="filter_transaction" value="{{.DashboardConfig.Filters.Transaction}}" class="search-input-inline" placeholder="Dashboard filter: transaction">
+        <textarea name="annotations" class="search-input-inline" rows="4" placeholder="One note per line. Prefix warning| or critical| to change the tone.">{{.DashboardAnnotations}}</textarea>
+        <button type="submit" class="btn btn-sm">Save dashboard</button>
+      </div>
+    </form>
+    <form method="POST" action="/dashboards/{{.Dashboard.ID}}/duplicate" style="margin-top: 0.75rem;">
+      <div class="search-bar-sentry" style="gap: 0.75rem;">
+        <input type="text" name="title" value="{{.Dashboard.Title}} copy" class="search-input-inline" placeholder="Duplicate title">
+        <button type="submit" class="btn btn-sm">Duplicate</button>
+      </div>
+    </form>
+    <form method="POST" action="/dashboards/{{.Dashboard.ID}}/delete" style="margin-top: 0.75rem;">
+      <button type="submit" class="btn btn-sm">Delete dashboard</button>
+    </form>
+  </div>
+
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">Add Widget</div>
+    <form method="POST" action="/dashboards/{{.Dashboard.ID}}/widgets">
+      <div style="display:grid; gap:0.75rem;">
+        <input type="text" name="title" placeholder="Widget title" class="search-input-inline">
+        <input type="text" name="description" placeholder="Description" class="search-input-inline">
+        <select name="saved_search_id" class="filter-select">
+          <option value="">Build from form</option>
+          {{range .SavedQueries}}
+          <option value="{{.ID}}">{{.Name}} · {{.Dataset}}</option>
+          {{end}}
+        </select>
+        <select name="dataset" class="filter-select">
+          <option value="issues">Issues</option>
+          <option value="logs">Logs</option>
+          <option value="transactions">Transactions</option>
+        </select>
+        <input type="text" name="query" placeholder="Search query" class="search-input-inline">
+        <input type="text" name="environment" placeholder="Environment" class="search-input-inline">
+        <select name="kind" class="filter-select">
+          <option value="table">Table</option>
+          <option value="stat">Stat</option>
+          <option value="series">Series</option>
+        </select>
+        <input type="text" name="columns" placeholder="Columns: timestamp, transaction" class="search-input-inline">
+        <input type="text" name="aggregate" placeholder="Aggregates: count, p95(duration.ms)" class="search-input-inline">
+        <input type="text" name="group_by" placeholder="Group by: project, environment" class="search-input-inline">
+        <input type="text" name="order_by" placeholder="Sort: -count, project" class="search-input-inline">
+        <select name="time_range" class="filter-select">
+          <option value="">Default range</option>
+          <option value="1h">Last hour</option>
+          <option value="6h">Last 6 hours</option>
+          <option value="24h">Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+        </select>
+        <select name="rollup" class="filter-select">
+          <option value="">Default rollup</option>
+          <option value="5m">5 minutes</option>
+          <option value="1h">1 hour</option>
+          <option value="1d">1 day</option>
+        </select>
+        <div style="display:grid; gap:0.75rem; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));">
+          <input type="text" name="threshold_warning" placeholder="Warn threshold" class="search-input-inline">
+          <input type="text" name="threshold_critical" placeholder="Critical threshold" class="search-input-inline">
+          <select name="threshold_direction" class="filter-select">
+            <option value="above">Threshold fires above</option>
+            <option value="below">Threshold fires below</option>
+          </select>
+        </div>
+        <div class="empty-text">Builder grammar is comma-separated. Example: aggregates <code>count, p95(duration.ms)</code>, group by <code>project, release</code>, sort <code>-p95, project</code>.</div>
+        <button type="submit" class="btn btn-sm">Add widget</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{if .Error}}
+<div class="empty-state" style="padding: 1rem 0;">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+{{if .WidgetViews}}
+<div class="metrics-grid" style="margin-top: 1.25rem; align-items:start;">
+  {{range .WidgetViews}}
+  <div class="card" style="padding: 1rem;">
+    <div class="section-header" style="padding: 0 0 1rem;">
+      {{.Widget.Title}}
+      <span class="alert-secondary">· {{.Widget.Kind}} · {{.Widget.QueryDoc.Dataset}}</span>
+    </div>
+    {{if .Widget.Description}}<div class="alert-secondary" style="margin-bottom: 0.75rem;">{{.Widget.Description}}</div>{{end}}
+    <div class="alert-secondary" style="margin-bottom:0.75rem;">
+      {{.Widget.Kind}} · {{.Widget.QueryDoc.Dataset}} · {{if .Contract.SourceURL}}<a href="{{.Contract.SourceURL}}">{{.Contract.SourceLabel}}</a>{{else}}{{.Contract.SourceLabel}}{{end}}
+    </div>
+    {{if .Contract.Filters}}
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+      {{range .Contract.Filters}}
+      <span class="alert-secondary">{{.}}</span>
+      {{end}}
+    </div>
+    {{end}}
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+      <a href="{{.DetailURL}}" class="btn btn-sm">Open widget</a>
+      {{if .Error}}
+      <span class="alert-secondary">Live export and snapshot are unavailable until this widget query succeeds.</span>
+      {{else}}
+      <a href="{{.ExportCSVURL}}" class="btn btn-sm">Export live CSV</a>
+      <a href="{{.ExportJSONURL}}" class="btn btn-sm">Export live JSON</a>
+      <form method="POST" action="{{.SnapshotAction}}">
+        <button type="submit" class="btn btn-sm">Create frozen snapshot</button>
+      </form>
+      {{end}}
+    </div>
+    {{if .Error}}
+    <div class="empty-state" style="padding: 0 0 1rem;">
+      <div class="empty-text">{{.Error}}</div>
+    </div>
+    {{else if eq .Result.Type "stat"}}
+    <div class="metric-card" style="{{if eq .ThresholdClass "threshold-warning"}}border-color: rgba(245,158,11,0.55); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.25);{{else if eq .ThresholdClass "threshold-critical"}}border-color: rgba(239,68,68,0.6); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);{{end}}">
+      <div class="metric-label">{{if .Result.StatLabel}}{{.Result.StatLabel}}{{else}}Result{{end}}</div>
+      <div class="metric-value">{{if .Result.StatValue}}{{.Result.StatValue}}{{else}}0{{end}}</div>
+      {{if .ThresholdText}}<div class="alert-secondary" style="margin-top:0.5rem;">Thresholds: {{.ThresholdText}}</div>{{end}}
+    </div>
+    {{else}}
+    <table class="events-table">
+      <thead>
+        <tr>
+          {{range .Result.Columns}}<th>{{.}}</th>{{end}}
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Result.Rows}}
+        <tr>
+          {{range .}}
+          <td>{{if .Href}}<a href="{{.Href}}">{{.Text}}</a>{{else}}{{if .Text}}{{.Text}}{{else}}-{{end}}{{end}}</td>
+          {{end}}
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+    <form method="POST" action="/dashboards/{{$.Dashboard.ID}}/widgets/{{.Widget.ID}}/delete" style="margin-top: 0.75rem;">
+      <button type="submit" class="btn btn-sm">Remove widget</button>
+    </form>
+  </div>
+  {{end}}
+</div>
+{{else}}
+<div class="empty-state" style="padding: 1.25rem 0;">
+  <div class="empty-text">No widgets yet.</div>
+</div>
+{{end}}
+{{if gt .DashboardRefreshSeconds 0}}
+<script>
+  window.setTimeout(function () {
+    window.location.reload();
+  }, {{.DashboardRefreshSeconds}}000);
+</script>
+{{end}}
+{{end}}

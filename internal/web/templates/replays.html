@@ -1,0 +1,54 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Replays</h1>
+</div>
+
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="section-header" style="padding: 0 0 0.5rem;">{{.Guide.Title}}</div>
+  <div class="empty-text">{{.Guide.Body}}</div>
+  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
+    {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  </ul>
+  <div style="margin-top:0.9rem;">
+    <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
+  </div>
+</div>
+
+<div class="card">
+  <table class="issue-table" style="width: 100%;">
+    <thead>
+      <tr>
+        <th style="padding: 0.75rem 1rem;">Replay</th>
+        <th style="padding: 0.75rem 1rem;">URL</th>
+        <th style="padding: 0.75rem 1rem;">User</th>
+        <th style="padding: 0.75rem 1rem;">Release</th>
+        <th style="padding: 0.75rem 1rem;">Environment</th>
+        <th style="padding: 0.75rem 1rem;">Seen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Replays}}
+        {{range .Replays}}
+        <tr>
+          <td style="padding: 0.75rem 1rem;">
+            <a href="/replays/{{.ID}}/">{{.Title}}</a>
+            {{if .Summary}}<div class="detail-subtitle" style="margin: 0.35rem 0 0; font-size: 0.8rem;">{{.Summary}}</div>{{end}}
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="mono">{{.URL}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.User}}</td>
+          <td style="padding: 0.75rem 1rem;" class="mono">{{.Release}}</td>
+          <td style="padding: 0.75rem 1rem;">{{.Environment}}</td>
+          <td style="padding: 0.75rem 1rem;" class="{{.TimeClass}}">{{.TimeAgo}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="6" style="padding: 2rem 1rem; text-align: center; color: #9CA0B0;">No replays captured yet.</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
