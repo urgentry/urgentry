@@ -166,7 +166,7 @@ func (s *CatalogStore) ListTeams(ctx context.Context, orgSlug string) ([]shareds
 
 func (s *CatalogStore) ListProjectKeys(ctx context.Context, orgSlug, projectSlug string) ([]sharedstore.ProjectKeyMeta, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT k.id, k.project_id, k.label, k.public_key, COALESCE(k.secret_key, ''), k.status, k.created_at
+		`SELECT k.id, k.project_id, k.label, k.public_key, COALESCE(k.secret_key, ''), k.status, COALESCE(k.rate_limit_per_minute, 0), k.created_at
 		 FROM project_keys k
 		 JOIN projects p ON p.id = k.project_id
 		 JOIN organizations o ON o.id = p.organization_id
@@ -184,7 +184,7 @@ func (s *CatalogStore) ListProjectKeys(ctx context.Context, orgSlug, projectSlug
 
 func (s *CatalogStore) ListAllProjectKeys(ctx context.Context) ([]sharedstore.ProjectKeyMeta, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, label, public_key, COALESCE(secret_key, ''), status, created_at
+		`SELECT id, project_id, label, public_key, COALESCE(secret_key, ''), status, COALESCE(rate_limit_per_minute, 0), created_at
 		 FROM project_keys
 		 ORDER BY created_at ASC`,
 	)
@@ -266,6 +266,73 @@ func (s *CatalogStore) CreateProjectKey(ctx context.Context, orgSlug, projectSlu
 		return nil, fmt.Errorf("insert project key: %w", err)
 	}
 	return &item, nil
+}
+
+func (s *CatalogStore) GetProjectKey(ctx context.Context, orgSlug, projectSlug, keyID string) (*sharedstore.ProjectKeyMeta, error) {
+	var item sharedstore.ProjectKeyMeta
+	err := s.db.QueryRowContext(ctx,
+		`SELECT k.id, k.project_id, k.label, k.public_key, COALESCE(k.secret_key, ''), k.status, COALESCE(k.rate_limit_per_minute, 0), k.created_at
+		 FROM project_keys k
+		 JOIN projects p ON p.id = k.project_id
+		 JOIN organizations o ON o.id = p.organization_id
+		 WHERE o.slug = $1 AND p.slug = $2 AND k.id = $3`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(projectSlug), strings.TrimSpace(keyID),
+	).Scan(&item.ID, &item.ProjectID, &item.Label, &item.PublicKey, &item.SecretKey, &item.Status, &item.RateLimit, &item.DateCreated)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get project key: %w", err)
+	}
+	item.DateCreated = item.DateCreated.UTC()
+	return &item, nil
+}
+
+func (s *CatalogStore) UpdateProjectKey(ctx context.Context, orgSlug, projectSlug, keyID string, update sharedstore.ProjectKeyUpdate) (*sharedstore.ProjectKeyMeta, error) {
+	existing, err := s.GetProjectKey(ctx, orgSlug, projectSlug, keyID)
+	if err != nil || existing == nil {
+		return existing, err
+	}
+	if update.Name != "" {
+		existing.Label = update.Name
+	}
+	if update.IsActive != nil {
+		if *update.IsActive {
+			existing.Status = "active"
+		} else {
+			existing.Status = "disabled"
+		}
+	}
+	if update.RateLimit != nil {
+		existing.RateLimit = *update.RateLimit
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE project_keys SET label = $1, status = $2, rate_limit_per_minute = $3 WHERE id = $4`,
+		existing.Label, existing.Status, existing.RateLimit, existing.ID,
+	); err != nil {
+		return nil, fmt.Errorf("update project key: %w", err)
+	}
+	return existing, nil
+}
+
+func (s *CatalogStore) DeleteProjectKey(ctx context.Context, orgSlug, projectSlug, keyID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM project_keys
+		 WHERE id = $1 AND project_id IN (
+		   SELECT p.id FROM projects p
+		   JOIN organizations o ON o.id = p.organization_id
+		   WHERE o.slug = $2 AND p.slug = $3
+		 )`,
+		strings.TrimSpace(keyID), strings.TrimSpace(orgSlug), strings.TrimSpace(projectSlug),
+	)
+	if err != nil {
+		return fmt.Errorf("delete project key: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *CatalogStore) GetProjectSettings(ctx context.Context, orgSlug, projectSlug string) (*sharedstore.ProjectSettings, error) {
@@ -494,6 +561,7 @@ func scanProjectKeyRows(rows *sql.Rows) ([]sharedstore.ProjectKeyMeta, error) {
 			&item.PublicKey,
 			&item.SecretKey,
 			&item.Status,
+			&item.RateLimit,
 			&item.DateCreated,
 		); err != nil {
 			return nil, fmt.Errorf("scan project key: %w", err)
@@ -602,4 +670,66 @@ func defaultReplayIngestPolicy() sharedstore.ReplayIngestPolicy {
 		return sharedstore.ReplayIngestPolicy{SampleRate: 1, MaxBytes: 10 << 20}
 	}
 	return policy
+}
+
+func (s *CatalogStore) UpdateOrganization(ctx context.Context, slug string, update sharedstore.OrganizationUpdate) (*sharedstore.Organization, error) {
+	name := strings.TrimSpace(update.Name)
+	if name == "" {
+		name = slug
+	}
+	newSlug := strings.TrimSpace(update.Slug)
+	if newSlug == "" {
+		newSlug = slug
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE organizations SET name = $1, slug = $2 WHERE slug = $3`,
+		name, newSlug, slug,
+	); err != nil {
+		return nil, fmt.Errorf("update organization: %w", err)
+	}
+	return s.GetOrganization(ctx, newSlug)
+}
+
+func (s *CatalogStore) ListEnvironments(ctx context.Context, orgSlug string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT DISTINCT e.environment
+		 FROM events e
+		 JOIN projects p ON p.id = e.project_id
+		 JOIN organizations o ON o.id = p.organization_id
+		 WHERE o.slug = $1 AND e.environment != ''
+		 ORDER BY e.environment ASC`,
+		strings.TrimSpace(orgSlug),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list environments: %w", err)
+	}
+	defer rows.Close()
+
+	var envs []string
+	for rows.Next() {
+		var env string
+		if err := rows.Scan(&env); err != nil {
+			return nil, fmt.Errorf("scan environment: %w", err)
+		}
+		envs = append(envs, env)
+	}
+	return envs, rows.Err()
+}
+
+// DeleteProject removes a project and all dependent rows using Postgres CASCADE.
+func (s *CatalogStore) DeleteProject(ctx context.Context, orgSlug, projectSlug string) error {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil {
+		return err
+	}
+	if project == nil {
+		return sql.ErrNoRows
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`DELETE FROM projects WHERE id = $1`,
+		project.ID,
+	); err != nil {
+		return fmt.Errorf("delete project: %w", err)
+	}
+	return nil
 }

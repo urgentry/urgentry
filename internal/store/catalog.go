@@ -46,7 +46,15 @@ type ProjectKeyMeta struct {
 	PublicKey   string
 	SecretKey   string
 	Status      string
+	RateLimit   int
 	DateCreated time.Time
+}
+
+// ProjectKeyUpdate captures the mutable fields for a key update.
+type ProjectKeyUpdate struct {
+	Name      string
+	IsActive  *bool
+	RateLimit *int
 }
 
 // ProjectCreateInput captures the writable fields needed to create a project.
@@ -231,6 +239,15 @@ func validTelemetryStorageTier(tier TelemetryStorageTier) bool {
 
 func SupportsArchiveTelemetrySurface(surface TelemetrySurface) bool {
 	return validTelemetrySurface(surface)
+}
+
+// OrganizationUpdate captures the mutable fields for an organization update.
+type OrganizationUpdate struct {
+	Name             string `json:"name"`
+	Slug             string `json:"slug"`
+	IsEarlyAdopter   bool   `json:"isEarlyAdopter"`
+	OpenMembership   bool   `json:"openMembership"`
+	AllowSharedIssues bool  `json:"allowSharedIssues"`
 }
 
 // AuditLogEntry is the shared redacted auth/admin activity record.

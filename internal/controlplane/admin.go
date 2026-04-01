@@ -4,10 +4,15 @@ import "context"
 
 type AdminStore interface {
 	ListOrgMembers(ctx context.Context, orgSlug string) ([]*OrgMemberRecord, error)
+	GetOrgMember(ctx context.Context, orgSlug, memberID string) (*OrgMemberRecord, error)
 	AddOrgMember(ctx context.Context, orgSlug, userID, role string) (*OrgMemberRecord, error)
+	UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID, role string) (*OrgMemberRecord, error)
 	RemoveOrgMember(ctx context.Context, orgSlug, userID string) (bool, error)
 	ListTeams(ctx context.Context, orgSlug string) ([]*TeamRecord, error)
+	GetTeam(ctx context.Context, orgSlug, teamSlug string) (*TeamRecord, int, int, error)
 	CreateTeam(ctx context.Context, orgSlug, slug, name string) (*TeamRecord, error)
+	UpdateTeam(ctx context.Context, orgSlug, teamSlug string, newName, newSlug *string) (*TeamRecord, error)
+	DeleteTeam(ctx context.Context, orgSlug, teamSlug string) (bool, error)
 	ListTeamMembers(ctx context.Context, orgSlug, teamSlug string) ([]*TeamMemberRecord, error)
 	AddTeamMember(ctx context.Context, orgSlug, teamSlug, userID, role string) (*TeamMemberRecord, error)
 	RemoveTeamMember(ctx context.Context, orgSlug, teamSlug, userID string) (bool, error)

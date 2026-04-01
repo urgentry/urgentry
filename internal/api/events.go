@@ -2,10 +2,20 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"urgentry/internal/httputil"
 	"urgentry/internal/sqlite"
+)
+
+// Keep imports that are used by concurrent edits.
+var (
+	_ = fmt.Sprintf
+	_ = strconv.Itoa
+	_ = strings.TrimSpace
 )
 
 // handleListProjectEvents handles GET /api/0/projects/{org_slug}/{proj_slug}/events/.
@@ -92,4 +102,76 @@ func getEventFromDB(r *http.Request, db *sql.DB, projectID, eventID string) (*Ev
 		return nil, err
 	}
 	return apiEventFromWebEvent(*row), nil
+}
+
+// handleResolveEventID handles GET /api/0/organizations/{org_slug}/eventids/{event_id}/.
+// Given an event_id, returns the org slug, project slug, group ID, and event details.
+func handleResolveEventID(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		orgSlug := PathParam(r, "org_slug")
+		eventID := PathParam(r, "event_id")
+
+		resolved, err := sqlite.ResolveEventID(r.Context(), db, orgSlug, eventID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve event ID.")
+			return
+		}
+		if resolved == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Event not found.")
+			return
+		}
+		evt := apiEventFromWebEvent(resolved.Event)
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{
+			"organizationSlug": resolved.OrgSlug,
+			"projectSlug":      resolved.ProjectSlug,
+			"groupId":          resolved.GroupID,
+			"eventId":          resolved.EventID,
+			"event":            evt,
+		})
+	}
+}
+
+// handleResolveShortID handles GET /api/0/organizations/{org_slug}/shortids/{short_id}/.
+// Given a short ID like "GENTRY-42", returns the full issue.
+func handleResolveShortID(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		orgSlug := PathParam(r, "org_slug")
+		raw := PathParam(r, "short_id")
+
+		// Parse the short ID. Accept "GENTRY-42" or plain "42".
+		numStr := raw
+		if idx := strings.LastIndex(raw, "-"); idx >= 0 {
+			numStr = raw[idx+1:]
+		}
+		shortID, err := strconv.Atoi(numStr)
+		if err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid short ID format.")
+			return
+		}
+
+		issue, projectSlug, err := sqlite.ResolveShortID(r.Context(), db, orgSlug, shortID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve short ID.")
+			return
+		}
+		if issue == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Issue not found.")
+			return
+		}
+
+		apiIssue := apiIssueFromWebIssue(*issue)
+		apiIssue.ShortID = fmt.Sprintf("GENTRY-%d", issue.ShortID)
+		apiIssue.ProjectRef = ProjectRef{Slug: projectSlug}
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{
+			"organizationSlug": orgSlug,
+			"projectSlug":      projectSlug,
+			"group":            apiIssue,
+		})
+	}
 }

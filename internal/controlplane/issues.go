@@ -16,6 +16,9 @@ type IssueWorkflowStore interface {
 	UnmergeIssue(ctx context.Context, groupID, actorUserID string) error
 	ToggleIssueBookmark(ctx context.Context, groupID, userID string, enabled bool) error
 	ToggleIssueSubscription(ctx context.Context, groupID, userID string, enabled bool) error
+	DeleteGroup(ctx context.Context, id string) error
+	BulkDeleteGroups(ctx context.Context, ids []string) error
+	BulkMutateGroups(ctx context.Context, ids []string, patch sharedstore.IssuePatch) error
 }
 
 type IssueReadStore interface {

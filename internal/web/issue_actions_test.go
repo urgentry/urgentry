@@ -54,6 +54,14 @@ func (s *issueActionStoreStub) ToggleIssueSubscription(_ context.Context, _, _ s
 	return s.subscriptionErr
 }
 
+func (s *issueActionStoreStub) DeleteGroup(context.Context, string) error { return nil }
+
+func (s *issueActionStoreStub) BulkDeleteGroups(context.Context, []string) error { return nil }
+
+func (s *issueActionStoreStub) BulkMutateGroups(_ context.Context, _ []string, _ store.IssuePatch) error {
+	return nil
+}
+
 func issueActionRequest(t *testing.T, target, body string, principal *auth.Principal) *http.Request {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))

@@ -29,12 +29,32 @@ func (f *fakeAdminStore) RemoveOrgMember(context.Context, string, string) (bool,
 	return true, nil
 }
 
+func (f *fakeAdminStore) GetOrgMember(context.Context, string, string) (*controlplane.OrgMemberRecord, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminStore) UpdateOrgMemberRole(context.Context, string, string, string) (*controlplane.OrgMemberRecord, error) {
+	return nil, nil
+}
+
 func (f *fakeAdminStore) ListTeams(context.Context, string) ([]*controlplane.TeamRecord, error) {
 	return nil, nil
 }
 
+func (f *fakeAdminStore) GetTeam(context.Context, string, string) (*controlplane.TeamRecord, int, int, error) {
+	return nil, 0, 0, nil
+}
+
 func (f *fakeAdminStore) CreateTeam(context.Context, string, string, string) (*controlplane.TeamRecord, error) {
 	return nil, nil
+}
+
+func (f *fakeAdminStore) UpdateTeam(_ context.Context, _, _ string, _, _ *string) (*controlplane.TeamRecord, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminStore) DeleteTeam(context.Context, string, string) (bool, error) {
+	return false, nil
 }
 
 func (f *fakeAdminStore) ListTeamMembers(context.Context, string, string) ([]*controlplane.TeamMemberRecord, error) {

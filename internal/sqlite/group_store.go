@@ -507,6 +507,112 @@ func (s *GroupStore) UnmergeIssue(ctx context.Context, sourceGroupID, userID str
 	return tx.Commit()
 }
 
+// DeleteGroup removes a group and all associated data (cascade).
+func (s *GroupStore) DeleteGroup(ctx context.Context, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := deleteGroupCascadeSQLiteTx(ctx, tx, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// BulkDeleteGroups removes multiple groups and all associated data.
+func (s *GroupStore) BulkDeleteGroups(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, gid := range ids {
+		if err := deleteGroupCascadeSQLiteTx(ctx, tx, gid); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// BulkMutateGroups applies a patch to multiple groups in a single transaction.
+func (s *GroupStore) BulkMutateGroups(ctx context.Context, ids []string, patch sharedstore.IssuePatch) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, gid := range ids {
+		updates := make([]string, 0, 6)
+		args := make([]any, 0, 7)
+		if patch.Status != nil {
+			updates = append(updates, "status = ?")
+			args = append(args, strings.TrimSpace(*patch.Status))
+		}
+		if patch.Assignee != nil {
+			updates = append(updates, "assignee = ?")
+			args = append(args, strings.TrimSpace(*patch.Assignee))
+		}
+		if patch.Priority != nil {
+			updates = append(updates, "priority = ?")
+			args = append(args, *patch.Priority)
+		}
+		if patch.ResolutionSubstatus != nil {
+			updates = append(updates, "resolution_substatus = ?")
+			args = append(args, strings.TrimSpace(*patch.ResolutionSubstatus))
+		}
+		if patch.ResolvedInRelease != nil {
+			updates = append(updates, "resolved_in_release = ?")
+			args = append(args, strings.TrimSpace(*patch.ResolvedInRelease))
+		}
+		if patch.MergedIntoGroupID != nil {
+			updates = append(updates, "merged_into_group_id = ?")
+			args = append(args, strings.TrimSpace(*patch.MergedIntoGroupID))
+		}
+		if len(updates) == 0 {
+			continue
+		}
+		args = append(args, gid)
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE groups SET `+strings.Join(updates, ", ")+` WHERE id = ?`,
+			args...,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func deleteGroupCascadeSQLiteTx(ctx context.Context, tx *sql.Tx, groupID string) error {
+	cascadeTables := []string{
+		"issue_subscriptions",
+		"issue_bookmarks",
+		"issue_activity",
+		"issue_comments",
+	}
+	for _, table := range cascadeTables {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE group_id = ?`, groupID); err != nil {
+			return err
+		}
+	}
+	// Delete events associated with this group.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM events WHERE group_id = ?`, groupID); err != nil {
+		return err
+	}
+	// Delete event attachments for events in this group.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM event_attachments WHERE event_id IN (SELECT event_id FROM events WHERE group_id = ?)`, groupID); err != nil {
+		// Table may not exist in all configurations; ignore.
+	}
+	_, err := tx.ExecContext(ctx, `DELETE FROM groups WHERE id = ?`, groupID)
+	return err
+}
+
 // nullStr is a package-level alias for sqlutil.NullStr.
 func nullStr(ns sql.NullString) string { return sqlutil.NullStr(ns) }
 

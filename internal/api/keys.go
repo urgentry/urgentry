@@ -1,8 +1,8 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
-
 	"net/http"
 
 	"urgentry/internal/controlplane"
@@ -86,14 +86,111 @@ func baseURLFromRequest(r *http.Request) string {
 	return fmt.Sprintf("%s://%s", scheme, host)
 }
 
+// handleGetKey handles GET /api/0/projects/{org_slug}/{proj_slug}/keys/{key_id}/.
+func handleGetKey(catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+		keyID := PathParam(r, "key_id")
+		rec, err := catalog.GetProjectKey(r.Context(), org, proj, keyID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to get project key.")
+			return
+		}
+		if rec == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Project key not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, apiProjectKeyFromMeta(r, *rec))
+	}
+}
+
+// updateKeyRequest is the JSON body for updating a key.
+type updateKeyRequest struct {
+	Name      string `json:"name"`
+	IsActive  *bool  `json:"isActive"`
+	RateLimit *struct {
+		Count int `json:"count"`
+	} `json:"rateLimit"`
+}
+
+// handleUpdateKey handles PUT /api/0/projects/{org_slug}/{proj_slug}/keys/{key_id}/.
+func handleUpdateKey(catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+		keyID := PathParam(r, "key_id")
+
+		var body updateKeyRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+
+		update := store.ProjectKeyUpdate{
+			Name:     body.Name,
+			IsActive: body.IsActive,
+		}
+		if body.RateLimit != nil {
+			update.RateLimit = &body.RateLimit.Count
+		}
+
+		rec, err := catalog.UpdateProjectKey(r.Context(), org, proj, keyID, update)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update project key.")
+			return
+		}
+		if rec == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Project key not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, apiProjectKeyFromMeta(r, *rec))
+	}
+}
+
+// handleDeleteKey handles DELETE /api/0/projects/{org_slug}/{proj_slug}/keys/{key_id}/.
+func handleDeleteKey(catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+		keyID := PathParam(r, "key_id")
+
+		err := catalog.DeleteProjectKey(r.Context(), org, proj, keyID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				httputil.WriteError(w, http.StatusNotFound, "Project key not found.")
+				return
+			}
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete project key.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func apiProjectKeyFromMeta(r *http.Request, rec store.ProjectKeyMeta) *ProjectKey {
+	var rl *KeyRateLimit
+	if rec.RateLimit > 0 {
+		rl = &KeyRateLimit{Window: 60, Count: rec.RateLimit}
+	}
 	return &ProjectKey{
 		ID:        rec.ID,
-		ProjectID: rec.ProjectID,
+		Name:      rec.Label,
 		Label:     rec.Label,
+		ProjectID: rec.ProjectID,
 		Public:    rec.PublicKey,
 		Secret:    rec.SecretKey,
 		IsActive:  rec.Status == "" || rec.Status == "active",
+		RateLimit: rl,
 		DSN: DSNURLs{
 			Public: fmt.Sprintf("%s://%s@%s/%s", dsnScheme(baseURLFromRequest(r)), rec.PublicKey, dsnHost(baseURLFromRequest(r)), rec.ProjectID),
 			Secret: fmt.Sprintf("%s://%s:%s@%s/%s", dsnScheme(baseURLFromRequest(r)), rec.PublicKey, rec.SecretKey, dsnHost(baseURLFromRequest(r)), rec.ProjectID),

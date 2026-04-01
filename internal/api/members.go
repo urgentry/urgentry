@@ -120,6 +120,76 @@ func handleRemoveOrgMember(admin controlplane.AdminStore, auth authFunc) http.Ha
 	}
 }
 
+// handleGetOrgMember handles GET /api/0/organizations/{org_slug}/members/{member_id}/.
+func handleGetOrgMember(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		rec, err := admin.GetOrgMember(r.Context(), PathParam(r, "org_slug"), PathParam(r, "member_id"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load organization member.")
+			return
+		}
+		if rec == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Organization member not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, &Member{
+			ID:             rec.ID,
+			UserID:         rec.UserID,
+			OrganizationID: rec.OrganizationID,
+			Email:          rec.Email,
+			Name:           rec.Name,
+			Role:           rec.Role,
+			DateCreated:    rec.CreatedAt,
+		})
+	}
+}
+
+// handleUpdateOrgMember handles PUT /api/0/organizations/{org_slug}/members/{member_id}/.
+func handleUpdateOrgMember(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	validOrgRoles := map[string]bool{
+		"owner":   true,
+		"admin":   true,
+		"manager": true,
+		"member":  true,
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		var body orgMemberRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+		role := strings.TrimSpace(body.Role)
+		if role == "" || !validOrgRoles[role] {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid role. Must be one of: owner, admin, manager, member.")
+			return
+		}
+		rec, err := admin.UpdateOrgMemberRole(r.Context(), PathParam(r, "org_slug"), PathParam(r, "member_id"), role)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update organization member.")
+			return
+		}
+		if rec == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Organization member not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, &Member{
+			ID:             rec.ID,
+			UserID:         rec.UserID,
+			OrganizationID: rec.OrganizationID,
+			Email:          rec.Email,
+			Name:           rec.Name,
+			Role:           rec.Role,
+			DateCreated:    rec.CreatedAt,
+		})
+	}
+}
+
 // handleListTeamMembers handles GET /api/0/teams/{org_slug}/{team_slug}/members/.
 func handleListTeamMembers(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

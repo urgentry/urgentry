@@ -156,12 +156,32 @@ func (s *shadowingAdminStore) RemoveOrgMember(ctx context.Context, orgSlug, user
 	return true, nil
 }
 
+func (s *shadowingAdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string) (*controlplane.OrgMemberRecord, error) {
+	return s.base.GetOrgMember(ctx, orgSlug, memberID)
+}
+
+func (s *shadowingAdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID, role string) (*controlplane.OrgMemberRecord, error) {
+	return s.base.UpdateOrgMemberRole(ctx, orgSlug, memberID, role)
+}
+
 func (s *shadowingAdminStore) ListTeams(ctx context.Context, orgSlug string) ([]*controlplane.TeamRecord, error) {
 	return s.base.ListTeams(ctx, orgSlug)
 }
 
+func (s *shadowingAdminStore) GetTeam(ctx context.Context, orgSlug, teamSlug string) (*controlplane.TeamRecord, int, int, error) {
+	return s.base.GetTeam(ctx, orgSlug, teamSlug)
+}
+
 func (s *shadowingAdminStore) CreateTeam(ctx context.Context, orgSlug, slug, name string) (*controlplane.TeamRecord, error) {
 	return s.base.CreateTeam(ctx, orgSlug, slug, name)
+}
+
+func (s *shadowingAdminStore) UpdateTeam(ctx context.Context, orgSlug, teamSlug string, newName, newSlug *string) (*controlplane.TeamRecord, error) {
+	return s.base.UpdateTeam(ctx, orgSlug, teamSlug, newName, newSlug)
+}
+
+func (s *shadowingAdminStore) DeleteTeam(ctx context.Context, orgSlug, teamSlug string) (bool, error) {
+	return s.base.DeleteTeam(ctx, orgSlug, teamSlug)
 }
 
 func (s *shadowingAdminStore) ListTeamMembers(ctx context.Context, orgSlug, teamSlug string) ([]*controlplane.TeamMemberRecord, error) {

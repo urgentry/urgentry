@@ -290,6 +290,130 @@ func handleUnmergeIssue(issues controlplane.IssueWorkflowStore, auth authFunc) h
 	}
 }
 
+// handleDeleteIssue handles DELETE /api/0/issues/{issue_id}/.
+// Cascade-deletes events, attachments, and group assignments.
+func handleDeleteIssue(issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		id := PathParam(r, "issue_id")
+		if err := issues.DeleteGroup(r.Context(), id); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete issue.")
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+// bulkMutateRequest is the JSON body for bulk-mutating org issues.
+type bulkMutateRequest struct {
+	Status        string `json:"status"`
+	AssignedTo    string `json:"assignedTo"`
+	HasSeen       *bool  `json:"hasSeen"`
+	IsBookmarked  *bool  `json:"isBookmarked"`
+	IsPublic      *bool  `json:"isPublic"`
+	IsSubscribed  *bool  `json:"isSubscribed"`
+	Merge         *bool  `json:"merge"`
+	StatusDetails struct {
+		InRelease         string `json:"inRelease"`
+		InNextRelease     bool   `json:"inNextRelease"`
+		InCommit          string `json:"inCommit"`
+		IgnoreCount       int    `json:"ignoreCount"`
+		IgnoreDuration    int    `json:"ignoreDuration"`
+		IgnoreUserCount   int    `json:"ignoreUserCount"`
+		IgnoreWindow      int    `json:"ignoreWindow"`
+		IgnoreUserWindow  int    `json:"ignoreUserWindow"`
+	} `json:"statusDetails"`
+}
+
+// handleBulkMutateOrgIssues handles PUT /api/0/organizations/{org_slug}/issues/.
+func handleBulkMutateOrgIssues(issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		ids := r.URL.Query()["id"]
+		if len(ids) == 0 {
+			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+			return
+		}
+
+		var body bulkMutateRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+
+		validStatuses := map[string]bool{
+			"resolved":   true,
+			"unresolved": true,
+			"ignored":    true,
+		}
+		if body.Status != "" && !validStatuses[body.Status] {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
+			return
+		}
+
+		patch := store.IssuePatch{}
+		if body.Status != "" {
+			patch.Status = &body.Status
+		}
+		if body.AssignedTo != "" {
+			assign := strings.TrimSpace(body.AssignedTo)
+			patch.Assignee = &assign
+		}
+		if body.Status == "resolved" || body.Status == "unresolved" || body.Status == "ignored" {
+			empty := ""
+			substatus := strings.TrimSpace(body.StatusDetails.InRelease)
+			if body.StatusDetails.InNextRelease {
+				substatus = "next_release"
+			}
+			patch.ResolutionSubstatus = &substatus
+			patch.ResolvedInRelease = &empty
+			if body.Status == "unresolved" || body.Status == "ignored" {
+				patch.ResolutionSubstatus = &empty
+			}
+		}
+
+		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil {
+			httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
+			return
+		}
+
+		if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
+			return
+		}
+
+		resp := map[string]any{}
+		if body.Status != "" {
+			resp["status"] = body.Status
+			resp["statusDetails"] = body.StatusDetails
+		}
+		httputil.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleBulkDeleteOrgIssues handles DELETE /api/0/organizations/{org_slug}/issues/.
+func handleBulkDeleteOrgIssues(issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		ids := r.URL.Query()["id"]
+		if len(ids) == 0 {
+			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+			return
+		}
+		if err := issues.BulkDeleteGroups(r.Context(), ids); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete issues.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // handleListIssueEvents handles GET /api/0/issues/{issue_id}/events/.
 func handleListIssueEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

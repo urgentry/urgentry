@@ -645,6 +645,122 @@ func recordIssueActivityTx(ctx context.Context, tx *sql.Tx, projectID, groupID, 
 	return err
 }
 
+// DeleteGroup removes a group and all associated data (cascade).
+func (s *GroupStore) DeleteGroup(ctx context.Context, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := deleteGroupCascadeTx(ctx, tx, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// BulkDeleteGroups removes multiple groups and all associated data.
+func (s *GroupStore) BulkDeleteGroups(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, gid := range ids {
+		if err := deleteGroupCascadeTx(ctx, tx, gid); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// BulkMutateGroups applies a patch to multiple groups in a single transaction.
+func (s *GroupStore) BulkMutateGroups(ctx context.Context, ids []string, patch sharedstore.IssuePatch) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, gid := range ids {
+		updates := make([]string, 0, 8)
+		args := make([]any, 0, 10)
+		status := ""
+		if patch.Status != nil {
+			status = strings.TrimSpace(*patch.Status)
+			updates = append(updates, `status = $`+itoa(len(args)+1))
+			args = append(args, status)
+		}
+		if patch.Assignee != nil {
+			userID, teamID := encodeAssignee(*patch.Assignee)
+			updates = append(updates,
+				`assignee_user_id = $`+itoa(len(args)+1),
+				`assignee_team_id = $`+itoa(len(args)+2),
+			)
+			args = append(args, userID, teamID)
+		}
+		if patch.Priority != nil {
+			updates = append(updates, `priority = $`+itoa(len(args)+1))
+			args = append(args, *patch.Priority)
+		}
+		if patch.ResolutionSubstatus != nil {
+			updates = append(updates, `substatus = $`+itoa(len(args)+1))
+			args = append(args, strings.TrimSpace(*patch.ResolutionSubstatus))
+		}
+		if patch.ResolvedInRelease != nil {
+			updates = append(updates, `resolved_in_release = $`+itoa(len(args)+1))
+			args = append(args, strings.TrimSpace(*patch.ResolvedInRelease))
+		}
+		if patch.MergedIntoGroupID != nil {
+			updates = append(updates, `merged_into_group_id = $`+itoa(len(args)+1))
+			args = append(args, strings.TrimSpace(*patch.MergedIntoGroupID))
+		}
+		if len(updates) == 0 {
+			continue
+		}
+		updates = append(updates, `updated_at = now()`)
+		args = append(args, gid)
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE groups SET `+strings.Join(updates, ", ")+` WHERE id = $`+itoa(len(args)),
+			args...,
+		); err != nil {
+			return err
+		}
+		if patch.Status != nil {
+			if err := upsertGroupStateTx(ctx, tx, gid, status, ""); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+// deleteGroupCascadeTx removes a group and all dependent rows within a transaction.
+func deleteGroupCascadeTx(ctx context.Context, tx *sql.Tx, groupID string) error {
+	cascadeTables := []string{
+		"issue_subscriptions",
+		"issue_bookmarks",
+		"issue_activity",
+		"issue_comments",
+		"group_occurrences",
+		"group_states",
+	}
+	for _, table := range cascadeTables {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE group_id = $1`, groupID); err != nil {
+			return err
+		}
+	}
+	_, err := tx.ExecContext(ctx, `DELETE FROM groups WHERE id = $1`, groupID)
+	return err
+}
+
 func encodeAssignee(assignee string) (string, string) {
 	assignee = strings.TrimSpace(assignee)
 	if assignee == "" {

@@ -152,6 +152,66 @@ func (s *AdminStore) ListOrgMembers(ctx context.Context, orgSlug string) ([]*Org
 	return members, rows.Err()
 }
 
+// GetOrgMember returns a single organization member by membership record ID.
+func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string) (*OrgMemberRecord, error) {
+	var rec OrgMemberRecord
+	var createdAt sql.NullString
+	err := s.db.QueryRowContext(ctx,
+		`SELECT m.id, m.organization_id, o.slug, m.user_id, u.email, u.display_name, m.role, m.created_at
+		 FROM organization_members m
+		 JOIN organizations o ON o.id = m.organization_id
+		 JOIN users u ON u.id = m.user_id
+		 WHERE o.slug = ? AND m.id = ?`,
+		orgSlug, memberID,
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &createdAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	rec.CreatedAt = parseTime(nullStr(createdAt))
+	return &rec, nil
+}
+
+// UpdateOrgMemberRole updates the role of an organization member by membership record ID.
+func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID, role string) (*OrgMemberRecord, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var rec OrgMemberRecord
+	var createdAt sql.NullString
+	if err := tx.QueryRowContext(ctx,
+		`SELECT m.id, m.organization_id, o.slug, m.user_id, u.email, u.display_name, m.role, m.created_at
+		 FROM organization_members m
+		 JOIN organizations o ON o.id = m.organization_id
+		 JOIN users u ON u.id = m.user_id
+		 WHERE o.slug = ? AND m.id = ?`,
+		orgSlug, memberID,
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	rec.CreatedAt = parseTime(nullStr(createdAt))
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE organization_members SET role = ? WHERE id = ?`,
+		role, memberID,
+	); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	rec.Role = role
+	return &rec, nil
+}
+
 // AddOrgMember adds or updates a user membership in an org.
 func (s *AdminStore) AddOrgMember(ctx context.Context, orgSlug, userID, role string) (*OrgMemberRecord, error) {
 	if role == "" {
@@ -293,6 +353,115 @@ func (s *AdminStore) CreateTeam(ctx context.Context, orgSlug, slug, name string)
 	}
 	rec.CreatedAt = parseTime(createdAt)
 	return &rec, nil
+}
+
+// GetTeam returns a single team by org and team slug, along with member and project counts.
+// Returns (nil, 0, 0, nil) if the team is not found.
+func (s *AdminStore) GetTeam(ctx context.Context, orgSlug, teamSlug string) (*TeamRecord, int, int, error) {
+	var rec TeamRecord
+	var createdAt sql.NullString
+	var memberCount, projectCount int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT t.id, t.organization_id, o.slug, t.slug, t.name, t.created_at,
+		        (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS member_count,
+		        (SELECT COUNT(*) FROM projects p WHERE p.team_id = t.id) AS project_count
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 WHERE o.slug = ? AND t.slug = ?`,
+		orgSlug, teamSlug,
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.Slug, &rec.Name, &createdAt, &memberCount, &projectCount)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, 0, 0, nil
+		}
+		return nil, 0, 0, err
+	}
+	rec.CreatedAt = parseTime(nullStr(createdAt))
+	return &rec, memberCount, projectCount, nil
+}
+
+// UpdateTeam updates a team's name and/or slug. Returns the updated record, or nil if not found.
+func (s *AdminStore) UpdateTeam(ctx context.Context, orgSlug, teamSlug string, newName, newSlug *string) (*TeamRecord, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var rec TeamRecord
+	var createdAt sql.NullString
+	if err := tx.QueryRowContext(ctx,
+		`SELECT t.id, t.organization_id, o.slug, t.slug, t.name, t.created_at
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 WHERE o.slug = ? AND t.slug = ?`,
+		orgSlug, teamSlug,
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.Slug, &rec.Name, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	rec.CreatedAt = parseTime(nullStr(createdAt))
+
+	if newName != nil {
+		rec.Name = strings.TrimSpace(*newName)
+	}
+	if newSlug != nil {
+		rec.Slug = strings.TrimSpace(*newSlug)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE teams SET name = ?, slug = ? WHERE id = ?`,
+		rec.Name, rec.Slug, rec.ID,
+	); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
+// DeleteTeam deletes a team and its memberships. Returns true if a team was deleted.
+func (s *AdminStore) DeleteTeam(ctx context.Context, orgSlug, teamSlug string) (bool, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var teamID string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT t.id
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 WHERE o.slug = ? AND t.slug = ?`,
+		orgSlug, teamSlug,
+	).Scan(&teamID); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM team_members WHERE team_id = ?`, teamID,
+	); err != nil {
+		return false, err
+	}
+
+	res, err := tx.ExecContext(ctx,
+		`DELETE FROM teams WHERE id = ?`, teamID,
+	)
+	if err != nil {
+		return false, err
+	}
+	rows, _ := res.RowsAffected()
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }
 
 // ListTeamMembers returns team members for a specific team.

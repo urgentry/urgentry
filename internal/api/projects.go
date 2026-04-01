@@ -1,12 +1,13 @@
 package api
 
 import (
-	"strings"
-
+	"database/sql"
 	"net/http"
+	"strings"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/sqlite"
 	sharedstore "urgentry/internal/store"
 )
 
@@ -114,5 +115,62 @@ func handleCreateProject(catalog controlplane.CatalogStore, auth authFunc) http.
 			return
 		}
 		httputil.WriteJSON(w, http.StatusCreated, project)
+	}
+}
+
+// handleDeleteProject handles DELETE /api/0/projects/{org_slug}/{proj_slug}/.
+func handleDeleteProject(catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+		rec, err := catalog.GetProject(r.Context(), org, proj)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load project.")
+			return
+		}
+		if rec == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
+			return
+		}
+		if err := catalog.DeleteProject(r.Context(), org, proj); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete project.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleListProjectTagValues handles GET /api/0/projects/{org_slug}/{proj_slug}/tags/{key}/values/.
+func handleListProjectTagValues(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		proj := PathParam(r, "proj_slug")
+		tagKey := PathParam(r, "key")
+
+		projectID, err := projectIDFromSlugs(r, db, org, proj)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve project.")
+			return
+		}
+		if projectID == "" {
+			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
+			return
+		}
+
+		values, err := sqlite.ListTagValues(r.Context(), db, projectID, tagKey)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list tag values.")
+			return
+		}
+		if values == nil {
+			values = []sqlite.TagValueRow{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, values)
 	}
 }

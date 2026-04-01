@@ -15,14 +15,22 @@ type Project = sharedstore.Project
 
 // ProjectKey represents a DSN key for a project.
 type ProjectKey struct {
-	ID          string    `json:"id"`
-	ProjectID   string    `json:"projectId"`
-	Label       string    `json:"label"`
-	Public      string    `json:"public"`
-	Secret      string    `json:"secret"`
-	IsActive    bool      `json:"isActive"`
-	DSN         DSNURLs   `json:"dsn"`
-	DateCreated time.Time `json:"dateCreated"`
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Label       string        `json:"label"`
+	ProjectID   string        `json:"projectId"`
+	Public      string        `json:"public"`
+	Secret      string        `json:"secret"`
+	IsActive    bool          `json:"isActive"`
+	RateLimit   *KeyRateLimit `json:"rateLimit"`
+	DSN         DSNURLs       `json:"dsn"`
+	DateCreated time.Time     `json:"dateCreated"`
+}
+
+// KeyRateLimit describes per-key rate limiting.
+type KeyRateLimit struct {
+	Window int `json:"window"`
+	Count  int `json:"count"`
 }
 
 // DSNURLs holds the public and secret DSN strings.

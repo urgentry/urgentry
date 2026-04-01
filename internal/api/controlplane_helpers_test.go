@@ -51,6 +51,18 @@ func (c testCatalog) CreateProjectKey(context.Context, string, string, string) (
 	return nil, nil
 }
 
+func (c testCatalog) GetProjectKey(context.Context, string, string, string) (*sharedstore.ProjectKeyMeta, error) {
+	return nil, nil
+}
+
+func (c testCatalog) UpdateProjectKey(context.Context, string, string, string, sharedstore.ProjectKeyUpdate) (*sharedstore.ProjectKeyMeta, error) {
+	return nil, nil
+}
+
+func (c testCatalog) DeleteProjectKey(context.Context, string, string, string) error {
+	return nil
+}
+
 func (c testCatalog) GetProjectSettings(context.Context, string, string) (*sharedstore.ProjectSettings, error) {
 	return nil, nil
 }
@@ -61,6 +73,18 @@ func (c testCatalog) UpdateProjectSettings(context.Context, string, string, shar
 
 func (c testCatalog) ListOrganizationAuditLogs(context.Context, string, int) ([]sharedstore.AuditLogEntry, error) {
 	return nil, nil
+}
+
+func (c testCatalog) UpdateOrganization(context.Context, string, sharedstore.OrganizationUpdate) (*sharedstore.Organization, error) {
+	return nil, nil
+}
+
+func (c testCatalog) ListEnvironments(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+func (c testCatalog) DeleteProject(context.Context, string, string) error {
+	return nil
 }
 
 var _ controlplane.CatalogStore = testCatalog{}

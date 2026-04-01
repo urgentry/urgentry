@@ -97,6 +97,64 @@ func (s *AdminStore) ListOrgMembers(ctx context.Context, orgSlug string) ([]*Org
 	return members, rows.Err()
 }
 
+// GetOrgMember returns a single organization member by membership record ID.
+func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string) (*OrgMemberRecord, error) {
+	rec := &OrgMemberRecord{}
+	err := s.db.QueryRowContext(ctx,
+		`SELECT m.id, m.organization_id, o.slug, m.user_id, u.email, u.display_name, m.role, m.created_at
+		   FROM organization_members m
+		   JOIN organizations o ON o.id = m.organization_id
+		   JOIN users u ON u.id = m.user_id
+		  WHERE o.slug = $1 AND m.id = $2`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(memberID),
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &rec.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	rec.CreatedAt = rec.CreatedAt.UTC()
+	return rec, nil
+}
+
+// UpdateOrgMemberRole updates the role of an organization member by membership record ID.
+func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID, role string) (*OrgMemberRecord, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	rec := &OrgMemberRecord{}
+	if err := tx.QueryRowContext(ctx,
+		`SELECT m.id, m.organization_id, o.slug, m.user_id, u.email, u.display_name, m.role, m.created_at
+		   FROM organization_members m
+		   JOIN organizations o ON o.id = m.organization_id
+		   JOIN users u ON u.id = m.user_id
+		  WHERE o.slug = $1 AND m.id = $2`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(memberID),
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &rec.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE organization_members SET role = $1 WHERE id = $2`,
+		strings.TrimSpace(role), strings.TrimSpace(memberID),
+	); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	rec.Role = strings.TrimSpace(role)
+	rec.CreatedAt = rec.CreatedAt.UTC()
+	return rec, nil
+}
+
 // AddOrgMember adds or updates a user membership in an org.
 func (s *AdminStore) AddOrgMember(ctx context.Context, orgSlug, userID, role string) (*OrgMemberRecord, error) {
 	if strings.TrimSpace(role) == "" {
@@ -262,6 +320,116 @@ func (s *AdminStore) CreateTeam(ctx context.Context, orgSlug, slug, name string)
 	}
 	rec.CreatedAt = rec.CreatedAt.UTC()
 	return rec, nil
+}
+
+// GetTeam returns a single team by org and team slug, along with member and project counts.
+// Returns (nil, 0, 0, nil) if the team is not found.
+func (s *AdminStore) GetTeam(ctx context.Context, orgSlug, teamSlug string) (*TeamRecord, int, int, error) {
+	var rec TeamRecord
+	var memberCount, projectCount int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT t.id, t.organization_id, o.slug, t.slug, t.name, t.created_at,
+		        (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id),
+		        (SELECT COUNT(*) FROM projects p WHERE p.team_id = t.id)
+		   FROM teams t
+		   JOIN organizations o ON o.id = t.organization_id
+		  WHERE o.slug = $1 AND t.slug = $2`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(teamSlug),
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.Slug, &rec.Name, &rec.CreatedAt, &memberCount, &projectCount)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, 0, 0, nil
+		}
+		return nil, 0, 0, err
+	}
+	rec.CreatedAt = rec.CreatedAt.UTC()
+	return &rec, memberCount, projectCount, nil
+}
+
+// UpdateTeam updates a team's name and/or slug. Returns the updated record, or nil if not found.
+func (s *AdminStore) UpdateTeam(ctx context.Context, orgSlug, teamSlug string, newName, newSlug *string) (*TeamRecord, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var rec TeamRecord
+	if err := tx.QueryRowContext(ctx,
+		`SELECT t.id, t.organization_id, o.slug, t.slug, t.name, t.created_at
+		   FROM teams t
+		   JOIN organizations o ON o.id = t.organization_id
+		  WHERE o.slug = $1 AND t.slug = $2`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(teamSlug),
+	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.Slug, &rec.Name, &rec.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if newName != nil {
+		rec.Name = strings.TrimSpace(*newName)
+	}
+	if newSlug != nil {
+		rec.Slug = strings.TrimSpace(*newSlug)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE teams SET name = $1, slug = $2, updated_at = $3 WHERE id = $4`,
+		rec.Name, rec.Slug, time.Now().UTC(), rec.ID,
+	); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	rec.CreatedAt = rec.CreatedAt.UTC()
+	return &rec, nil
+}
+
+// DeleteTeam deletes a team and cascades to team memberships. Returns true if a team was deleted.
+func (s *AdminStore) DeleteTeam(ctx context.Context, orgSlug, teamSlug string) (bool, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var teamID string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT t.id
+		   FROM teams t
+		   JOIN organizations o ON o.id = t.organization_id
+		  WHERE o.slug = $1 AND t.slug = $2`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(teamSlug),
+	).Scan(&teamID); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM team_members WHERE team_id = $1`, teamID,
+	); err != nil {
+		return false, err
+	}
+
+	result, err := tx.ExecContext(ctx,
+		`DELETE FROM teams WHERE id = $1`, teamID,
+	)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return rowsAffected > 0, nil
 }
 
 // ListTeamMembers returns team members for one team.

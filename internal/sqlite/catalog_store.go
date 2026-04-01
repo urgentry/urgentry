@@ -28,6 +28,14 @@ func (s *CatalogStore) GetOrganization(ctx context.Context, slug string) (*store
 	return GetOrganization(ctx, s.db, slug)
 }
 
+func (s *CatalogStore) UpdateOrganization(ctx context.Context, slug string, update store.OrganizationUpdate) (*store.Organization, error) {
+	return UpdateOrganization(ctx, s.db, slug, update)
+}
+
+func (s *CatalogStore) ListEnvironments(ctx context.Context, orgSlug string) ([]string, error) {
+	return ListOrgEnvironments(ctx, s.db, orgSlug)
+}
+
 func (s *CatalogStore) ListProjects(ctx context.Context, orgSlug string) ([]store.Project, error) {
 	return ListProjects(ctx, s.db, orgSlug)
 }
@@ -124,6 +132,18 @@ func (s *CatalogStore) CreateProjectKey(ctx context.Context, orgSlug, projectSlu
 	return &key, nil
 }
 
+func (s *CatalogStore) GetProjectKey(ctx context.Context, orgSlug, projectSlug, keyID string) (*store.ProjectKeyMeta, error) {
+	return GetProjectKey(ctx, s.db, orgSlug, projectSlug, keyID)
+}
+
+func (s *CatalogStore) UpdateProjectKey(ctx context.Context, orgSlug, projectSlug, keyID string, update store.ProjectKeyUpdate) (*store.ProjectKeyMeta, error) {
+	return UpdateProjectKey(ctx, s.db, orgSlug, projectSlug, keyID, update)
+}
+
+func (s *CatalogStore) DeleteProjectKey(ctx context.Context, orgSlug, projectSlug, keyID string) error {
+	return DeleteProjectKey(ctx, s.db, orgSlug, projectSlug, keyID)
+}
+
 func (s *CatalogStore) GetProjectSettings(ctx context.Context, orgSlug, projectSlug string) (*store.ProjectSettings, error) {
 	project, err := s.GetProject(ctx, orgSlug, projectSlug)
 	if err != nil || project == nil {
@@ -201,6 +221,146 @@ func (s *CatalogStore) UpdateProjectSettings(ctx context.Context, orgSlug, proje
 
 func (s *CatalogStore) ListOrganizationAuditLogs(ctx context.Context, orgSlug string, limit int) ([]store.AuditLogEntry, error) {
 	return NewAuditStore(s.db).ListOrganizationAuditLogs(ctx, orgSlug, limit)
+}
+
+// DeleteProject removes a project and cascades to all dependent rows.
+func (s *CatalogStore) DeleteProject(ctx context.Context, orgSlug, projectSlug string) error {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil {
+		return err
+	}
+	if project == nil {
+		return sql.ErrNoRows
+	}
+	pid := project.ID
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	// Cascade delete all project-scoped rows. Order matters for FK constraints:
+	// children first, then the project row itself.
+	cascadeTables := []string{
+		"telemetry_retention_policies",
+		"project_replay_configs",
+		"replay_timeline_items",
+		"replay_assets",
+		"replay_manifests",
+		"profile_samples",
+		"profile_stack_frames",
+		"profile_stacks",
+		"profile_frames",
+		"profile_threads",
+		"profile_manifests",
+		"native_crashes",
+		"native_crash_images",
+		"native_symbol_sources",
+		"spans",
+		"transactions",
+		"monitor_checkins",
+		"monitors",
+		"outcomes",
+		"release_sessions",
+		"debug_files",
+		"event_attachments",
+		"artifacts",
+		"issue_subscriptions",
+		"issue_bookmarks",
+		"issue_activity",
+		"issue_comments",
+		"ownership_rules",
+		"events",
+		"groups",
+		"project_keys",
+		"alert_history",
+		"alert_rules",
+		"user_feedback",
+		"release_deploys",
+		"release_commits",
+		"releases",
+		"notification_deliveries",
+		"notification_outbox",
+		"project_automation_tokens",
+		"project_memberships",
+		"data_forwarding_configs",
+		"code_mappings",
+		"sampling_rules",
+		"uptime_check_results",
+		"uptime_monitors",
+		"metric_alert_rules",
+		"anomaly_events",
+		"inbound_filters",
+	}
+	for _, table := range cascadeTables {
+		if _, execErr := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE project_id = ?", pid); execErr != nil {
+			// Table may not exist in all deployments; ignore "no such table" errors.
+			if !isNoSuchTable(execErr) {
+				err = execErr
+				return err
+			}
+		}
+	}
+
+	if _, err = tx.ExecContext(ctx, "DELETE FROM projects WHERE id = ?", pid); err != nil {
+		return err
+	}
+	err = tx.Commit()
+	return err
+}
+
+// isNoSuchTable checks if a SQLite error is a "no such table" error.
+func isNoSuchTable(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no such table")
+}
+
+// TagValueRow is one distinct tag value with aggregate metadata.
+type TagValueRow struct {
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	Name      string `json:"name"`
+	Count     int    `json:"count"`
+	LastSeen  string `json:"lastSeen"`
+	FirstSeen string `json:"firstSeen"`
+}
+
+// ListTagValues returns distinct values for a tag key within a project.
+func ListTagValues(ctx context.Context, db *sql.DB, projectID, tagKey string) ([]TagValueRow, error) {
+	query := `SELECT
+		json_extract(tags_json, ?) AS tag_val,
+		COUNT(*) AS cnt,
+		MAX(occurred_at) AS last_seen,
+		MIN(occurred_at) AS first_seen
+	FROM events
+	WHERE project_id = ?
+	  AND json_extract(tags_json, ?) IS NOT NULL
+	  AND json_extract(tags_json, ?) != ''
+	GROUP BY tag_val
+	ORDER BY cnt DESC`
+
+	path := "$." + tagKey
+	rows, err := db.QueryContext(ctx, query, path, projectID, path, path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []TagValueRow
+	for rows.Next() {
+		var r TagValueRow
+		if err := rows.Scan(&r.Value, &r.Count, &r.LastSeen, &r.FirstSeen); err != nil {
+			return nil, err
+		}
+		r.Key = tagKey
+		r.Name = r.Value
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 func projectSettingsFromProject(project store.Project) *store.ProjectSettings {
