@@ -60,6 +60,7 @@ type httpDepsInput struct {
 	samplingRules        *sqlite.SamplingRuleStore
 	uptimeMonitors       *sqlite.UptimeMonitorStore
 	quota                *sqlite.QuotaStore
+	symbolSources        *sqlite.SymbolSourceStore
 	metrics              *metrics.Metrics
 	version              string
 }
@@ -116,6 +117,12 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			SamplingRules:        input.samplingRules,
 			UptimeMonitors:       input.uptimeMonitors,
 			Quota:                input.quota,
+			SymbolSources:        input.symbolSources,
+			NotificationActions:  sqlite.NewNotificationActionStore(input.db),
+			Detectors:            sqlite.NewDetectorStore(input.db),
+			Workflows:            sqlite.NewWorkflowStore(input.db),
+			ExternalUsers:        sqlite.NewExternalUserStore(input.db),
+			OrgForwarders:        sqlite.NewOrgForwarderStore(input.db),
 		},
 		Web: web.Dependencies{
 			WebStore:       sqlite.NewWebStore(input.db),

@@ -353,6 +353,195 @@ func handleListReleaseSuspects(releases controlplane.ReleaseStore, auth authFunc
 	}
 }
 
+// handleListReleaseCommitFiles handles GET /api/0/organizations/{org_slug}/releases/{version}/commitfiles/.
+// Returns files changed across all commits in this release.
+func handleListReleaseCommitFiles(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		commits, err := releases.ListCommits(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 200)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release commits.")
+			return
+		}
+
+		type commitFileResponse struct {
+			Filename  string `json:"filename"`
+			CommitSHA string `json:"commitSha,omitempty"`
+		}
+		seen := make(map[string]bool)
+		var result []commitFileResponse
+		for _, c := range commits {
+			for _, f := range c.Files {
+				if !seen[f] {
+					seen[f] = true
+					result = append(result, commitFileResponse{
+						Filename:  f,
+						CommitSHA: c.CommitSHA,
+					})
+				}
+			}
+		}
+		if result == nil {
+			result = []commitFileResponse{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, result)
+	}
+}
+
+// handleListProjectReleaseCommits handles GET /api/0/projects/{org}/{proj}/releases/{version}/commits/.
+// Same as org-level commits but filtered to the project's organization.
+func handleListProjectReleaseCommits(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		_, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		if !ok {
+			return
+		}
+		items, err := releases.ListCommits(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 100)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release commits.")
+			return
+		}
+		if items == nil {
+			items = []sharedstore.ReleaseCommit{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, items)
+	}
+}
+
+// handleListProjectReleaseFiles handles GET /api/0/projects/{org}/{proj}/releases/{version}/files/.
+func handleListProjectReleaseFiles(catalog controlplane.CatalogStore, smStore *sqlite.SourceMapStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		if !ok {
+			return
+		}
+
+		files, err := smStore.ListByRelease(r.Context(), project.ID, PathParam(r, "version"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release files.")
+			return
+		}
+		result := make([]*releaseFileResponse, 0, len(files))
+		for _, f := range files {
+			result = append(result, artifactToFileResponse(f))
+		}
+		page := Paginate(w, r, result)
+		if page == nil {
+			page = []*releaseFileResponse{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, page)
+	}
+}
+
+// handleGetProjectReleaseFile handles GET /api/0/projects/{org}/{proj}/releases/{version}/files/{file_id}/.
+func handleGetProjectReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.SourceMapStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		if !ok {
+			return
+		}
+
+		art, _, err := smStore.GetArtifact(r.Context(), PathParam(r, "file_id"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load release file.")
+			return
+		}
+		if art == nil || art.ProjectID != project.ID {
+			httputil.WriteError(w, http.StatusNotFound, "Release file not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, artifactToFileResponse(art))
+	}
+}
+
+// handleUpdateProjectReleaseFile handles PUT /api/0/projects/{org}/{proj}/releases/{version}/files/{file_id}/.
+func handleUpdateProjectReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.SourceMapStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		if !ok {
+			return
+		}
+
+		var body updateReleaseFileRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+		if body.Name == "" {
+			httputil.WriteError(w, http.StatusBadRequest, "Name is required.")
+			return
+		}
+
+		// Verify the artifact belongs to this project before updating.
+		art, _, err := smStore.GetArtifact(r.Context(), PathParam(r, "file_id"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load release file.")
+			return
+		}
+		if art == nil || art.ProjectID != project.ID {
+			httputil.WriteError(w, http.StatusNotFound, "Release file not found.")
+			return
+		}
+
+		// Reuse the org-level update by setting the org context. For project-scoped
+		// artifacts the organization_id is empty, so we update by artifact ID directly.
+		updated, err := smStore.UpdateProjectArtifactName(r.Context(), project.ID, PathParam(r, "version"), PathParam(r, "file_id"), body.Name)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update release file.")
+			return
+		}
+		if updated == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Release file not found.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, artifactToFileResponse(updated))
+	}
+}
+
+// handleDeleteProjectReleaseFile handles DELETE /api/0/projects/{org}/{proj}/releases/{version}/files/{file_id}/.
+func handleDeleteProjectReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.SourceMapStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		if !ok {
+			return
+		}
+
+		// Verify ownership before deleting.
+		art, _, err := smStore.GetArtifact(r.Context(), PathParam(r, "file_id"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load release file.")
+			return
+		}
+		if art == nil || art.ProjectID != project.ID {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		if err := smStore.DeleteArtifact(r.Context(), PathParam(r, "file_id")); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete release file.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func derefTime(value *time.Time) time.Time {
 	if value == nil {
 		return time.Time{}

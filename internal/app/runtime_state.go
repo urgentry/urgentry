@@ -122,6 +122,7 @@ type runtimeState struct {
 	samplingRuleStore      *sqlite.SamplingRuleStore
 	uptimeMonitorStore     *sqlite.UptimeMonitorStore
 	quotaStore             *sqlite.QuotaStore
+	symbolSourceStore      *sqlite.SymbolSourceStore
 }
 
 func newRuntimeState(cfg config.Config, role Role, version string) (state *runtimeState, err error) {
@@ -226,6 +227,7 @@ func (s *runtimeState) buildCoreStores() error {
 	s.samplingRuleStore = sqlite.NewSamplingRuleStore(s.db)
 	s.uptimeMonitorStore = sqlite.NewUptimeMonitorStore(s.db)
 	s.quotaStore = sqlite.NewQuotaStore(s.db)
+	s.symbolSourceStore = sqlite.NewSymbolSourceStore(s.db)
 	return nil
 }
 

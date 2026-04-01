@@ -126,4 +126,134 @@ var migrationsFeatures = []schemaMigration{
 		);
 		INSERT OR IGNORE INTO schema_metadata (key, value) VALUES ('schema_version', '54');
 	`},
+	{63, `
+		CREATE TABLE IF NOT EXISTS project_symbol_sources (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL REFERENCES projects(id),
+			type TEXT NOT NULL DEFAULT 'http',
+			name TEXT NOT NULL,
+			layout_json TEXT NOT NULL DEFAULT '{}',
+			url TEXT NOT NULL DEFAULT '',
+			credentials_json TEXT NOT NULL DEFAULT '{}',
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_project_symbol_sources_project
+			ON project_symbol_sources(project_id, created_at DESC);
+	`},
+	{64, `
+		CREATE TABLE IF NOT EXISTS group_external_issues (
+			id TEXT PRIMARY KEY,
+			group_id TEXT NOT NULL,
+			integration_id TEXT NOT NULL DEFAULT '',
+			key TEXT NOT NULL DEFAULT '',
+			title TEXT NOT NULL DEFAULT '',
+			url TEXT NOT NULL DEFAULT '',
+			description TEXT NOT NULL DEFAULT '',
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_group_external_issues_group
+			ON group_external_issues(group_id, created_at DESC);
+	`},
+	{65, `
+		CREATE TABLE IF NOT EXISTS project_hooks (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL REFERENCES projects(id),
+			url TEXT NOT NULL,
+			events_json TEXT NOT NULL DEFAULT '[]',
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at TEXT DEFAULT (datetime('now')),
+			updated_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_project_hooks_project
+			ON project_hooks(project_id, created_at DESC);
+	`},
+	{66, `
+		CREATE TABLE IF NOT EXISTS notification_actions (
+			id TEXT PRIMARY KEY,
+			organization_id TEXT NOT NULL REFERENCES organizations(id),
+			service_type TEXT NOT NULL DEFAULT 'email',
+			target_identifier TEXT NOT NULL DEFAULT '',
+			target_display TEXT NOT NULL DEFAULT '',
+			trigger_type TEXT NOT NULL DEFAULT 'spike-protection',
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_notification_actions_org
+			ON notification_actions(organization_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_notification_actions_org_service
+			ON notification_actions(organization_id, service_type);
+	`},
+	{67, `
+		CREATE TABLE IF NOT EXISTS replay_deletion_jobs (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL REFERENCES projects(id),
+			replay_ids_json TEXT NOT NULL DEFAULT '[]',
+			status TEXT NOT NULL DEFAULT 'pending',
+			created_at TEXT DEFAULT (datetime('now')),
+			updated_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_replay_deletion_jobs_project
+			ON replay_deletion_jobs(project_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_replay_deletion_jobs_status
+			ON replay_deletion_jobs(status, created_at DESC);
+	`},
+	{68, `
+		CREATE TABLE IF NOT EXISTS detectors (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL REFERENCES organizations(id),
+			name TEXT NOT NULL,
+			type TEXT NOT NULL DEFAULT 'metric',
+			config_json TEXT NOT NULL DEFAULT '{}',
+			state TEXT NOT NULL DEFAULT 'active',
+			owner_id TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_detectors_org
+			ON detectors(org_id, created_at DESC);
+	`},
+	{69, `
+		CREATE TABLE IF NOT EXISTS workflows (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL REFERENCES organizations(id),
+			name TEXT NOT NULL,
+			triggers_json TEXT NOT NULL DEFAULT '[]',
+			conditions_json TEXT NOT NULL DEFAULT '[]',
+			actions_json TEXT NOT NULL DEFAULT '[]',
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_workflows_org
+			ON workflows(org_id, created_at DESC);
+	`},
+	{70, `
+		CREATE TABLE IF NOT EXISTS external_users (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL REFERENCES organizations(id),
+			user_id TEXT NOT NULL DEFAULT '',
+			provider TEXT NOT NULL,
+			external_id TEXT NOT NULL DEFAULT '',
+			external_name TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_external_users_org
+			ON external_users(org_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_external_users_provider
+			ON external_users(org_id, provider, external_id);
+	`},
+	{71, `
+		CREATE TABLE IF NOT EXISTS org_data_forwarders (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL REFERENCES organizations(id),
+			type TEXT NOT NULL DEFAULT 'webhook',
+			name TEXT NOT NULL DEFAULT '',
+			url TEXT NOT NULL,
+			credentials_json TEXT NOT NULL DEFAULT '{}',
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_org_data_forwarders_org
+			ON org_data_forwarders(org_id, created_at DESC);
+	`},
+	{72, `
+		ALTER TABLE projects ADD COLUMN spike_protection INTEGER NOT NULL DEFAULT 0;
+	`},
 }

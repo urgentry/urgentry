@@ -293,6 +293,26 @@ func (s *SourceMapStore) UpdateArtifactName(ctx context.Context, orgID, releaseV
 	return s.GetOrgArtifact(ctx, orgID, releaseVersion, artifactID)
 }
 
+// UpdateProjectArtifactName updates the name of a project-scoped artifact.
+func (s *SourceMapStore) UpdateProjectArtifactName(ctx context.Context, projectID, releaseVersion, artifactID, newName string) (*sourcemap.Artifact, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE artifacts SET name = ? WHERE id = ? AND project_id = ? AND release_version = ?`,
+		newName, artifactID, projectID, releaseVersion,
+	)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, nil
+	}
+	art, _, err := s.GetArtifact(ctx, artifactID)
+	return art, err
+}
+
 // DeleteOrgArtifact removes an artifact by ID after verifying org+release ownership.
 func (s *SourceMapStore) DeleteOrgArtifact(ctx context.Context, orgID, releaseVersion, artifactID string) error {
 	var blobKey string

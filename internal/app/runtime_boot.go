@@ -263,6 +263,7 @@ func (s *runtimeState) newHTTPServer() (*http.Server, error) {
 		samplingRules:        s.samplingRuleStore,
 		uptimeMonitors:       s.uptimeMonitorStore,
 		quota:                s.quotaStore,
+		symbolSources:        s.symbolSourceStore,
 		metrics:              s.metrics,
 		version:              s.version,
 	})
