@@ -127,11 +127,19 @@ type Event struct {
 	EventID          string       `json:"eventID"`
 	ProjectID        string       `json:"projectID,omitempty"`
 	IssueID          string       `json:"groupID"`
+	Type             string       `json:"type,omitempty"`
 	Title            string       `json:"title"`
 	Message          string       `json:"message"`
 	Level            string       `json:"level"`
 	Platform         string       `json:"platform"`
 	Culprit          string       `json:"culprit"`
+	PreviousEventID  string       `json:"previousEventID,omitempty"`
+	NextEventID      string       `json:"nextEventID,omitempty"`
+	Size             int64        `json:"size,omitempty"`
+	DateReceived     *time.Time   `json:"dateReceived,omitempty"`
+	Dist             string       `json:"dist,omitempty"`
+	Release          *Release     `json:"release,omitempty"`
+	UserReport       *UserReport  `json:"userReport,omitempty"`
 	ProcessingStatus string       `json:"processingStatus,omitempty"`
 	IngestError      string       `json:"ingestError,omitempty"`
 	ResolvedFrames   int          `json:"resolvedFrames,omitempty"`
@@ -158,6 +166,16 @@ type EventTag struct {
 type EventEntry struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
+}
+
+// UserReport is a linked end-user feedback report for an event.
+type UserReport struct {
+	ID          string `json:"id"`
+	EventID     string `json:"eventId"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	Comments    string `json:"comments"`
+	DateCreated string `json:"dateCreated"`
 }
 
 // IssueComment represents a stored comment on an issue.

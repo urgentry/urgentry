@@ -62,6 +62,8 @@ type storedEventPayload struct {
 	Packages     Metadata          `json:"packages,omitempty"`
 	Modules      map[string]string `json:"modules,omitempty"`
 	Measurements Metadata          `json:"measurements,omitempty"`
+	Dist         string            `json:"dist,omitempty"`
+	Release      string            `json:"release,omitempty"`
 }
 
 // handleListProjectIssues handles GET /api/0/projects/{org_slug}/{proj_slug}/issues/.
@@ -528,6 +530,15 @@ func handleGetLatestIssueEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusNotFound, "No events found for this issue.")
 			return
 		}
+		projectID, orgSlug, err := projectScopeForGroup(r.Context(), db, id)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load latest event.")
+			return
+		}
+		if err := enrichEventDetail(r, db, orgSlug, projectID, evt); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load latest event.")
+			return
+		}
 		httputil.WriteJSON(w, http.StatusOK, evt)
 	}
 }
@@ -894,8 +905,60 @@ func handleGetIssueEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusNotFound, "Event not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, apiEventFromWebEvent(*evt))
+		resp := apiEventFromWebEvent(*evt)
+		projectID, err := projectIDForGroupEvent(r.Context(), db, groupID, eventID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load event.")
+			return
+		}
+		if err := enrichEventDetail(r, db, PathParam(r, "org_slug"), projectID, resp); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load event.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
+}
+
+func projectIDForGroupEvent(ctx context.Context, db *sql.DB, groupID, eventID string) (string, error) {
+	if db == nil || groupID == "" || eventID == "" {
+		return "", nil
+	}
+	var projectID string
+	err := db.QueryRowContext(ctx,
+		`SELECT project_id
+		 FROM events
+		 WHERE group_id = ? AND event_id = ?`,
+		groupID, eventID,
+	).Scan(&projectID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", err
+	}
+	return projectID, nil
+}
+
+func projectScopeForGroup(ctx context.Context, db *sql.DB, groupID string) (string, string, error) {
+	if db == nil || groupID == "" {
+		return "", "", nil
+	}
+	var projectID, orgSlug string
+	err := db.QueryRowContext(ctx,
+		`SELECT p.id, o.slug
+		 FROM groups g
+		 JOIN projects p ON p.id = g.project_id
+		 JOIN organizations o ON o.id = p.organization_id
+		 WHERE g.id = ?`,
+		groupID,
+	).Scan(&projectID, &orgSlug)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+	return projectID, orgSlug, nil
 }
 
 // handleBulkMutateProjectIssues handles PUT /api/0/projects/{org}/{proj}/issues/.

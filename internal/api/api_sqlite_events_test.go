@@ -28,6 +28,8 @@ func assertHasEventTag(t *testing.T, tags []EventTag, key, value string) {
 
 const normalizedEventInterfacesPayload = `{
 	"message":"bad input",
+	"dist":"12",
+	"release":"backend@1.2.3",
 	"request":{"method":"GET","url":"https://app.example.com/checkout"},
 	"contexts":{
 		"trace":{"trace_id":"trace-1","span_id":"span-1","type":"trace"},
@@ -307,6 +309,92 @@ func TestAPIResolveShortID_SQLite_ParityFields(t *testing.T) {
 	if body.Group.Count != "1" {
 		t.Fatalf("count = %#v, want string 1", body.Group.Count)
 	}
+}
+
+func TestAPIEventDetail_SQLite_ParityFields(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+	insertSQLiteGroup(t, db, "grp-api-event-parity", "EventDetailParity", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-older", "grp-api-event-parity", "EventDetailParity", "error")
+	insertSQLiteEvent(t, db, "evt-current", "grp-api-event-parity", "EventDetailParity", "error")
+	insertSQLiteEvent(t, db, "evt-newer", "grp-api-event-parity", "EventDetailParity", "error")
+	insertSQLiteReleaseWithOrg(t, db, "rel-event-parity", "backend@1.2.3")
+
+	for eventID, timestamp := range map[string]string{
+		"evt-older":   "2026-04-01T09:00:00Z",
+		"evt-current": "2026-04-01T10:00:00Z",
+		"evt-newer":   "2026-04-01T11:00:00Z",
+	} {
+		if _, err := db.Exec(
+			`UPDATE events SET payload_json = ?, release = 'backend@1.2.3', ingested_at = ?, occurred_at = ? WHERE event_id = ?`,
+			normalizedEventInterfacesPayload, timestamp, timestamp, eventID,
+		); err != nil {
+			t.Fatalf("update event %s: %v", eventID, err)
+		}
+	}
+	if _, err := db.Exec(
+		`INSERT INTO user_feedback (id, project_id, event_id, group_id, name, email, comments, created_at)
+		 VALUES ('feedback-event-parity', 'test-proj-id', 'evt-current', 'grp-api-event-parity', 'Jane', 'jane@example.com', 'Something broke', '2026-04-01T12:00:00Z')`,
+	); err != nil {
+		t.Fatalf("insert feedback: %v", err)
+	}
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	assertEventDetail := func(t *testing.T, evt Event) {
+		t.Helper()
+		if evt.Type != "error" {
+			t.Fatalf("type = %q, want error", evt.Type)
+		}
+		if evt.PreviousEventID != "evt-newer" {
+			t.Fatalf("previousEventID = %q, want evt-newer", evt.PreviousEventID)
+		}
+		if evt.NextEventID != "evt-older" {
+			t.Fatalf("nextEventID = %q, want evt-older", evt.NextEventID)
+		}
+		if evt.Size <= 0 {
+			t.Fatalf("size = %d, want > 0", evt.Size)
+		}
+		if evt.DateReceived == nil || evt.DateReceived.Format(time.RFC3339) != "2026-04-01T10:00:00Z" {
+			t.Fatalf("dateReceived = %#v, want 2026-04-01T10:00:00Z", evt.DateReceived)
+		}
+		if evt.Dist != "12" {
+			t.Fatalf("dist = %q, want 12", evt.Dist)
+		}
+		if evt.Release == nil || evt.Release.Version != "backend@1.2.3" {
+			t.Fatalf("release = %+v, want backend@1.2.3", evt.Release)
+		}
+		if evt.UserReport == nil || evt.UserReport.EventID != "evt-current" || evt.UserReport.Email != "jane@example.com" {
+			t.Fatalf("userReport = %+v, want linked feedback", evt.UserReport)
+		}
+	}
+
+	projectResp := authGet(t, ts, "/api/0/projects/test-org/test-project/events/evt-current/")
+	if projectResp.StatusCode != http.StatusOK {
+		t.Fatalf("project event detail status = %d, want 200", projectResp.StatusCode)
+	}
+	var projectEvent Event
+	decodeBody(t, projectResp, &projectEvent)
+	assertEventDetail(t, projectEvent)
+
+	issueResp := authGet(t, ts, "/api/0/organizations/test-org/issues/grp-api-event-parity/events/evt-current/")
+	if issueResp.StatusCode != http.StatusOK {
+		t.Fatalf("issue event detail status = %d, want 200", issueResp.StatusCode)
+	}
+	var issueEvent Event
+	decodeBody(t, issueResp, &issueEvent)
+	assertEventDetail(t, issueEvent)
+
+	resolveResp := authGet(t, ts, "/api/0/organizations/test-org/eventids/evt-current/")
+	if resolveResp.StatusCode != http.StatusOK {
+		t.Fatalf("resolve event detail status = %d, want 200", resolveResp.StatusCode)
+	}
+	var resolved struct {
+		Event Event `json:"event"`
+	}
+	decodeBody(t, resolveResp, &resolved)
+	assertEventDetail(t, resolved.Event)
 }
 
 func TestAPIEventAttachments_SQLite(t *testing.T) {
