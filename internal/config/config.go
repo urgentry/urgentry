@@ -42,6 +42,11 @@ type Config struct {
 	ReadTimeout       time.Duration
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
+	SMTPHost          string
+	SMTPPort          string
+	SMTPFrom          string
+	SMTPUser          string
+	SMTPPass          string
 }
 
 func Load() Config {
@@ -84,6 +89,11 @@ func Load() Config {
 		ReadTimeout:       envDuration("URGENTRY_HTTP_READ_TIMEOUT", 30*time.Second),
 		WriteTimeout:      envDuration("URGENTRY_HTTP_WRITE_TIMEOUT", 30*time.Second),
 		IdleTimeout:       envDuration("URGENTRY_HTTP_IDLE_TIMEOUT", 60*time.Second),
+		SMTPHost:          os.Getenv("URGENTRY_SMTP_HOST"),
+		SMTPPort:          envOr("URGENTRY_SMTP_PORT", "587"),
+		SMTPFrom:          os.Getenv("URGENTRY_SMTP_FROM"),
+		SMTPUser:          os.Getenv("URGENTRY_SMTP_USER"),
+		SMTPPass:          os.Getenv("URGENTRY_SMTP_PASS"),
 	}
 }
 

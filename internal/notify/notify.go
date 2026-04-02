@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/smtp"
 	"strings"
 	"time"
 
@@ -96,12 +98,25 @@ type DeliveryRecorder interface {
 	RecordDelivery(ctx context.Context, delivery *DeliveryRecord) error
 }
 
+// SMTPConfig holds SMTP connection settings for sending emails.
+type SMTPConfig struct {
+	Host string
+	Port string
+	From string
+	User string
+	Pass string
+}
+
+// Configured returns true when a host is set.
+func (c SMTPConfig) Configured() bool { return c.Host != "" }
+
 // Notifier dispatches alert trigger events to their destinations.
 type Notifier struct {
 	HTTPClient       *http.Client
 	EmailOutbox      EmailOutbox
 	DeliveryRecorder DeliveryRecorder
 	RetryDelays      []time.Duration
+	SMTP             SMTPConfig
 }
 
 func NewNotifier(outbox EmailOutbox, deliveries DeliveryRecorder) *Notifier {
@@ -270,57 +285,105 @@ func (n *Notifier) postJSON(ctx context.Context, delivery *DeliveryRecord, paylo
 	return lastErr
 }
 
-// NotifyEmail records a Tiny-mode email notification. If SMTP is configured
-// in the future, this can fan out to a real transport after persistence.
+// NotifyEmail records an email notification and sends it via SMTP when configured.
 func (n *Notifier) NotifyEmail(ctx context.Context, projectID, recipient string, trigger alert.TriggerEvent) error {
 	recipient = strings.TrimSpace(recipient)
 	if recipient == "" {
 		return fmt.Errorf("empty email recipient")
 	}
 
-	subject, body := emailContent(trigger)
-
-	if n.EmailOutbox == nil {
+	if n.EmailOutbox == nil && !n.SMTP.Configured() {
 		return fmt.Errorf("email outbox not configured")
 	}
 
-	if err := n.EmailOutbox.RecordEmail(ctx, &EmailNotification{
-		ID:        "",
-		ProjectID: projectID,
-		RuleID:    trigger.RuleID,
-		GroupID:   trigger.GroupID,
-		EventID:   trigger.EventID,
-		Recipient: recipient,
-		Subject:   subject,
-		Body:      body,
-		Transport: "tiny-outbox",
-		Status:    DeliveryStatusQueued,
-		CreatedAt: trigger.Timestamp,
-	}); err != nil {
-		return err
+	subject, body := emailContent(trigger)
+	transport := "tiny-outbox"
+	status := DeliveryStatusQueued
+
+	// Send via SMTP if configured.
+	var smtpErr error
+	if n.SMTP.Configured() {
+		transport = "smtp"
+		smtpErr = n.sendSMTP(recipient, subject, body)
+		if smtpErr == nil {
+			status = DeliveryStatusDelivered
+		} else {
+			status = DeliveryStatusFailed
+			log.Warn().Err(smtpErr).
+				Str("recipient", recipient).
+				Msg("SMTP delivery failed")
+		}
 	}
+
+	// Always record to outbox.
+	if n.EmailOutbox != nil {
+		notification := &EmailNotification{
+			ProjectID: projectID,
+			RuleID:    trigger.RuleID,
+			GroupID:   trigger.GroupID,
+			EventID:   trigger.EventID,
+			Recipient: recipient,
+			Subject:   subject,
+			Body:      body,
+			Transport: transport,
+			Status:    status,
+			CreatedAt: trigger.Timestamp,
+		}
+		if smtpErr != nil {
+			notification.Error = smtpErr.Error()
+		}
+		if status == DeliveryStatusDelivered {
+			now := time.Now().UTC()
+			notification.SentAt = &now
+		}
+		if err := n.EmailOutbox.RecordEmail(ctx, notification); err != nil {
+			log.Warn().Err(err).Msg("failed to record email to outbox")
+		}
+	}
+
 	if n.DeliveryRecorder != nil {
-		if err := n.DeliveryRecorder.RecordDelivery(ctx, &DeliveryRecord{
+		delivery := &DeliveryRecord{
 			ProjectID:   projectID,
 			RuleID:      trigger.RuleID,
 			GroupID:     trigger.GroupID,
 			EventID:     trigger.EventID,
 			Kind:        DeliveryKindEmail,
 			Target:      recipient,
-			Status:      DeliveryStatusQueued,
+			Status:      status,
 			Attempts:    1,
 			PayloadJSON: body,
 			CreatedAt:   trigger.Timestamp,
-		}); err != nil {
-			log.Warn().
-				Err(err).
-				Str("project_id", projectID).
-				Str("kind", DeliveryKindEmail).
-				Str("target", recipient).
-				Msg("failed to record email delivery")
+		}
+		if smtpErr != nil {
+			delivery.Error = smtpErr.Error()
+		}
+		if status == DeliveryStatusDelivered {
+			now := time.Now().UTC()
+			delivery.DeliveredAt = &now
+		}
+		if err := n.DeliveryRecorder.RecordDelivery(ctx, delivery); err != nil {
+			log.Warn().Err(err).Msg("failed to record email delivery")
 		}
 	}
-	return nil
+
+	return smtpErr
+}
+
+// sendSMTP sends an email via the configured SMTP server.
+func (n *Notifier) sendSMTP(to, subject, body string) error {
+	from := n.SMTP.From
+	if from == "" {
+		from = "urgentry@localhost"
+	}
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
+		from, to, subject, body)
+
+	addr := net.JoinHostPort(n.SMTP.Host, n.SMTP.Port)
+	var auth smtp.Auth
+	if n.SMTP.User != "" {
+		auth = smtp.PlainAuth("", n.SMTP.User, n.SMTP.Pass, n.SMTP.Host)
+	}
+	return smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
 }
 
 func emailContent(trigger alert.TriggerEvent) (string, string) {

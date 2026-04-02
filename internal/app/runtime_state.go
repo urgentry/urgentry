@@ -322,6 +322,15 @@ func (s *runtimeState) buildRuntimeServices() error {
 
 	s.evaluator = &alert.Evaluator{Rules: s.control.alertStore}
 	s.notifier = notify.NewNotifier(s.control.outbox, s.control.deliveries)
+	if s.cfg.SMTPHost != "" {
+		s.notifier.SMTP = notify.SMTPConfig{
+			Host: s.cfg.SMTPHost,
+			Port: s.cfg.SMTPPort,
+			From: s.cfg.SMTPFrom,
+			User: s.cfg.SMTPUser,
+			Pass: s.cfg.SMTPPass,
+		}
+	}
 	s.releaseStore = sqlite.NewReleaseStore(s.db)
 
 	smResolver := &sourcemap.Resolver{Store: s.sourceMapStore}
