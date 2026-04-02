@@ -25,10 +25,15 @@ type TraceReadStore interface {
 	ListTraceSpans(ctx context.Context, projectID, traceID string) ([]store.StoredSpan, error)
 }
 
+type OrgReplayReadStore interface {
+	ListOrgReplays(ctx context.Context, orgID string, limit int) ([]store.ReplayManifest, error)
+}
+
 type Service interface {
 	DiscoverReadStore
 	TraceReadStore
 	store.ReplayReadStore
+	OrgReplayReadStore
 	store.ProfileReadStore
 	discoverharness.Executor
 }

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -66,30 +65,13 @@ func handleListOrgReplays(db *sql.DB, queries telemetryquery.Service, guard sqli
 			return
 		}
 
-		// Attempt org-level replay listing. The SQLite replay store has
-		// ListOrgReplays but the telemetry query service interface only
-		// exposes project-scoped reads. We query all org projects and
-		// merge results.
-		projects, err := listProjectIDsForOrg(db, org.ID)
+		items, err := queries.ListOrgReplays(r.Context(), org.ID, 100)
 		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list projects.")
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list replays.")
 			return
 		}
-		var allItems []sharedstore.ReplayManifest
-		for _, pid := range projects {
-			items, err := queries.ListReplays(r.Context(), pid, 100)
-			if err != nil {
-				continue // best effort per project
-			}
-			allItems = append(allItems, items...)
-		}
-		// Sort by started_at descending, limit to 100.
-		sortReplayManifestsByDate(allItems)
-		if len(allItems) > 100 {
-			allItems = allItems[:100]
-		}
-		resp := make([]Replay, 0, len(allItems))
-		for _, item := range allItems {
+		resp := make([]Replay, 0, len(items))
+		for _, item := range items {
 			resp = append(resp, mapReplayManifest(item))
 		}
 		httputil.WriteJSON(w, http.StatusOK, resp)
@@ -569,19 +551,6 @@ func listProjectIDsForOrg(db *sql.DB, orgID string) ([]string, error) {
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
-}
-
-func sortReplayManifestsByDate(items []sharedstore.ReplayManifest) {
-	sort.Slice(items, func(i, j int) bool {
-		return replayManifestSortDate(items[i]).After(replayManifestSortDate(items[j]))
-	})
-}
-
-func replayManifestSortDate(item sharedstore.ReplayManifest) time.Time {
-	if !item.StartedAt.IsZero() {
-		return item.StartedAt
-	}
-	return item.CreatedAt
 }
 
 type replayDeletionScanner interface {

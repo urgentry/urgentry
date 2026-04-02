@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"urgentry/internal/discovershared"
 	"urgentry/internal/sqlutil"
@@ -38,14 +37,40 @@ func (s *bridgeService) ListReplays(ctx context.Context, projectID string, limit
 		return nil, fmt.Errorf("list bridge replays: %w", err)
 	}
 	defer rows.Close()
-	items := make([]store.ReplayManifest, 0, limit)
+	return scanBridgeReplayManifests(rows, limit)
+}
+
+func (s *bridgeService) ListOrgReplays(ctx context.Context, orgID string, limit int) ([]store.ReplayManifest, error) {
+	scope := telemetrybridge.Scope{OrganizationID: orgID}
+	if err := s.ensureSurfaceFresh(ctx, QuerySurfaceReplays, scope, telemetrybridge.FamilyReplays); err != nil {
+		return nil, err
+	}
+	rows, err := s.bridgeDB.QueryContext(ctx, `
+		SELECT id, project_id, replay_id, COALESCE(event_id, ''), COALESCE(trace_id, ''), COALESCE(release, ''),
+		       COALESCE(environment, ''), started_at, finished_at, duration_ms, segment_count, error_count,
+		       click_count, COALESCE(payload_json::text, '{}')
+		  FROM telemetry.replay_manifests
+		 WHERE organization_id = $1
+		 ORDER BY started_at DESC
+		 LIMIT $2`,
+		orgID, discovershared.Clamp(limit, 1, 100),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list bridge org replays: %w", err)
+	}
+	defer rows.Close()
+	return scanBridgeReplayManifests(rows, limit)
+}
+
+func scanBridgeReplayManifests(rows *sql.Rows, limit int) ([]store.ReplayManifest, error) {
+	items := make([]store.ReplayManifest, 0, discovershared.Clamp(limit, 1, 100))
 	for rows.Next() {
 		var (
 			item                                                store.ReplayManifest
 			eventID, traceID, release, environment, payloadJSON string
 			durationMS                                          float64
 			segmentCount, errorCount, clickCount                int
-			startedAt, finishedAt                               time.Time
+			startedAt, finishedAt                               sql.NullTime
 		)
 		if err := rows.Scan(&item.ID, &item.ProjectID, &item.ReplayID, &eventID, &traceID, &release, &environment, &startedAt, &finishedAt, &durationMS, &segmentCount, &errorCount, &clickCount, &payloadJSON); err != nil {
 			return nil, fmt.Errorf("scan bridge replay manifest: %w", err)
@@ -53,8 +78,12 @@ func (s *bridgeService) ListReplays(ctx context.Context, projectID string, limit
 		item.EventRowID = eventID
 		item.Release = release
 		item.Environment = environment
-		item.StartedAt = startedAt.UTC()
-		item.EndedAt = finishedAt.UTC()
+		if startedAt.Valid {
+			item.StartedAt = startedAt.Time.UTC()
+		}
+		if finishedAt.Valid {
+			item.EndedAt = finishedAt.Time.UTC()
+		}
 		item.DurationMS = int64(durationMS)
 		item.AssetCount = segmentCount
 		item.ErrorMarkerCount = errorCount
@@ -89,7 +118,7 @@ func (s *bridgeService) GetReplay(ctx context.Context, projectID, replayID strin
 		eventID, traceID, release, environment, payloadJSON string
 		durationMS                                          float64
 		segmentCount, errorCount, clickCount                int
-		startedAt, finishedAt                               time.Time
+		startedAt, finishedAt                               sql.NullTime
 	)
 	if err := row.Scan(&manifest.ID, &manifest.ProjectID, &manifest.ReplayID, &eventID, &traceID, &release, &environment, &startedAt, &finishedAt, &durationMS, &segmentCount, &errorCount, &clickCount, &payloadJSON); err != nil {
 		if err == sql.ErrNoRows {
@@ -100,8 +129,12 @@ func (s *bridgeService) GetReplay(ctx context.Context, projectID, replayID strin
 	manifest.EventRowID = eventID
 	manifest.Release = release
 	manifest.Environment = environment
-	manifest.StartedAt = startedAt.UTC()
-	manifest.EndedAt = finishedAt.UTC()
+	if startedAt.Valid {
+		manifest.StartedAt = startedAt.Time.UTC()
+	}
+	if finishedAt.Valid {
+		manifest.EndedAt = finishedAt.Time.UTC()
+	}
 	manifest.DurationMS = int64(durationMS)
 	manifest.AssetCount = segmentCount
 	manifest.ErrorMarkerCount = errorCount

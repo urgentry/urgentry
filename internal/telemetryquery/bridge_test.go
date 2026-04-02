@@ -119,6 +119,45 @@ func TestBridgeTransactionsServeShortStalenessButFailWhenLagAgesOut(t *testing.T
 	}
 }
 
+func TestBridgeListOrgReplays(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	source := openBridgeQuerySourceDB(t)
+	seedBridgeDiscoverSource(t, source)
+
+	blobs := store.NewMemoryBlobStore()
+	seedBridgeBenchReplay(t, source, blobs)
+	replays := sqlite.NewReplayStore(source, blobs)
+	if _, err := replays.SaveEnvelopeReplay(ctx, "proj-b", "evt-bridge-org-replay", []byte(`{"event_id":"evt-bridge-org-replay","replay_id":"bridge-org-replay","timestamp":"2026-03-29T12:10:00Z"}`)); err != nil {
+		t.Fatalf("SaveEnvelopeReplay: %v", err)
+	}
+	if err := replays.IndexReplay(ctx, "proj-b", "bridge-org-replay"); err != nil {
+		t.Fatalf("IndexReplay: %v", err)
+	}
+
+	bridge := openMigratedBridgeQueryTestDatabase(t)
+	projector := telemetrybridge.NewProjector(source, bridge)
+	if err := projector.SyncFamilies(ctx, telemetrybridge.Scope{OrganizationID: "org-1"}, telemetrybridge.FamilyReplays); err != nil {
+		t.Fatalf("SyncFamilies: %v", err)
+	}
+
+	service := newBridgeTestService(source, bridge, blobs, nil)
+	items, err := service.ListOrgReplays(ctx, "org-1", 10)
+	if err != nil {
+		t.Fatalf("ListOrgReplays: %v", err)
+	}
+	if len(items) != 9 {
+		t.Fatalf("len(items) = %d, want 9", len(items))
+	}
+	if items[0].ReplayID != "bridge-org-replay" || items[0].ProjectID != "proj-b" {
+		t.Fatalf("first org replay = %+v, want bridge-org-replay/proj-b", items[0])
+	}
+	if items[1].ProjectID != "proj-a" {
+		t.Fatalf("second org replay = %+v, want proj-a replay", items[1])
+	}
+}
+
 func TestBridgeDiscoverHarnessLogsAndTransactions(t *testing.T) {
 	t.Parallel()
 

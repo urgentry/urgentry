@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"urgentry/internal/discover"
+	"urgentry/internal/sqlite"
 	"urgentry/internal/store"
 )
 
@@ -229,6 +230,49 @@ func TestSQLiteServiceReadsAcrossSurfaces(t *testing.T) {
 	}
 	if comparison.BaselineProfileID != "bench-profile-00" || comparison.CandidateProfileID != "bench-profile-01" {
 		t.Fatalf("unexpected comparison: %+v", comparison)
+	}
+}
+
+func TestSQLiteServiceListOrgReplays(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openBridgeQuerySourceDB(t)
+	seedBridgeDiscoverSource(t, db)
+
+	blobs := store.NewMemoryBlobStore()
+	replays := sqlite.NewReplayStore(db, blobs)
+	for _, item := range []struct {
+		projectID string
+		eventID   string
+		replayID  string
+		timestamp string
+	}{
+		{projectID: "proj-a", eventID: "evt-org-replay-a", replayID: "org-replay-a", timestamp: "2026-03-29T12:00:00Z"},
+		{projectID: "proj-b", eventID: "evt-org-replay-b", replayID: "org-replay-b", timestamp: "2026-03-29T12:10:00Z"},
+	} {
+		payload := []byte(`{"event_id":"` + item.eventID + `","replay_id":"` + item.replayID + `","timestamp":"` + item.timestamp + `"}`)
+		if _, err := replays.SaveEnvelopeReplay(ctx, item.projectID, item.eventID, payload); err != nil {
+			t.Fatalf("SaveEnvelopeReplay(%s): %v", item.replayID, err)
+		}
+		if err := replays.IndexReplay(ctx, item.projectID, item.replayID); err != nil {
+			t.Fatalf("IndexReplay(%s): %v", item.replayID, err)
+		}
+	}
+
+	service := NewSQLiteService(db, blobs)
+	items, err := service.ListOrgReplays(ctx, "org-1", 10)
+	if err != nil {
+		t.Fatalf("ListOrgReplays: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(items))
+	}
+	if items[0].ReplayID != "org-replay-b" || items[0].ProjectID != "proj-b" {
+		t.Fatalf("first org replay = %+v, want org-replay-b/proj-b", items[0])
+	}
+	if items[1].ReplayID != "org-replay-a" || items[1].ProjectID != "proj-a" {
+		t.Fatalf("second org replay = %+v, want org-replay-a/proj-a", items[1])
 	}
 }
 

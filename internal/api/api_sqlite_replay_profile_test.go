@@ -303,6 +303,54 @@ func TestAPIReplayDeletion_SQLite(t *testing.T) {
 	get.Body.Close()
 }
 
+func TestAPIOrgReplayListBatchesAcrossProjects_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('test-proj-id-2', 'test-org-id', 'test-project-two', 'Test Project Two', 'javascript', 'active')`); err != nil {
+		t.Fatalf("insert second project: %v", err)
+	}
+
+	blobStore := store.NewMemoryBlobStore()
+	replays := sqlite.NewReplayStore(db, blobStore)
+	for _, item := range []struct {
+		projectID string
+		eventID   string
+		replayID  string
+		timestamp string
+	}{
+		{projectID: "test-proj-id", eventID: "evt-org-list-a", replayID: "replay-org-list-a", timestamp: "2026-03-29T12:00:00Z"},
+		{projectID: "test-proj-id-2", eventID: "evt-org-list-b", replayID: "replay-org-list-b", timestamp: "2026-03-29T12:10:00Z"},
+	} {
+		payload := []byte(`{"event_id":"` + item.eventID + `","replay_id":"` + item.replayID + `","timestamp":"` + item.timestamp + `"}`)
+		if _, err := replays.SaveEnvelopeReplay(t.Context(), item.projectID, item.eventID, payload); err != nil {
+			t.Fatalf("SaveEnvelopeReplay(%s): %v", item.replayID, err)
+		}
+		if err := replays.IndexReplay(t.Context(), item.projectID, item.replayID); err != nil {
+			t.Fatalf("IndexReplay(%s): %v", item.replayID, err)
+		}
+	}
+
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{BlobStore: blobStore})
+	defer ts.Close()
+
+	resp := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/replays/", pat, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("org replay list status = %d, want 200", resp.StatusCode)
+	}
+
+	var items []Replay
+	decodeBody(t, resp, &items)
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(items))
+	}
+	if items[0].ID != "replay-org-list-b" || items[0].ProjectID != "test-proj-id-2" {
+		t.Fatalf("first org replay = %+v, want replay-org-list-b/test-proj-id-2", items[0])
+	}
+	if items[1].ID != "replay-org-list-a" || items[1].ProjectID != "test-proj-id" {
+		t.Fatalf("second org replay = %+v, want replay-org-list-a/test-proj-id", items[1])
+	}
+}
+
 func TestAPIProfileQueryViews_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 	seedSQLiteAuth(t, db)

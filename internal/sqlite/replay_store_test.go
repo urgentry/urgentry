@@ -213,3 +213,46 @@ func TestReplayStoreIdempotentRetryIndexing(t *testing.T) {
 	assertCount(t, db, `SELECT COUNT(*) FROM replay_assets WHERE replay_id = 'replay-retry'`, 1)
 	assertCount(t, db, `SELECT COUNT(*) FROM replay_timeline_items WHERE replay_id = 'replay-retry'`, 1)
 }
+
+func TestReplayStoreListOrgReplays(t *testing.T) {
+	db := openStoreTestDB(t)
+	seedProfileTestProject(t, db, "org-1", "proj-1")
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('proj-2', 'org-1', 'test-project-two', 'Test Project Two', 'javascript', 'active')`); err != nil {
+		t.Fatalf("insert second project: %v", err)
+	}
+
+	replays := NewReplayStore(db, memorystore.NewMemoryBlobStore())
+	ctx := context.Background()
+
+	for _, item := range []struct {
+		projectID string
+		eventID   string
+		replayID  string
+		timestamp string
+	}{
+		{projectID: "proj-1", eventID: "evt-org-replay-1", replayID: "replay-org-1", timestamp: "2026-03-29T12:00:00Z"},
+		{projectID: "proj-2", eventID: "evt-org-replay-2", replayID: "replay-org-2", timestamp: "2026-03-29T12:05:00Z"},
+	} {
+		payload := []byte(`{"event_id":"` + item.eventID + `","replay_id":"` + item.replayID + `","timestamp":"` + item.timestamp + `"}`)
+		if _, err := replays.SaveEnvelopeReplay(ctx, item.projectID, item.eventID, payload); err != nil {
+			t.Fatalf("SaveEnvelopeReplay(%s): %v", item.replayID, err)
+		}
+		if err := replays.IndexReplay(ctx, item.projectID, item.replayID); err != nil {
+			t.Fatalf("IndexReplay(%s): %v", item.replayID, err)
+		}
+	}
+
+	items, err := replays.ListOrgReplays(ctx, "org-1", 10)
+	if err != nil {
+		t.Fatalf("ListOrgReplays: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(items))
+	}
+	if items[0].ReplayID != "replay-org-2" || items[0].ProjectID != "proj-2" {
+		t.Fatalf("first org replay = %+v, want replay-org-2/proj-2", items[0])
+	}
+	if items[1].ReplayID != "replay-org-1" || items[1].ProjectID != "proj-1" {
+		t.Fatalf("second org replay = %+v, want replay-org-1/proj-1", items[1])
+	}
+}

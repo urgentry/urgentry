@@ -3,6 +3,7 @@ package telemetryquery
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"urgentry/internal/discover"
 	"urgentry/internal/discoverharness"
@@ -117,6 +118,14 @@ func (s *sqliteService) ListTraceSpans(ctx context.Context, projectID, traceID s
 
 func (s *sqliteService) ListReplays(ctx context.Context, projectID string, limit int) ([]store.ReplayManifest, error) {
 	return s.replays.ListReplays(ctx, projectID, limit)
+}
+
+func (s *sqliteService) ListOrgReplays(ctx context.Context, orgID string, limit int) ([]store.ReplayManifest, error) {
+	replays, ok := s.replays.(OrgReplayReadStore)
+	if !ok {
+		return nil, errors.New("telemetryquery: replay store does not support organization replay reads")
+	}
+	return replays.ListOrgReplays(ctx, orgID, limit)
 }
 
 func (s *sqliteService) GetReplay(ctx context.Context, projectID, replayID string) (*store.ReplayRecord, error) {
