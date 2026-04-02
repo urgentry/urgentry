@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strings"
+	"time"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
@@ -17,13 +18,24 @@ type projectUpdateStore interface {
 }
 
 type updateProjectRequest struct {
-	Name            *string `json:"name"`
-	Slug            *string `json:"slug"`
-	Platform        *string `json:"platform"`
-	IsBookmarked    *bool   `json:"isBookmarked"`
-	ResolveAge      *int    `json:"resolveAge"`
-	SubjectPrefix   *string `json:"subjectPrefix"`
-	SubjectTemplate *string `json:"subjectTemplate"`
+	Name                *string        `json:"name"`
+	Slug                *string        `json:"slug"`
+	Platform            *string        `json:"platform"`
+	IsBookmarked        *bool          `json:"isBookmarked"`
+	ResolveAge          *int           `json:"resolveAge"`
+	SubjectPrefix       *string        `json:"subjectPrefix"`
+	SubjectTemplate     *string        `json:"subjectTemplate"`
+	DigestsMinDelay     *int           `json:"digestsMinDelay"`
+	DigestsMaxDelay     *int           `json:"digestsMaxDelay"`
+	DefaultEnvironment  *string        `json:"defaultEnvironment"`
+	ScrubIPAddresses    *bool          `json:"scrubIPAddresses"`
+	DataScrubber        *bool          `json:"dataScrubber"`
+	DataScrubberDefaults *bool         `json:"dataScrubberDefaults"`
+	SensitiveFields     []string       `json:"sensitiveFields"`
+	SafeFields          []string       `json:"safeFields"`
+	AllowedDomains      []string       `json:"allowedDomains"`
+	ScrapeJavaScript    *bool          `json:"scrapeJavaScript"`
+	Options             map[string]any `json:"options"`
 }
 
 // handleListAllProjects handles GET /api/0/projects/.
@@ -46,7 +58,7 @@ func handleListAllProjects(catalog controlplane.CatalogStore, auth authFunc) htt
 }
 
 // handleGetProject handles GET /api/0/projects/{org_slug}/{proj_slug}/.
-func handleGetProject(catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
+func handleGetProject(db *sql.DB, catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -62,7 +74,103 @@ func handleGetProject(catalog controlplane.CatalogStore, auth authFunc) http.Han
 			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, rec)
+
+		detail := enrichProjectDetail(r.Context(), db, catalog, org, proj, rec)
+		httputil.WriteJSON(w, http.StatusOK, detail)
+	}
+}
+
+// enrichProjectDetail builds a ProjectDetail from a base Project record by
+// querying for firstEvent, latestRelease, and teams.
+func enrichProjectDetail(ctx context.Context, db *sql.DB, catalog controlplane.CatalogStore, orgSlug, projSlug string, rec *sharedstore.Project) *ProjectDetail {
+	detail := &ProjectDetail{
+		ID:                  rec.ID,
+		Slug:                rec.Slug,
+		Name:                rec.Name,
+		OrgSlug:             rec.OrgSlug,
+		Platform:            rec.Platform,
+		Status:              rec.Status,
+		EventRetentionDays:  rec.EventRetentionDays,
+		AttachRetentionDays: rec.AttachRetentionDays,
+		DebugRetentionDays:  rec.DebugRetentionDays,
+		DateCreated:         rec.DateCreated,
+		TeamSlug:            rec.TeamSlug,
+		Features:            defaultProjectFeatures(),
+		HasAccess:           true,
+		Options:             map[string]any{},
+		Plugins:             []any{},
+		ProcessingIssues:    0,
+		ScrapeJavaScript:    true,
+		Teams:               []projectTeamResponse{},
+	}
+
+	// First event timestamp for this project.
+	detail.FirstEvent = queryProjectFirstEvent(ctx, db, rec.ID)
+
+	// Latest release for the project's organization.
+	detail.LatestRelease = queryProjectLatestRelease(ctx, db, rec.ID)
+
+	// Teams associated with this project.
+	if teams, err := catalog.ListProjectTeams(ctx, orgSlug, projSlug); err == nil && len(teams) > 0 {
+		out := make([]projectTeamResponse, 0, len(teams))
+		for _, t := range teams {
+			out = append(out, projectTeamResponse{
+				ID:          t.ID,
+				Slug:        t.Slug,
+				Name:        t.Name,
+				DateCreated: t.DateCreated,
+			})
+		}
+		detail.Teams = out
+	}
+
+	return detail
+}
+
+// queryProjectFirstEvent returns the earliest event timestamp for a project.
+func queryProjectFirstEvent(ctx context.Context, db *sql.DB, projectID string) *time.Time {
+	var firstAt sql.NullString
+	err := db.QueryRowContext(ctx,
+		`SELECT MIN(occurred_at) FROM events WHERE project_id = ?`,
+		projectID,
+	).Scan(&firstAt)
+	if err != nil || !firstAt.Valid || firstAt.String == "" {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, firstAt.String)
+	if err != nil {
+		t, err = time.Parse(time.RFC3339, firstAt.String)
+		if err != nil {
+			return nil
+		}
+	}
+	t = t.UTC()
+	return &t
+}
+
+// queryProjectLatestRelease returns the most recent release for the project's org.
+func queryProjectLatestRelease(ctx context.Context, db *sql.DB, projectID string) *ReleaseRef {
+	var version string
+	var createdAt string
+	err := db.QueryRowContext(ctx,
+		`SELECT r.version, r.created_at
+		 FROM releases r
+		 JOIN projects p ON p.organization_id = r.organization_id
+		 WHERE p.id = ?
+		 ORDER BY r.created_at DESC
+		 LIMIT 1`,
+		projectID,
+	).Scan(&version, &createdAt)
+	if err != nil {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		t, _ = time.Parse(time.RFC3339, createdAt)
+	}
+	return &ReleaseRef{
+		Version:     version,
+		DateCreated: t.UTC(),
 	}
 }
 

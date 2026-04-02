@@ -61,6 +61,7 @@ type Dependencies struct {
 	Workflows           store.WorkflowStore
 	SCIMUsers           scimcore.UserStore
 	ExternalUsers       store.ExternalUserStore
+	ExternalTeams       store.ExternalTeamStore
 	OrgForwarders       store.OrgForwarderStore
 	NotificationActions *sqlite.NotificationActionStore
 }
@@ -179,6 +180,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("PUT /api/0/organizations/{org_slug}/members/{member_id}/", handleUpdateOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/members/{member_id}/", handleRemoveOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	RegisterSCIMRoutes(mux, control.Catalog, scimUsers, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath}))
+	RegisterSCIMGroupRoutes(mux, control.Catalog, control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath}))
 	mux.Handle("POST /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleAddMemberToTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleRemoveMemberFromTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/user-teams/", handleListUserTeams(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
@@ -193,7 +195,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/organizations/{org_slug}/invites/", handleListInvites(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("POST /api/0/organizations/{org_slug}/invites/", handleCreateInvite(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/invites/{invite_id}/", handleRevokeInvite(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
-	mux.Handle("GET /api/0/organizations/{org_slug}/events/", handleListOrgEvents(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/events/", handleListOrgEvents(deps.DB, queries, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/releases/", handleListReleases(control.Catalog, control.Releases, deps.NativeControl, withAuth(auth.Policy{Scope: auth.ScopeReleaseRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("POST /api/0/organizations/{org_slug}/releases/", handleCreateRelease(control.Releases, withAuth(auth.Policy{Scope: auth.ScopeReleaseWrite, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/releases/{version}/", handleGetRelease(deps.DB, control.Catalog, control.Releases, deps.NativeControl, withAuth(auth.Policy{Scope: auth.ScopeReleaseRead, Resource: auth.ResourceOrganizationPath})))
@@ -339,7 +341,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	}
 
 	// Teams
-	mux.Handle("GET /api/0/teams/{org_slug}/{team_slug}/", handleGetTeamDetail(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/teams/{org_slug}/{team_slug}/", handleGetTeamDetail(control.Catalog, control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("PUT /api/0/teams/{org_slug}/{team_slug}/", handleUpdateTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/teams/{org_slug}/{team_slug}/", handleDeleteTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/teams/{org_slug}/{team_slug}/projects/", handleListTeamProjects(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
@@ -532,12 +534,25 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/external-users/{id}/", handleDeleteExternalUser(deps.ExternalUsers, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	}
 
+	// External teams (SCIM/IdP team mapping)
+	if deps.ExternalTeams != nil {
+		mux.Handle("GET /api/0/organizations/{org_slug}/external-teams/", handleListExternalTeams(control.Catalog, deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("POST /api/0/organizations/{org_slug}/external-teams/", handleCreateExternalTeam(control.Catalog, deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("PUT /api/0/organizations/{org_slug}/external-teams/{id}/", handleUpdateExternalTeam(deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("DELETE /api/0/organizations/{org_slug}/external-teams/{id}/", handleDeleteExternalTeam(deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	}
+
 	// Org-level data forwarding
 	if deps.OrgForwarders != nil {
 		mux.Handle("GET /api/0/organizations/{org_slug}/forwarding/", handleListOrgForwarding(control.Catalog, deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/forwarding/", handleCreateOrgForwarding(control.Catalog, deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("PUT /api/0/organizations/{org_slug}/forwarding/{id}/", handleUpdateOrgForwarding(deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/forwarding/{id}/", handleDeleteOrgForwarding(deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+
+		// Sentry-compatible /data-forwarding/ alias at the org level.
+		mux.Handle("GET /api/0/organizations/{org_slug}/data-forwarding/", handleListOrgForwarding(control.Catalog, deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("POST /api/0/organizations/{org_slug}/data-forwarding/", handleCreateOrgForwarding(control.Catalog, deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("DELETE /api/0/organizations/{org_slug}/data-forwarding/{id}/", handleDeleteOrgForwarding(deps.OrgForwarders, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	}
 
 	// Stub endpoints (P3 - return empty data)

@@ -199,13 +199,46 @@ func TestGetOrganization(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var org Organization
+	var org OrganizationDetail
 	decodeBody(t, resp, &org)
 	if org.Slug != "my-org" {
 		t.Fatalf("expected slug my-org, got %q", org.Slug)
 	}
 	if org.Name != "My Organization" {
 		t.Fatalf("expected name 'My Organization', got %q", org.Name)
+	}
+
+	// Verify enriched fields.
+	if len(org.Features) == 0 {
+		t.Fatal("expected non-empty features list")
+	}
+	if len(org.Access) == 0 {
+		t.Fatal("expected non-empty access list")
+	}
+	if org.Avatar.Type != "letter_avatar" {
+		t.Fatalf("expected avatar type letter_avatar, got %q", org.Avatar.Type)
+	}
+	if org.Status.ID != "active" {
+		t.Fatalf("expected status id active, got %q", org.Status.ID)
+	}
+	if org.OnboardingTasks == nil {
+		t.Fatal("expected onboardingTasks to be non-nil")
+	}
+
+	// Verify nested teams (seeded fixture has one team).
+	if len(org.Teams) != 1 {
+		t.Fatalf("expected 1 team, got %d", len(org.Teams))
+	}
+	if org.Teams[0].Slug != "backend" {
+		t.Fatalf("expected team slug backend, got %q", org.Teams[0].Slug)
+	}
+
+	// Verify nested projects (seeded fixture has one project).
+	if len(org.Projects) != 1 {
+		t.Fatalf("expected 1 project, got %d", len(org.Projects))
+	}
+	if org.Projects[0].Slug != "my-project" {
+		t.Fatalf("expected project slug my-project, got %q", org.Projects[0].Slug)
 	}
 }
 
@@ -249,10 +282,41 @@ func TestGetProject(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var proj Project
+	var proj ProjectDetail
 	decodeBody(t, resp, &proj)
 	if proj.Slug != "my-project" {
 		t.Fatalf("expected slug my-project, got %q", proj.Slug)
+	}
+
+	// Verify enriched fields.
+	if proj.Features == nil || len(proj.Features) == 0 {
+		t.Fatal("expected non-empty features")
+	}
+	if !proj.HasAccess {
+		t.Fatal("expected hasAccess to be true")
+	}
+	if !proj.ScrapeJavaScript {
+		t.Fatal("expected scrapeJavaScript to be true")
+	}
+	if proj.Options == nil {
+		t.Fatal("expected non-nil options")
+	}
+	if proj.Plugins == nil {
+		t.Fatal("expected non-nil plugins")
+	}
+	if proj.Teams == nil {
+		t.Fatal("expected non-nil teams array")
+	}
+	// The seeded fixture has events, so firstEvent should be set.
+	if proj.FirstEvent == nil {
+		t.Fatal("expected firstEvent to be set (fixture has events)")
+	}
+	// The seeded fixture has a release, so latestRelease should be set.
+	if proj.LatestRelease == nil {
+		t.Fatal("expected latestRelease to be set (fixture has a release)")
+	}
+	if proj.LatestRelease.Version != "1.0.0" {
+		t.Fatalf("expected latestRelease version 1.0.0, got %q", proj.LatestRelease.Version)
 	}
 }
 

@@ -187,6 +187,111 @@ func TestAPIListOrgEvents_SQLite(t *testing.T) {
 	}
 }
 
+func TestAPIListOrgEvents_SQLite_FieldSelection(t *testing.T) {
+	db := openTestSQLite(t)
+
+	insertSQLiteGroup(t, db, "grp-api-org-fs-1", "FieldSelectErr", "main.go", "error", "unresolved")
+	insertSQLiteGroup(t, db, "grp-api-org-fs-2", "AnotherErr", "worker.go", "warning", "unresolved")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	// Test 1: field selection with plain fields.
+	resp := authGet(t, ts, "/api/0/organizations/test-org/events/?field=title&field=level")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("field selection: expected 200, got %d", resp.StatusCode)
+	}
+	var body struct {
+		Data []map[string]any `json:"data"`
+		Meta struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"meta"`
+	}
+	decodeBody(t, resp, &body)
+	if len(body.Data) == 0 {
+		t.Fatal("field selection: expected at least one row")
+	}
+	// Verify only requested columns are returned.
+	for _, row := range body.Data {
+		if _, ok := row["title"]; !ok {
+			t.Fatalf("field selection: row missing title: %+v", row)
+		}
+		if _, ok := row["level"]; !ok {
+			t.Fatalf("field selection: row missing level: %+v", row)
+		}
+	}
+	if body.Meta.Fields["title"] != "string" {
+		t.Fatalf("meta.fields.title = %q, want string", body.Meta.Fields["title"])
+	}
+	if body.Meta.Fields["level"] != "string" {
+		t.Fatalf("meta.fields.level = %q, want string", body.Meta.Fields["level"])
+	}
+
+	// Test 2: aggregation with count().
+	resp = authGet(t, ts, "/api/0/organizations/test-org/events/?field=count()")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("count aggregation: expected 200, got %d", resp.StatusCode)
+	}
+	var aggBody struct {
+		Data []map[string]any `json:"data"`
+		Meta struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"meta"`
+	}
+	decodeBody(t, resp, &aggBody)
+	if len(aggBody.Data) == 0 {
+		t.Fatal("count aggregation: expected at least one row")
+	}
+	countVal, ok := aggBody.Data[0]["count()"]
+	if !ok {
+		t.Fatalf("count aggregation: row missing count(): %+v", aggBody.Data[0])
+	}
+	countNum, ok := countVal.(float64)
+	if !ok || countNum < 2 {
+		t.Fatalf("count aggregation: count() = %v, want >= 2", countVal)
+	}
+	if aggBody.Meta.Fields["count()"] != "number" {
+		t.Fatalf("meta.fields[count()] = %q, want number", aggBody.Meta.Fields["count()"])
+	}
+
+	// Test 3: mixed fields + aggregation (grouped).
+	resp = authGet(t, ts, "/api/0/organizations/test-org/events/?field=title&field=count()")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("grouped aggregation: expected 200, got %d", resp.StatusCode)
+	}
+	var groupBody struct {
+		Data []map[string]any `json:"data"`
+		Meta struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"meta"`
+	}
+	decodeBody(t, resp, &groupBody)
+	if len(groupBody.Data) < 2 {
+		t.Fatalf("grouped aggregation: expected at least 2 rows, got %d", len(groupBody.Data))
+	}
+	for _, row := range groupBody.Data {
+		if _, ok := row["title"]; !ok {
+			t.Fatalf("grouped aggregation: row missing title: %+v", row)
+		}
+		if _, ok := row["count()"]; !ok {
+			t.Fatalf("grouped aggregation: row missing count(): %+v", row)
+		}
+	}
+
+	// Test 4: explicit dataset parameter.
+	resp = authGet(t, ts, "/api/0/organizations/test-org/events/?field=title&field=level&dataset=issues")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("explicit dataset: expected 200, got %d", resp.StatusCode)
+	}
+	var dsBody struct {
+		Data []map[string]any `json:"data"`
+	}
+	decodeBody(t, resp, &dsBody)
+	if len(dsBody.Data) == 0 {
+		t.Fatal("explicit dataset: expected at least one row")
+	}
+}
+
 func TestAPIResolveEventID_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 

@@ -11,6 +11,113 @@ import (
 	"urgentry/internal/store"
 )
 
+// defaultOrgFeatures is the default set of feature flags for all organizations.
+var defaultOrgFeatures = []string{
+	"organizations:discover",
+	"organizations:events",
+	"organizations:monitors",
+	"organizations:performance",
+	"organizations:replays",
+	"organizations:profiling",
+	"organizations:dashboards",
+	"organizations:alerts",
+	"organizations:releases",
+	"organizations:issue-details-replay",
+}
+
+// ownerAccess is the full set of permissions granted to organization owners.
+var ownerAccess = []string{
+	"org:read", "org:write", "org:admin", "org:integrations",
+	"team:read", "team:write", "team:admin",
+	"project:read", "project:write", "project:admin", "project:releases",
+	"member:read", "member:write", "member:admin",
+	"event:read", "event:write", "event:admin",
+	"alerts:read", "alerts:write",
+}
+
+// managerAccess is the set of permissions granted to managers.
+var managerAccess = []string{
+	"org:read", "org:write", "org:integrations",
+	"team:read", "team:write", "team:admin",
+	"project:read", "project:write", "project:admin", "project:releases",
+	"member:read", "member:write",
+	"event:read", "event:write", "event:admin",
+	"alerts:read", "alerts:write",
+}
+
+// memberAccess is the set of permissions granted to regular members.
+var memberAccess = []string{
+	"org:read",
+	"team:read",
+	"project:read", "project:releases",
+	"member:read",
+	"event:read",
+	"alerts:read",
+}
+
+// accessForRole returns the permission set for a given organization role.
+func accessForRole(role string) []string {
+	switch role {
+	case "owner":
+		return ownerAccess
+	case "manager":
+		return managerAccess
+	default:
+		return memberAccess
+	}
+}
+
+// buildOrganizationDetail enriches a store Organization into a full API response.
+func buildOrganizationDetail(org *store.Organization, teams []store.Team, projects []store.Project) *OrganizationDetail {
+	orgTeams := make([]OrgTeamResponse, 0, len(teams))
+	for _, t := range teams {
+		orgTeams = append(orgTeams, OrgTeamResponse{
+			ID:          t.ID,
+			Slug:        t.Slug,
+			Name:        t.Name,
+			DateCreated: t.DateCreated,
+			IsMember:    true,
+			MemberCount: 0,
+			Avatar:      teamAvatar{Type: "letter_avatar"},
+			HasAccess:   true,
+			IsPending:   false,
+		})
+	}
+
+	orgProjects := make([]OrgProjectResponse, 0, len(projects))
+	for _, p := range projects {
+		orgProjects = append(orgProjects, OrgProjectResponse{
+			ID:           p.ID,
+			Slug:         p.Slug,
+			Name:         p.Name,
+			Platform:     p.Platform,
+			Status:       p.Status,
+			DateCreated:  p.DateCreated,
+			HasAccess:    true,
+			IsBookmarked: false,
+			IsMember:     true,
+		})
+	}
+
+	return &OrganizationDetail{
+		ID:          org.ID,
+		Slug:        org.Slug,
+		Name:        org.Name,
+		DateCreated: org.DateCreated,
+		Features:    defaultOrgFeatures,
+		Access:      accessForRole("owner"),
+		Teams:       orgTeams,
+		Projects:    orgProjects,
+		Avatar:      OrgAvatar{Type: "letter_avatar"},
+		Status: OrgStatus{
+			ID:   "active",
+			Name: "active",
+		},
+		IsEarlyAdopter:  false,
+		OnboardingTasks: []any{},
+	}
+}
+
 // handleListOrgs handles GET /api/0/organizations/.
 func handleListOrgs(catalog controlplane.CatalogStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +153,17 @@ func handleGetOrg(catalog controlplane.CatalogStore, auth authFunc) http.Handler
 			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, rec)
+
+		teams, _ := catalog.ListTeams(r.Context(), slug)
+		if teams == nil {
+			teams = []store.Team{}
+		}
+		projects, _ := catalog.ListProjects(r.Context(), slug)
+		if projects == nil {
+			projects = []store.Project{}
+		}
+
+		httputil.WriteJSON(w, http.StatusOK, buildOrganizationDetail(rec, teams, projects))
 	}
 }
 
@@ -82,7 +199,17 @@ func handleUpdateOrg(catalog controlplane.CatalogStore, auth authFunc) http.Hand
 			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, updated)
+
+		useSlug := updated.Slug
+		teams, _ := catalog.ListTeams(r.Context(), useSlug)
+		if teams == nil {
+			teams = []store.Team{}
+		}
+		projects, _ := catalog.ListProjects(r.Context(), useSlug)
+		if projects == nil {
+			projects = []store.Project{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, buildOrganizationDetail(updated, teams, projects))
 	}
 }
 

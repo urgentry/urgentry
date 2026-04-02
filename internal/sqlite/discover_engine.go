@@ -137,7 +137,7 @@ func buildDiscoverFetchSQL(query discover.Query, limit int) (string, []any, int,
 
 func buildIssuesFetchSQL(query discover.Query, limit int) (string, []any, int, error) {
 	builder := &discovershared.SQLiteArgBuilder{}
-	base := `SELECT g.id, p.id, p.slug,
+	base := `SELECT g.id, p.id, p.slug, COALESCE(p.name, p.slug), COALESCE(p.platform, ''),
 		(SELECT COALESCE(MAX(e.release), '') FROM events e WHERE e.group_id = g.id),
 		(SELECT COALESCE(MAX(e.environment), '') FROM events e WHERE e.group_id = g.id),
 		g.title, g.culprit, g.level, g.status, g.first_seen, g.last_seen, g.times_seen,

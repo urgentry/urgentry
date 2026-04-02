@@ -12,6 +12,7 @@ type UserStore interface {
 	GetUser(ctx context.Context, orgID, userID string) (*UserRecord, error)
 	CreateUser(ctx context.Context, orgID string, user UserRecord) (*UserRecord, error)
 	PatchUser(ctx context.Context, orgID, userID string, ops []PatchOp) (*UserRecord, error)
+	DeleteUser(ctx context.Context, orgID, userID string) (bool, error)
 }
 
 // UserRecord is the store-facing representation of a SCIM user.

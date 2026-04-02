@@ -92,6 +92,7 @@ func StoreHandlerWithMetrics(pipe *pipeline.Pipeline, met *metrics.Metrics) http
 
 var errEmptyBody = fmt.Errorf("empty body")
 var errQueueFull = fmt.Errorf("queue full")
+var errSpikeThrottled = fmt.Errorf("spike throttled")
 
 // extractEventID pulls the event_id from a parsed event. Returns "" if absent
 // or not a string.

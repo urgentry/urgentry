@@ -16,17 +16,34 @@ import (
 // defaultPageSize is the default number of items per page.
 const defaultPageSize = 100
 
-// Paginate applies cursor-based pagination to a slice. It parses the cursor
-// query parameter and generates a Link header pointing to the next page. The
-// cursor is a simple 0-based offset encoded as a string.
-func Paginate[T any](w http.ResponseWriter, r *http.Request, items []T) []T {
-	cursor := r.URL.Query().Get("cursor")
-	offset := 0
-	if cursor != "" {
-		if n, err := strconv.Atoi(cursor); err == nil && n > 0 {
-			offset = n
+// parseCompoundCursor extracts the offset from a Sentry-compatible compound
+// cursor of the form "{timestamp}:{offset}:{is_prev}". If the cursor is a
+// plain integer (legacy format) it is accepted as well for backward
+// compatibility. Returns 0 when the cursor is empty or unparseable.
+func parseCompoundCursor(raw string) int {
+	if raw == "" {
+		return 0
+	}
+	// Try compound format first: ts:offset:isPrev
+	parts := strings.SplitN(raw, ":", 3)
+	if len(parts) == 3 {
+		if n, err := strconv.Atoi(parts[1]); err == nil && n > 0 {
+			return n
 		}
 	}
+	// Fall back to plain integer for backward compatibility.
+	if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+		return n
+	}
+	return 0
+}
+
+// Paginate applies cursor-based pagination to a slice. It parses the cursor
+// query parameter (supporting both plain integer and Sentry-compatible compound
+// "{ts}:{offset}:{is_prev}" formats) and generates a Link header pointing to
+// the next page.
+func Paginate[T any](w http.ResponseWriter, r *http.Request, items []T) []T {
+	offset := parseCompoundCursor(r.URL.Query().Get("cursor"))
 
 	if offset >= len(items) {
 		setLinkHeader(w, r, "", false)
@@ -76,15 +93,10 @@ type PaginationOpts struct {
 }
 
 // ParsePagination extracts pagination parameters from the request.
-// It reads cursor (offset) and per_page (limit, default 100, max 100).
+// It reads cursor (offset, supporting both plain integer and compound
+// "{ts}:{offset}:{is_prev}" formats) and per_page (limit, default 100, max 100).
 func ParsePagination(r *http.Request) PaginationOpts {
-	cursor := r.URL.Query().Get("cursor")
-	offset := 0
-	if cursor != "" {
-		if n, err := strconv.Atoi(cursor); err == nil && n > 0 {
-			offset = n
-		}
-	}
+	offset := parseCompoundCursor(r.URL.Query().Get("cursor"))
 	limit := defaultPageSize
 	if pp := r.URL.Query().Get("per_page"); pp != "" {
 		if n, err := strconv.Atoi(pp); err == nil && n > 0 && n <= defaultPageSize {

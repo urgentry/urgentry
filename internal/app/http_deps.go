@@ -90,6 +90,7 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			OutcomeStore:    input.outcomeStore,
 			MonitorStore:    input.control.Monitors,
 			SamplingRules:   input.samplingRules,
+			SpikeThrottle:   pipeline.NewSpikeThrottle(input.db),
 			Metrics:         input.metrics,
 		},
 		API: api.Dependencies{
@@ -124,6 +125,7 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			Detectors:           sqlite.NewDetectorStore(input.db),
 			Workflows:           sqlite.NewWorkflowStore(input.db),
 			ExternalUsers:       sqlite.NewExternalUserStore(input.db),
+			ExternalTeams:       sqlite.NewExternalTeamStore(input.db),
 			OrgForwarders:       sqlite.NewOrgForwarderStore(input.db),
 		},
 		Web: web.Dependencies{

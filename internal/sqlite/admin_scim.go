@@ -182,6 +182,61 @@ func (s *AdminStore) PatchUser(ctx context.Context, orgID, userID string, ops []
 	return s.GetUser(ctx, orgID, userID)
 }
 
+func (s *AdminStore) DeleteUser(ctx context.Context, orgID, userID string) (bool, error) {
+	orgID = strings.TrimSpace(orgID)
+	userID = strings.TrimSpace(userID)
+	if orgID == "" || userID == "" {
+		return false, nil
+	}
+
+	// Deactivate the user rather than hard-deleting, preserving audit history.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Verify membership exists.
+	var memberID string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT m.id FROM organization_members m WHERE m.organization_id = ? AND m.user_id = ?`,
+		orgID, userID,
+	).Scan(&memberID); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+
+	// Deactivate the user.
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?`,
+		now, userID,
+	); err != nil {
+		return false, err
+	}
+
+	// Remove team memberships within this org.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM team_members
+		 WHERE user_id = ? AND team_id IN (SELECT id FROM teams WHERE organization_id = ?)`,
+		userID, orgID,
+	); err != nil {
+		return false, err
+	}
+
+	// Remove org membership.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM organization_members WHERE organization_id = ? AND user_id = ?`,
+		orgID, userID,
+	); err != nil {
+		return false, err
+	}
+
+	return true, tx.Commit()
+}
+
 type sqliteSCIMScanner interface {
 	Scan(dest ...any) error
 }

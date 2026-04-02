@@ -76,8 +76,40 @@ type scimError struct {
 	Status  int      `json:"status"`
 }
 
+// ---------------------------------------------------------------------------
+// SCIM Groups wire types
+// ---------------------------------------------------------------------------
+
+type scimGroupListResponse struct {
+	Schemas      []string        `json:"schemas"`
+	TotalResults int             `json:"totalResults"`
+	StartIndex   int             `json:"startIndex"`
+	ItemsPerPage int             `json:"itemsPerPage"`
+	Resources    []scimGroupRepr `json:"Resources"`
+}
+
+type scimGroupRepr struct {
+	Schemas     []string         `json:"schemas"`
+	ID          string           `json:"id"`
+	DisplayName string           `json:"displayName"`
+	Members     []scimGroupMember `json:"members,omitempty"`
+	Meta        scimMeta         `json:"meta"`
+}
+
+type scimGroupMember struct {
+	Value   string `json:"value"`
+	Display string `json:"display,omitempty"`
+}
+
+type scimGroupCreateRequest struct {
+	Schemas     []string         `json:"schemas"`
+	DisplayName string           `json:"displayName"`
+	Members     []scimGroupMember `json:"members,omitempty"`
+}
+
 const (
 	scimUserSchema  = "urn:ietf:params:scim:schemas:core:2.0:User"
+	scimGroupSchema = "urn:ietf:params:scim:schemas:core:2.0:Group"
 	scimListSchema  = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
 	scimPatchSchema = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
 	scimErrorSchema = "urn:ietf:params:scim:api:messages:2.0:Error"
@@ -326,13 +358,274 @@ func handleSCIMPatchUser(store scimcore.UserStore) http.HandlerFunc {
 	}
 }
 
-// RegisterSCIMRoutes registers org-scoped SCIM 2.0 /Users endpoints on the given mux.
+// handleSCIMDeleteUser handles DELETE /api/0/organizations/{org_slug}/scim/v2/Users/{id}.
+// Per RFC 7644 §3.6, this deactivates the user and removes their org membership.
+func handleSCIMDeleteUser(store scimcore.UserStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
+			return
+		}
+
+		ok, err := store.DeleteUser(r.Context(), orgID, PathParam(r, "id"))
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to deprovision user.")
+			return
+		}
+		if !ok {
+			writeSCIMError(w, http.StatusNotFound, "User not found.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleSCIMListGroups handles GET /api/0/organizations/{org_slug}/scim/v2/Groups.
+func handleSCIMListGroups(admin controlplane.AdminStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
+			return
+		}
+
+		// Derive orgSlug from the path since admin store uses slug-based APIs.
+		orgSlug := PathParam(r, "org_slug")
+		teams, err := admin.ListTeams(r.Context(), orgSlug)
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to list groups.")
+			return
+		}
+
+		startIndex := 1
+		count := 100
+		if v := r.URL.Query().Get("startIndex"); v != "" {
+			fmt.Sscanf(v, "%d", &startIndex)
+		}
+		if v := r.URL.Query().Get("count"); v != "" {
+			fmt.Sscanf(v, "%d", &count)
+		}
+		if startIndex < 1 {
+			startIndex = 1
+		}
+		if count < 1 || count > 1000 {
+			count = 100
+		}
+
+		total := len(teams)
+		offset := startIndex - 1
+		if offset > total {
+			offset = total
+		}
+		end := offset + count
+		if end > total {
+			end = total
+		}
+		page := teams[offset:end]
+
+		resources := make([]scimGroupRepr, 0, len(page))
+		for _, t := range page {
+			resources = append(resources, teamRecordToSCIMGroup(t))
+		}
+		writeSCIMJSON(w, http.StatusOK, scimGroupListResponse{
+			Schemas:      []string{scimListSchema},
+			TotalResults: total,
+			StartIndex:   startIndex,
+			ItemsPerPage: len(resources),
+			Resources:    resources,
+		})
+	}
+}
+
+// handleSCIMCreateGroup handles POST /api/0/organizations/{org_slug}/scim/v2/Groups.
+func handleSCIMCreateGroup(admin controlplane.AdminStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
+			return
+		}
+
+		var body scimGroupCreateRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeSCIMError(w, http.StatusBadRequest, "Invalid JSON body.")
+			return
+		}
+
+		name := strings.TrimSpace(body.DisplayName)
+		if name == "" {
+			writeSCIMError(w, http.StatusBadRequest, "displayName is required.")
+			return
+		}
+
+		slug := scimSlugify(name)
+		orgSlug := PathParam(r, "org_slug")
+		rec, err := admin.CreateTeam(r.Context(), orgSlug, slug, name)
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to create group.")
+			return
+		}
+		if rec == nil {
+			writeSCIMError(w, http.StatusNotFound, "Organization not found.")
+			return
+		}
+
+		// Add any requested members.
+		for _, m := range body.Members {
+			if strings.TrimSpace(m.Value) != "" {
+				_, _ = admin.AddTeamMember(r.Context(), orgSlug, slug, strings.TrimSpace(m.Value), "member")
+			}
+		}
+
+		group := teamRecordToSCIMGroup(rec)
+		writeSCIMJSON(w, http.StatusCreated, group)
+	}
+}
+
+// handleSCIMPatchGroup handles PATCH /api/0/organizations/{org_slug}/scim/v2/Groups/{id}.
+func handleSCIMPatchGroup(admin controlplane.AdminStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
+			return
+		}
+
+		var body scimPatchRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeSCIMError(w, http.StatusBadRequest, "Invalid JSON body.")
+			return
+		}
+
+		orgSlug := PathParam(r, "org_slug")
+		teamSlug := PathParam(r, "id")
+
+		// Apply operations. We support "replace displayName" and member add/remove.
+		for _, op := range body.Operations {
+			kind := strings.ToLower(strings.TrimSpace(op.Op))
+			if kind == "" {
+				kind = "replace"
+			}
+			path := strings.ToLower(strings.TrimSpace(op.Path))
+
+			switch {
+			case (kind == "replace" || kind == "add") && path == "displayname":
+				if name, ok := op.Value.(string); ok && strings.TrimSpace(name) != "" {
+					newName := strings.TrimSpace(name)
+					admin.UpdateTeam(r.Context(), orgSlug, teamSlug, &newName, nil) //nolint:errcheck
+				}
+			case kind == "add" && path == "members":
+				if members, ok := op.Value.([]any); ok {
+					for _, item := range members {
+						if entry, ok := item.(map[string]any); ok {
+							if val, ok := entry["value"].(string); ok && val != "" {
+								admin.AddTeamMember(r.Context(), orgSlug, teamSlug, val, "member") //nolint:errcheck
+							}
+						}
+					}
+				}
+			case kind == "remove" && strings.HasPrefix(path, "members"):
+				// SCIM uses "members[value eq \"uid\"]" syntax for removal.
+				// Extract the user ID from the filter.
+				if userID := extractSCIMMemberFilter(path); userID != "" {
+					admin.RemoveTeamMember(r.Context(), orgSlug, teamSlug, userID) //nolint:errcheck
+				}
+			}
+		}
+
+		rec, _, _, err := admin.GetTeam(r.Context(), orgSlug, teamSlug)
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to update group.")
+			return
+		}
+		if rec == nil {
+			writeSCIMError(w, http.StatusNotFound, "Group not found.")
+			return
+		}
+		writeSCIMJSON(w, http.StatusOK, teamRecordToSCIMGroup(rec))
+	}
+}
+
+func teamRecordToSCIMGroup(rec *controlplane.TeamRecord) scimGroupRepr {
+	createdAt := ""
+	if !rec.CreatedAt.IsZero() {
+		createdAt = rec.CreatedAt.Format(time.RFC3339)
+	}
+	return scimGroupRepr{
+		Schemas:     []string{scimGroupSchema},
+		ID:          rec.Slug,
+		DisplayName: rec.Name,
+		Meta: scimMeta{
+			ResourceType: "Group",
+			Created:      createdAt,
+			LastModified: createdAt,
+		},
+	}
+}
+
+// scimSlugify converts a display name to a URL-safe slug.
+func scimSlugify(name string) string {
+	slug := strings.ToLower(strings.TrimSpace(name))
+	slug = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			return r
+		}
+		if r == ' ' || r == '_' {
+			return '-'
+		}
+		return -1
+	}, slug)
+	// Collapse repeated dashes.
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		slug = "team"
+	}
+	return slug
+}
+
+// extractSCIMMemberFilter parses SCIM member path filters like
+// `members[value eq "uid"]` and returns the user ID.
+func extractSCIMMemberFilter(path string) string {
+	// Expected format: members[value eq "uid"]
+	start := strings.Index(path, `"`)
+	if start < 0 {
+		start = strings.Index(path, `'`)
+	}
+	if start < 0 {
+		return ""
+	}
+	rest := path[start+1:]
+	end := strings.IndexAny(rest, `"'`)
+	if end < 0 {
+		return rest
+	}
+	return rest[:end]
+}
+
+// RegisterSCIMRoutes registers org-scoped SCIM 2.0 /Users and /Groups endpoints on the given mux.
 func RegisterSCIMRoutes(mux *http.ServeMux, catalog controlplane.CatalogStore, store scimcore.UserStore, authorize authFunc) {
 	if mux == nil || catalog == nil || store == nil || authorize == nil {
 		return
 	}
+	// Users
 	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Users", scimOrgAdminGuard(catalog, authorize, handleSCIMListUsers(store)))
 	mux.Handle("POST /api/0/organizations/{org_slug}/scim/v2/Users", scimOrgAdminGuard(catalog, authorize, handleSCIMCreateUser(store)))
 	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Users/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMGetUser(store)))
 	mux.Handle("PATCH /api/0/organizations/{org_slug}/scim/v2/Users/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMPatchUser(store)))
+	mux.Handle("DELETE /api/0/organizations/{org_slug}/scim/v2/Users/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMDeleteUser(store)))
+}
+
+// RegisterSCIMGroupRoutes registers org-scoped SCIM 2.0 /Groups endpoints on the given mux.
+// Separated from RegisterSCIMRoutes because Groups use the AdminStore, not the SCIM UserStore.
+func RegisterSCIMGroupRoutes(mux *http.ServeMux, catalog controlplane.CatalogStore, admin controlplane.AdminStore, authorize authFunc) {
+	if mux == nil || catalog == nil || admin == nil || authorize == nil {
+		return
+	}
+	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Groups", scimOrgAdminGuard(catalog, authorize, handleSCIMListGroups(admin)))
+	mux.Handle("POST /api/0/organizations/{org_slug}/scim/v2/Groups", scimOrgAdminGuard(catalog, authorize, handleSCIMCreateGroup(admin)))
+	mux.Handle("PATCH /api/0/organizations/{org_slug}/scim/v2/Groups/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMPatchGroup(admin)))
 }

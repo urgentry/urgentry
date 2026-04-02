@@ -95,6 +95,8 @@ type Pipeline struct {
 	metrics            *metrics.Metrics
 	workerID           string
 	nativeJobs         NativeJobProcessor
+	filterStore        FilterStore
+	outcomeStore       *sqlite.OutcomeStore
 }
 
 type lifecycleState uint8
@@ -160,6 +162,20 @@ func (p *Pipeline) SetAlertCallback(cb AlertCallback) {
 func (p *Pipeline) SetNativeJobProcessor(proc NativeJobProcessor) {
 	p.mustBeConfigurable("SetNativeJobProcessor")
 	p.nativeJobs = proc
+}
+
+// SetFilterStore attaches a filter store for inbound data filtering.
+// Must be called before Start.
+func (p *Pipeline) SetFilterStore(fs FilterStore) {
+	p.mustBeConfigurable("SetFilterStore")
+	p.filterStore = fs
+}
+
+// SetOutcomeStore attaches an outcome store for recording filtered events.
+// Must be called before Start.
+func (p *Pipeline) SetOutcomeStore(os *sqlite.OutcomeStore) {
+	p.mustBeConfigurable("SetOutcomeStore")
+	p.outcomeStore = os
 }
 
 // SetProjectionCallback registers a function to enqueue bridge projection
@@ -448,6 +464,25 @@ func (p *Pipeline) processItem(ctx context.Context, item Item) error {
 	} else if alreadyProcessed {
 		return nil
 	}
+
+	// Check inbound data filters before processing.
+	if p.filterStore != nil {
+		evt, err := normalize.Normalize(item.RawEvent)
+		if err == nil {
+			if reason := checkFilters(ctx, p.filterStore, item.ProjectID, evt); reason != nil {
+				log.Debug().
+					Str("project_id", item.ProjectID).
+					Str("filter", reason.FilterID).
+					Msg("pipeline: event filtered")
+				recordFilteredOutcome(ctx, p.outcomeStore, item.ProjectID, evt.EventID, reason)
+				if p.metrics != nil {
+					p.metrics.RecordDrop()
+				}
+				return nil
+			}
+		}
+	}
+
 	start := time.Now()
 	result, err := p.processor.Process(ctx, item.ProjectID, item.RawEvent)
 	duration := time.Since(start)

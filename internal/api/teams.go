@@ -140,16 +140,25 @@ func handleRemoveMemberFromTeam(admin controlplane.AdminStore, auth authFunc) ht
 
 // teamDetailResponse is the Sentry-compatible team detail shape.
 type teamDetailResponse struct {
-	ID           string         `json:"id"`
-	Slug         string         `json:"slug"`
-	Name         string         `json:"name"`
-	DateCreated  time.Time      `json:"dateCreated"`
-	IsMember     bool           `json:"isMember"`
-	MemberCount  int            `json:"memberCount"`
-	ProjectCount int            `json:"projectCount,omitempty"`
-	Avatar       teamAvatar     `json:"avatar"`
-	HasAccess    bool           `json:"hasAccess"`
-	IsPending    bool           `json:"isPending"`
+	ID           string                   `json:"id"`
+	Slug         string                   `json:"slug"`
+	Name         string                   `json:"name"`
+	DateCreated  time.Time                `json:"dateCreated"`
+	IsMember     bool                     `json:"isMember"`
+	MemberCount  int                      `json:"memberCount"`
+	ProjectCount int                      `json:"projectCount,omitempty"`
+	Avatar       teamAvatar               `json:"avatar"`
+	HasAccess    bool                     `json:"hasAccess"`
+	IsPending    bool                     `json:"isPending"`
+	Organization *teamOrgEmbed            `json:"organization,omitempty"`
+	Projects     []teamProjectResponse    `json:"projects,omitempty"`
+}
+
+// teamOrgEmbed is a compact organization reference embedded in team detail.
+type teamOrgEmbed struct {
+	ID   string `json:"id"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
 }
 
 type teamAvatar struct {
@@ -223,15 +232,15 @@ func handleCreateTeam(admin controlplane.AdminStore, auth authFunc) http.Handler
 }
 
 // handleGetTeamDetail handles GET /api/0/teams/{org_slug}/{team_slug}/.
-func handleGetTeamDetail(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+func handleGetTeamDetail(catalog controlplane.CatalogStore, admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		org := PathParam(r, "org_slug")
+		orgSlug := PathParam(r, "org_slug")
 		team := PathParam(r, "team_slug")
 
-		rec, memberCount, projectCount, err := admin.GetTeam(r.Context(), org, team)
+		rec, memberCount, projectCount, err := admin.GetTeam(r.Context(), orgSlug, team)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load team.")
 			return
@@ -240,7 +249,8 @@ func handleGetTeamDetail(admin controlplane.AdminStore, auth authFunc) http.Hand
 			httputil.WriteError(w, http.StatusNotFound, "Team not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, &teamDetailResponse{
+
+		resp := &teamDetailResponse{
 			ID:           rec.ID,
 			Slug:         rec.Slug,
 			Name:         rec.Name,
@@ -251,7 +261,34 @@ func handleGetTeamDetail(admin controlplane.AdminStore, auth authFunc) http.Hand
 			Avatar:       teamAvatar{Type: "letter_avatar"},
 			HasAccess:    true,
 			IsPending:    false,
-		})
+		}
+
+		// Embed organization reference.
+		if orgRec, err := catalog.GetOrganization(r.Context(), orgSlug); err == nil && orgRec != nil {
+			resp.Organization = &teamOrgEmbed{
+				ID:   orgRec.ID,
+				Slug: orgRec.Slug,
+				Name: orgRec.Name,
+			}
+		}
+
+		// Embed projects associated with this team.
+		if teamProjects, err := admin.ListTeamProjects(r.Context(), orgSlug, team); err == nil {
+			projs := make([]teamProjectResponse, 0, len(teamProjects))
+			for _, p := range teamProjects {
+				projs = append(projs, teamProjectResponse{
+					ID:          p.ID,
+					Slug:        p.Slug,
+					Name:        p.Name,
+					Platform:    p.Platform,
+					Status:      p.Status,
+					DateCreated: p.DateCreated,
+				})
+			}
+			resp.Projects = projs
+		}
+
+		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 

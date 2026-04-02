@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"urgentry/internal/httputil"
 	"urgentry/internal/sourcemap"
 	"urgentry/internal/sqlite"
+	"urgentry/internal/store"
 	"urgentry/pkg/id"
 )
 
@@ -210,5 +212,92 @@ func handleDeleteReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// chunkUploadResponse is the response shape for the chunk-upload endpoint.
+// It describes the server's chunked-upload capabilities and any chunks that
+// were accepted in the current request.
+type chunkUploadResponse struct {
+	Accept        []string       `json:"accept"`
+	ChunkSize     int            `json:"chunkSize"`
+	Concurrency   int            `json:"concurrency"`
+	HashAlgorithm string         `json:"hashAlgorithm"`
+	Compression   []string       `json:"compression"`
+	Chunks        []chunkResult  `json:"chunks"`
+}
+
+// chunkResult describes a single chunk that was accepted by the server.
+type chunkResult struct {
+	Hash   string `json:"hash"`
+	Offset int    `json:"offset"`
+	Size   int    `json:"size"`
+}
+
+const chunkUploadMaxSize = 32 << 20 // 32 MB per request
+
+// handleChunkUpload handles POST /api/0/organizations/{org_slug}/chunk-upload/.
+// sentry-cli uses this endpoint to upload large source map bundles in chunks.
+// Each multipart "file" part is stored in the blob store keyed by its SHA1 hash.
+func handleChunkUpload(blobs store.BlobStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+
+		resp := chunkUploadResponse{
+			Accept:        []string{"debug_files", "release_files", "pdbs", "sources", "bcsymbolmaps"},
+			ChunkSize:     8388608, // 8 MB
+			Concurrency:   1,
+			HashAlgorithm: "sha1",
+			Compression:   []string{"gzip"},
+			Chunks:        []chunkResult{},
+		}
+
+		// If there is no body or it is not multipart, return capabilities only.
+		ct := r.Header.Get("Content-Type")
+		if ct == "" || r.ContentLength == 0 {
+			httputil.WriteJSON(w, http.StatusOK, resp)
+			return
+		}
+
+		if err := r.ParseMultipartForm(chunkUploadMaxSize); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form: "+err.Error())
+			return
+		}
+
+		files := r.MultipartForm.File["file"]
+		offset := 0
+		for _, fh := range files {
+			f, err := fh.Open()
+			if err != nil {
+				httputil.WriteError(w, http.StatusBadRequest, "Failed to open uploaded chunk.")
+				return
+			}
+			data, err := io.ReadAll(io.LimitReader(f, chunkUploadMaxSize))
+			f.Close()
+			if err != nil {
+				httputil.WriteError(w, http.StatusBadRequest, "Failed to read chunk data.")
+				return
+			}
+
+			hash := sha1.Sum(data)
+			hexHash := hex.EncodeToString(hash[:])
+
+			key := fmt.Sprintf("chunks/%s", hexHash)
+			if err := blobs.Put(r.Context(), key, data); err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to store chunk.")
+				return
+			}
+
+			resp.Chunks = append(resp.Chunks, chunkResult{
+				Hash:   hexHash,
+				Offset: offset,
+				Size:   len(data),
+			})
+			offset += len(data)
+		}
+
+		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
 }
