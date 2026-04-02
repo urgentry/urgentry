@@ -50,8 +50,8 @@ func handleListReleases(catalog controlplane.CatalogStore, releases controlplane
 // inside the create-release payload. The SHA may arrive as "id" (sentry-cli)
 // or "commitSha" (our own API), so we accept both.
 type createReleaseCommitRequest struct {
-	ID          string `json:"id"`          // sentry-cli sends SHA as "id"
-	CommitSHA   string `json:"commitSha"`   // also accepted
+	ID          string `json:"id"`        // sentry-cli sends SHA as "id"
+	CommitSHA   string `json:"commitSha"` // also accepted
 	Repository  string `json:"repository"`
 	AuthorName  string `json:"authorName"`
 	AuthorEmail string `json:"authorEmail"`
@@ -336,9 +336,9 @@ func handleDeleteRelease(releases controlplane.ReleaseStore, auth authFunc) http
 }
 
 type updateReleaseRequest struct {
-	Ref          *string    `json:"ref"`
-	URL          *string    `json:"url"`
-	DateReleased *time.Time `json:"dateReleased"`
+	Ref          *string                `json:"ref"`
+	URL          *string                `json:"url"`
+	DateReleased *time.Time             `json:"dateReleased"`
 	Commits      []releaseCommitRequest `json:"commits"`
 }
 
@@ -392,12 +392,16 @@ func handleUpdateRelease(catalog controlplane.CatalogStore, releases controlplan
 	}
 }
 
-func handleListReleaseDeploys(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+func handleListReleaseDeploys(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		items, err := releases.ListDeploys(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 100)
+		org := PathParam(r, "org_slug")
+		if _, ok := getOrganizationFromCatalog(w, r, catalog, org); !ok {
+			return
+		}
+		items, err := releases.ListDeploys(r.Context(), org, PathParam(r, "version"), 100)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release deploys.")
 			return
@@ -406,9 +410,13 @@ func handleListReleaseDeploys(releases controlplane.ReleaseStore, auth authFunc)
 	}
 }
 
-func handleCreateReleaseDeploy(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+func handleCreateReleaseDeploy(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		if _, ok := getOrganizationFromCatalog(w, r, catalog, org); !ok {
 			return
 		}
 		var body releaseDeployRequest
@@ -416,7 +424,7 @@ func handleCreateReleaseDeploy(releases controlplane.ReleaseStore, auth authFunc
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
 			return
 		}
-		item, err := releases.AddDeploy(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), sharedstore.ReleaseDeploy{
+		item, err := releases.AddDeploy(r.Context(), org, PathParam(r, "version"), sharedstore.ReleaseDeploy{
 			Environment:  strings.TrimSpace(body.Environment),
 			Name:         body.Name,
 			URL:          body.URL,
@@ -435,12 +443,16 @@ func handleCreateReleaseDeploy(releases controlplane.ReleaseStore, auth authFunc
 	}
 }
 
-func handleListReleaseCommits(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+func handleListReleaseCommits(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		items, err := releases.ListCommits(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 100)
+		org := PathParam(r, "org_slug")
+		if _, ok := getOrganizationFromCatalog(w, r, catalog, org); !ok {
+			return
+		}
+		items, err := releases.ListCommits(r.Context(), org, PathParam(r, "version"), 100)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release commits.")
 			return
@@ -449,9 +461,13 @@ func handleListReleaseCommits(releases controlplane.ReleaseStore, auth authFunc)
 	}
 }
 
-func handleCreateReleaseCommit(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+func handleCreateReleaseCommit(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
+			return
+		}
+		org := PathParam(r, "org_slug")
+		if _, ok := getOrganizationFromCatalog(w, r, catalog, org); !ok {
 			return
 		}
 		var body releaseCommitRequest
@@ -459,7 +475,7 @@ func handleCreateReleaseCommit(releases controlplane.ReleaseStore, auth authFunc
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
 			return
 		}
-		item, err := releases.AddCommit(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), sharedstore.ReleaseCommit{
+		item, err := releases.AddCommit(r.Context(), org, PathParam(r, "version"), sharedstore.ReleaseCommit{
 			CommitSHA:   body.CommitSHA,
 			Repository:  body.Repository,
 			AuthorName:  body.AuthorName,
@@ -479,12 +495,16 @@ func handleCreateReleaseCommit(releases controlplane.ReleaseStore, auth authFunc
 	}
 }
 
-func handleListReleaseSuspects(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+func handleListReleaseSuspects(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		items, err := releases.ListSuspects(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 50)
+		org := PathParam(r, "org_slug")
+		if _, ok := getOrganizationFromCatalog(w, r, catalog, org); !ok {
+			return
+		}
+		items, err := releases.ListSuspects(r.Context(), org, PathParam(r, "version"), 50)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release suspects.")
 			return
@@ -495,12 +515,16 @@ func handleListReleaseSuspects(releases controlplane.ReleaseStore, auth authFunc
 
 // handleListReleaseCommitFiles handles GET /api/0/organizations/{org_slug}/releases/{version}/commitfiles/.
 // Returns files changed across all commits in this release.
-func handleListReleaseCommitFiles(releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
+func handleListReleaseCommitFiles(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		commits, err := releases.ListCommits(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 200)
+		org := PathParam(r, "org_slug")
+		if _, ok := getOrganizationFromCatalog(w, r, catalog, org); !ok {
+			return
+		}
+		commits, err := releases.ListCommits(r.Context(), org, PathParam(r, "version"), 200)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release commits.")
 			return

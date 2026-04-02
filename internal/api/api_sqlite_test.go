@@ -397,6 +397,22 @@ func TestAPIOwnershipAndReleaseWorkflow_SQLite(t *testing.T) {
 	if len(suspects) != 1 || suspects[0].MatchedFile != "payments.go" {
 		t.Fatalf("unexpected suspects: %+v", suspects)
 	}
+
+	resp = authGet(t, ts, "/api/0/organizations/test-org/releases/backend@1.2.3/commitfiles/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("release commitfiles status = %d, want 200", resp.StatusCode)
+	}
+	var commitFiles []struct {
+		Filename  string `json:"filename"`
+		CommitSHA string `json:"commitSha"`
+	}
+	decodeBody(t, resp, &commitFiles)
+	if len(commitFiles) != 2 {
+		t.Fatalf("unexpected commitfiles: %+v", commitFiles)
+	}
+	if commitFiles[0].Filename != "payments.go" || commitFiles[1].Filename != "internal/checkout/service.go" {
+		t.Fatalf("unexpected commitfile names: %+v", commitFiles)
+	}
 }
 
 func TestAPIListTransactionsAndTrace_SQLite(t *testing.T) {
