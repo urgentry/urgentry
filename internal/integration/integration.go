@@ -7,7 +7,9 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -36,7 +38,7 @@ type Integration interface {
 type ConfigField struct {
 	Key         string `json:"key"`
 	Label       string `json:"label"`
-	Type        string `json:"type"`        // "string", "url", "secret", "boolean"
+	Type        string `json:"type"` // "string", "url", "secret", "boolean"
 	Required    bool   `json:"required"`
 	Placeholder string `json:"placeholder,omitempty"`
 	HelpText    string `json:"helpText,omitempty"`
@@ -67,7 +69,7 @@ type EventPayload struct {
 
 // AlertPayload carries the data pushed to integrations on alert fires.
 type AlertPayload struct {
-	Action         string            `json:"action"`         // "trigger" or "resolve"
+	Action         string            `json:"action"` // "trigger" or "resolve"
 	RuleID         string            `json:"ruleId"`
 	RuleName       string            `json:"ruleName"`
 	ProjectSlug    string            `json:"projectSlug"`
@@ -82,6 +84,39 @@ type Store interface {
 	Get(ctx context.Context, id string) (*IntegrationConfig, error)
 	ListByOrganization(ctx context.Context, orgID string) ([]*IntegrationConfig, error)
 	Delete(ctx context.Context, id string) error
+}
+
+// InboundWebhookIntegration marks integrations that intentionally accept
+// unauthenticated inbound webhook deliveries.
+type InboundWebhookIntegration interface {
+	HandlesInboundWebhook() bool
+}
+
+// WebhookVerifier validates inbound webhook requests before OnWebhook runs.
+type WebhookVerifier interface {
+	VerifyWebhook(config map[string]string, headers http.Header, payload []byte) error
+}
+
+// WebhookError lets integrations return a specific HTTP status code.
+type WebhookError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *WebhookError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return e.Message
+}
+
+// AsWebhookError unwraps webhook-specific errors returned by verifiers or handlers.
+func AsWebhookError(err error) (*WebhookError, bool) {
+	var target *WebhookError
+	if !errors.As(err, &target) || target == nil {
+		return nil, false
+	}
+	return target, true
 }
 
 // Registry holds all known integration implementations. It is

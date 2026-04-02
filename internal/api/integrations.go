@@ -11,28 +11,28 @@ import (
 
 // integrationSummary is the JSON shape returned when listing integrations.
 type integrationSummary struct {
-	ID          string                     `json:"id"`
-	Name        string                     `json:"name"`
-	Description string                     `json:"description"`
-	Schema      []integration.ConfigField  `json:"configSchema"`
+	ID          string                           `json:"id"`
+	Name        string                           `json:"name"`
+	Description string                           `json:"description"`
+	Schema      []integration.ConfigField        `json:"configSchema"`
 	Installed   []*integration.IntegrationConfig `json:"installed,omitempty"`
 }
 
 type integrationDetailResponse struct {
-	ID                            string         `json:"id"`
-	Name                          string         `json:"name"`
-	Icon                          *string        `json:"icon"`
-	DomainName                    *string        `json:"domainName"`
-	AccountType                   *string        `json:"accountType"`
-	Scopes                        []string       `json:"scopes"`
-	Status                        string         `json:"status"`
-	Provider                      map[string]any `json:"provider"`
-	ConfigOrganization            []any          `json:"configOrganization"`
+	ID                            string            `json:"id"`
+	Name                          string            `json:"name"`
+	Icon                          *string           `json:"icon"`
+	DomainName                    *string           `json:"domainName"`
+	AccountType                   *string           `json:"accountType"`
+	Scopes                        []string          `json:"scopes"`
+	Status                        string            `json:"status"`
+	Provider                      map[string]any    `json:"provider"`
+	ConfigOrganization            []any             `json:"configOrganization"`
 	ConfigData                    map[string]string `json:"configData"`
-	ExternalID                    string         `json:"externalId"`
-	OrganizationID                int            `json:"organizationId"`
-	OrganizationIntegrationStatus string         `json:"organizationIntegrationStatus"`
-	GracePeriodEnd                *string        `json:"gracePeriodEnd"`
+	ExternalID                    string            `json:"externalId"`
+	OrganizationID                int               `json:"organizationId"`
+	OrganizationIntegrationStatus string            `json:"organizationIntegrationStatus"`
+	GracePeriodEnd                *string           `json:"gracePeriodEnd"`
 }
 
 // handleListIntegrations handles GET /api/0/organizations/{org_slug}/integrations/.
@@ -110,12 +110,12 @@ func handleGetIntegration(
 		}
 
 		provider := map[string]any{
-			"key":      impl.ID(),
-			"slug":     impl.ID(),
-			"name":     impl.Name(),
-			"canAdd":   true,
+			"key":        impl.ID(),
+			"slug":       impl.ID(),
+			"name":       impl.Name(),
+			"canAdd":     true,
 			"canDisable": true,
-			"features": []string{},
+			"features":   []string{},
 		}
 		resp := integrationDetailResponse{
 			ID:                            config.ID,
@@ -241,28 +241,18 @@ func handleIntegrationWebhook(
 			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
 			return
 		}
-		integrationID := PathParam(r, "integration_id")
-		impl := registry.Get(integrationID)
-		if impl == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Unknown integration.")
-			return
-		}
-
-		// Find the first active install for this org+integration.
-		installed, err := store.ListByOrganization(r.Context(), org.ID)
+		active, impl, err := resolveIntegrationWebhookInstall(r, registry, store, org.ID)
 		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list integration configs.")
+			if webhookErr, ok := integration.AsWebhookError(err); ok {
+				httputil.WriteError(w, webhookErr.StatusCode, webhookErr.Message)
+				return
+			}
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve integration config.")
 			return
 		}
-		var active *integration.IntegrationConfig
-		for _, c := range installed {
-			if c.IntegrationID == integrationID && c.Status == "active" {
-				active = c
-				break
-			}
-		}
-		if active == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Integration not installed or disabled.")
+		webhookImpl, ok := impl.(integration.InboundWebhookIntegration)
+		if !ok || !webhookImpl.HandlesInboundWebhook() {
+			httputil.WriteError(w, http.StatusNotFound, "Inbound webhook not supported.")
 			return
 		}
 
@@ -271,14 +261,73 @@ func handleIntegrationWebhook(
 			httputil.WriteError(w, http.StatusBadRequest, "Failed to read request body.")
 			return
 		}
+		if verifier, ok := impl.(integration.WebhookVerifier); ok {
+			if err := verifier.VerifyWebhook(active.Config, r.Header, body); err != nil {
+				if webhookErr, ok := integration.AsWebhookError(err); ok {
+					httputil.WriteError(w, webhookErr.StatusCode, webhookErr.Message)
+					return
+				}
+				httputil.WriteError(w, http.StatusUnauthorized, "Webhook verification failed.")
+				return
+			}
+		}
 
 		resp, err := impl.OnWebhook(r.Context(), active.Config, body)
 		if err != nil {
+			if webhookErr, ok := integration.AsWebhookError(err); ok {
+				httputil.WriteError(w, webhookErr.StatusCode, webhookErr.Message)
+				return
+			}
 			httputil.WriteError(w, http.StatusInternalServerError, "Webhook handler error.")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(resp)
+	}
+}
+
+func resolveIntegrationWebhookInstall(
+	r *http.Request,
+	registry *integration.Registry,
+	store integration.Store,
+	orgID string,
+) (*integration.IntegrationConfig, integration.Integration, error) {
+	routeID := PathParam(r, "integration_id")
+	if cfg, err := store.Get(r.Context(), routeID); err != nil {
+		return nil, nil, err
+	} else if cfg != nil {
+		if cfg.OrganizationID != orgID || cfg.Status != "active" {
+			return nil, nil, &integration.WebhookError{StatusCode: http.StatusNotFound, Message: "Integration not installed or disabled."}
+		}
+		impl := registry.Get(cfg.IntegrationID)
+		if impl == nil {
+			return nil, nil, &integration.WebhookError{StatusCode: http.StatusNotFound, Message: "Unknown integration."}
+		}
+		return cfg, impl, nil
+	}
+
+	impl := registry.Get(routeID)
+	if impl == nil {
+		return nil, nil, &integration.WebhookError{StatusCode: http.StatusNotFound, Message: "Unknown integration."}
+	}
+
+	installed, err := store.ListByOrganization(r.Context(), orgID)
+	if err != nil {
+		return nil, nil, err
+	}
+	var matches []*integration.IntegrationConfig
+	for _, cfg := range installed {
+		if cfg.IntegrationID == routeID && cfg.Status == "active" {
+			matches = append(matches, cfg)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return nil, nil, &integration.WebhookError{StatusCode: http.StatusNotFound, Message: "Integration not installed or disabled."}
+	case 1:
+		return matches[0], impl, nil
+	default:
+		return nil, nil, &integration.WebhookError{StatusCode: http.StatusConflict, Message: "Multiple active integrations match this webhook URL. Use the installation ID instead."}
 	}
 }

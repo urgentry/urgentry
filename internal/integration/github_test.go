@@ -2,6 +2,9 @@ package integration
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -67,12 +70,18 @@ func TestGitHubIntegration_OnWebhookPush(t *testing.T) {
 		Ref:    "refs/heads/main",
 		Before: "aaa",
 		After:  "bbb",
+		Repository: GitHubWebhookRepo{
+			FullName: "acme/api",
+		},
 		Commits: []GitHubPushCommit{
 			{ID: "bbb", Message: "fix bug"},
 		},
 	}
 	payload, _ := json.Marshal(push)
-	resp, err := g.OnWebhook(context.Background(), nil, payload)
+	resp, err := g.OnWebhook(context.Background(), map[string]string{
+		"github_owner": "acme",
+		"github_repo":  "api",
+	}, payload)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,14 +103,79 @@ func TestGitHubIntegration_OnWebhookPush(t *testing.T) {
 
 func TestGitHubIntegration_OnWebhookInvalid(t *testing.T) {
 	g := &GitHubIntegration{}
-	resp, err := g.OnWebhook(context.Background(), nil, []byte(`not json`))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := g.OnWebhook(context.Background(), nil, []byte(`not json`))
+	if err == nil {
+		t.Fatal("expected webhook error")
 	}
-	var result map[string]any
-	_ = json.Unmarshal(resp, &result)
-	if result["ok"] != false {
-		t.Error("expected ok=false for invalid payload")
+	webhookErr, ok := AsWebhookError(err)
+	if !ok {
+		t.Fatalf("expected webhook error, got %v", err)
+	}
+	if webhookErr.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", webhookErr.StatusCode)
+	}
+}
+
+func TestGitHubIntegration_OnWebhookRepositoryMismatch(t *testing.T) {
+	g := &GitHubIntegration{}
+	payload := []byte(`{"ref":"refs/heads/main","repository":{"full_name":"other/repo"}}`)
+	_, err := g.OnWebhook(context.Background(), map[string]string{
+		"github_owner": "acme",
+		"github_repo":  "api",
+	}, payload)
+	if err == nil {
+		t.Fatal("expected webhook error")
+	}
+	webhookErr, ok := AsWebhookError(err)
+	if !ok {
+		t.Fatalf("expected webhook error, got %v", err)
+	}
+	if webhookErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", webhookErr.StatusCode)
+	}
+}
+
+func TestGitHubIntegration_VerifyWebhook(t *testing.T) {
+	g := &GitHubIntegration{}
+	payload := []byte(`{"ref":"refs/heads/main"}`)
+	headers := http.Header{}
+	headers.Set("X-Hub-Signature-256", githubSignature256("secret", payload))
+
+	if err := g.VerifyWebhook(map[string]string{"github_webhook_secret": "secret"}, headers, payload); err != nil {
+		t.Fatalf("VerifyWebhook: %v", err)
+	}
+}
+
+func TestGitHubIntegration_VerifyWebhookMissingSecretFailsClosed(t *testing.T) {
+	g := &GitHubIntegration{}
+	err := g.VerifyWebhook(map[string]string{}, http.Header{}, []byte(`{}`))
+	if err == nil {
+		t.Fatal("expected webhook error")
+	}
+	webhookErr, ok := AsWebhookError(err)
+	if !ok {
+		t.Fatalf("expected webhook error, got %v", err)
+	}
+	if webhookErr.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", webhookErr.StatusCode)
+	}
+}
+
+func TestGitHubIntegration_VerifyWebhookRejectsInvalidSignature(t *testing.T) {
+	g := &GitHubIntegration{}
+	headers := http.Header{}
+	headers.Set("X-Hub-Signature-256", "sha256=deadbeef")
+
+	err := g.VerifyWebhook(map[string]string{"github_webhook_secret": "secret"}, headers, []byte(`{}`))
+	if err == nil {
+		t.Fatal("expected webhook error")
+	}
+	webhookErr, ok := AsWebhookError(err)
+	if !ok {
+		t.Fatalf("expected webhook error, got %v", err)
+	}
+	if webhookErr.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", webhookErr.StatusCode)
 	}
 }
 
@@ -122,6 +196,12 @@ func TestExtractFiles(t *testing.T) {
 	}
 }
 
+func githubSignature256(secret string, payload []byte) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(payload)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
 func TestExtractFilesEmpty(t *testing.T) {
 	files := extractFiles(EventPayload{})
 	if files != nil {
@@ -136,8 +216,8 @@ func TestMatchCommitsToFiles(t *testing.T) {
 		{SHA: "ghi789", URL: "https://github.com/test/test/commit/ghi789", Message: "refactor utils.py logic", Author: GitHubAuthor{Login: "dev3"}},
 	}
 	files := map[string]struct{}{
-		"src/app.js":    {},
-		"lib/utils.py":  {},
+		"src/app.js":   {},
+		"lib/utils.py": {},
 	}
 
 	suspects := matchCommitsToFiles(commits, files)

@@ -2,6 +2,10 @@ package integration
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,10 +20,15 @@ import (
 type GitHubIntegration struct{}
 
 var _ Integration = (*GitHubIntegration)(nil)
+var _ InboundWebhookIntegration = (*GitHubIntegration)(nil)
+var _ WebhookVerifier = (*GitHubIntegration)(nil)
 
-func (g *GitHubIntegration) ID() string          { return "github" }
-func (g *GitHubIntegration) Name() string         { return "GitHub" }
-func (g *GitHubIntegration) Description() string  { return "Link errors to commits, identify suspect commits, and receive push webhooks." }
+func (g *GitHubIntegration) ID() string   { return "github" }
+func (g *GitHubIntegration) Name() string { return "GitHub" }
+func (g *GitHubIntegration) Description() string {
+	return "Link errors to commits, identify suspect commits, and receive push webhooks."
+}
+func (g *GitHubIntegration) HandlesInboundWebhook() bool { return true }
 
 func (g *GitHubIntegration) ConfigSchema() []ConfigField {
 	return []ConfigField{
@@ -73,16 +82,32 @@ func (g *GitHubIntegration) OnAlert(_ context.Context, _ map[string]string, _ Al
 	return nil
 }
 
+func (g *GitHubIntegration) VerifyWebhook(config map[string]string, headers http.Header, payload []byte) error {
+	secret := strings.TrimSpace(config["github_webhook_secret"])
+	if secret == "" {
+		return &WebhookError{StatusCode: http.StatusUnauthorized, Message: "Webhook secret not configured."}
+	}
+	return verifyGitHubWebhookSignature(headers, []byte(secret), payload)
+}
+
 // OnWebhook handles inbound GitHub push events. It decodes the push
 // payload and returns an ack. Callers can extend this to update release
 // commit data or trigger re-processing.
-func (g *GitHubIntegration) OnWebhook(_ context.Context, _ map[string]string, payload []byte) ([]byte, error) {
+func (g *GitHubIntegration) OnWebhook(_ context.Context, config map[string]string, payload []byte) ([]byte, error) {
 	var push GitHubPushEvent
 	if err := json.Unmarshal(payload, &push); err != nil {
-		return errorJSON("invalid payload"), nil
+		return nil, &WebhookError{StatusCode: http.StatusBadRequest, Message: "Invalid webhook payload."}
 	}
 	if push.Ref == "" {
-		return errorJSON("not a push event"), nil
+		return nil, &WebhookError{StatusCode: http.StatusBadRequest, Message: "Unsupported webhook event."}
+	}
+
+	expectedRepo := strings.TrimSpace(config["github_owner"])
+	if repo := strings.TrimSpace(config["github_repo"]); expectedRepo != "" && repo != "" {
+		expectedRepo += "/" + repo
+	}
+	if expectedRepo != "" && !strings.EqualFold(push.Repository.FullName, expectedRepo) {
+		return nil, &WebhookError{StatusCode: http.StatusForbidden, Message: "Webhook repository does not match this integration."}
 	}
 
 	resp := GitHubWebhookResponse{
@@ -114,11 +139,11 @@ func newGitHubClient(token string) *githubClient {
 
 // GitHubCommit is a minimal representation of a commit from the GitHub API.
 type GitHubCommit struct {
-	SHA     string           `json:"sha"`
-	URL     string           `json:"html_url"`
-	Message string           `json:"message"`
-	Author  GitHubAuthor     `json:"author"`
-	Files   []GitHubFileRef  `json:"files,omitempty"` // only present in single-commit responses
+	SHA     string          `json:"sha"`
+	URL     string          `json:"html_url"`
+	Message string          `json:"message"`
+	Author  GitHubAuthor    `json:"author"`
+	Files   []GitHubFileRef `json:"files,omitempty"` // only present in single-commit responses
 }
 
 // GitHubAuthor holds the author fields we care about.
@@ -332,14 +357,14 @@ type GitHubWebhookPusher struct {
 
 // GitHubPushCommit is a commit inside a push event.
 type GitHubPushCommit struct {
-	ID        string   `json:"id"`
-	Message   string   `json:"message"`
-	Timestamp string   `json:"timestamp"`
-	URL       string   `json:"url"`
+	ID        string              `json:"id"`
+	Message   string              `json:"message"`
+	Timestamp string              `json:"timestamp"`
+	URL       string              `json:"url"`
 	Author    GitHubWebhookPusher `json:"author"`
-	Added     []string `json:"added"`
-	Removed   []string `json:"removed"`
-	Modified  []string `json:"modified"`
+	Added     []string            `json:"added"`
+	Removed   []string            `json:"removed"`
+	Modified  []string            `json:"modified"`
 }
 
 // GitHubWebhookResponse is the ack we send back to GitHub.
@@ -377,4 +402,44 @@ func truncate(s string, n int) string {
 func errorJSON(msg string) []byte {
 	out, _ := json.Marshal(map[string]any{"ok": false, "error": msg})
 	return out
+}
+
+func verifyGitHubWebhookSignature(headers http.Header, secret, payload []byte) error {
+	if value := strings.TrimSpace(headers.Get("X-Hub-Signature-256")); value != "" {
+		return matchGitHubSignature(value, "sha256", secret, payload)
+	}
+	if value := strings.TrimSpace(headers.Get("X-Hub-Signature")); value != "" {
+		return matchGitHubSignature(value, "sha1", secret, payload)
+	}
+	return &WebhookError{StatusCode: http.StatusUnauthorized, Message: "Missing webhook signature."}
+}
+
+func matchGitHubSignature(headerValue, algo string, secret, payload []byte) error {
+	prefix := algo + "="
+	if !strings.HasPrefix(headerValue, prefix) {
+		return &WebhookError{StatusCode: http.StatusUnauthorized, Message: "Invalid webhook signature."}
+	}
+	given, err := hex.DecodeString(strings.TrimPrefix(headerValue, prefix))
+	if err != nil {
+		return &WebhookError{StatusCode: http.StatusUnauthorized, Message: "Invalid webhook signature."}
+	}
+
+	var expected []byte
+	switch algo {
+	case "sha256":
+		mac := hmac.New(sha256.New, secret)
+		_, _ = mac.Write(payload)
+		expected = mac.Sum(nil)
+	case "sha1":
+		mac := hmac.New(sha1.New, secret)
+		_, _ = mac.Write(payload)
+		expected = mac.Sum(nil)
+	default:
+		return &WebhookError{StatusCode: http.StatusUnauthorized, Message: "Invalid webhook signature."}
+	}
+
+	if !hmac.Equal(given, expected) {
+		return &WebhookError{StatusCode: http.StatusUnauthorized, Message: "Invalid webhook signature."}
+	}
+	return nil
 }
