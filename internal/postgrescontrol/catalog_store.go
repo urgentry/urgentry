@@ -138,6 +138,36 @@ func (s *CatalogStore) GetProject(ctx context.Context, orgSlug, projectSlug stri
 	return &item, nil
 }
 
+func (s *CatalogStore) UpdateProject(ctx context.Context, orgSlug, projectSlug string, update sharedstore.ProjectUpdate) (*sharedstore.Project, error) {
+	project, err := s.GetProject(ctx, orgSlug, projectSlug)
+	if err != nil || project == nil {
+		return nil, err
+	}
+
+	name := project.Name
+	if update.Name != nil {
+		name = strings.TrimSpace(*update.Name)
+	}
+	slug := project.Slug
+	if update.Slug != nil {
+		slug = strings.TrimSpace(*update.Slug)
+	}
+	platform := project.Platform
+	if update.Platform != nil {
+		platform = strings.TrimSpace(*update.Platform)
+	}
+
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE projects
+		 SET slug = $1, name = $2, platform = $3, updated_at = $4
+		 WHERE id = $5`,
+		slug, name, platform, time.Now().UTC(), project.ID,
+	); err != nil {
+		return nil, fmt.Errorf("update project: %w", err)
+	}
+	return s.GetProject(ctx, orgSlug, slug)
+}
+
 func (s *CatalogStore) ListTeams(ctx context.Context, orgSlug string) ([]sharedstore.Team, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT t.id, t.slug, t.name, t.organization_id, t.created_at

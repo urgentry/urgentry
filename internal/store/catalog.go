@@ -64,6 +64,13 @@ type ProjectCreateInput struct {
 	Platform string
 }
 
+// ProjectUpdate captures the mutable root project fields.
+type ProjectUpdate struct {
+	Name     *string
+	Slug     *string
+	Platform *string
+}
+
 // ProjectSettings captures mutable project-level settings.
 type ProjectSettings struct {
 	ID                      string                     `json:"id"`
@@ -249,11 +256,11 @@ type ProjectEnvironment struct {
 
 // OrganizationUpdate captures the mutable fields for an organization update.
 type OrganizationUpdate struct {
-	Name             string `json:"name"`
-	Slug             string `json:"slug"`
-	IsEarlyAdopter   bool   `json:"isEarlyAdopter"`
-	OpenMembership   bool   `json:"openMembership"`
-	AllowSharedIssues bool  `json:"allowSharedIssues"`
+	Name              string `json:"name"`
+	Slug              string `json:"slug"`
+	IsEarlyAdopter    bool   `json:"isEarlyAdopter"`
+	OpenMembership    bool   `json:"openMembership"`
+	AllowSharedIssues bool   `json:"allowSharedIssues"`
 }
 
 // AuditLogEntry is the shared redacted auth/admin activity record.

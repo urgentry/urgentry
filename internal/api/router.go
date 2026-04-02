@@ -216,6 +216,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	// Projects (global)
 	mux.Handle("GET /api/0/projects/", handleListAllProjects(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceAnyMembership})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/", handleGetProject(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/", handleUpdateProject(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/", handleDeleteProject(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceProjectPath})))
 
 	// Project sub-resources

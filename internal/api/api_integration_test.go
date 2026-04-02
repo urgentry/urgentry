@@ -306,6 +306,48 @@ func TestCreateProject(t *testing.T) {
 	}
 }
 
+func TestUpdateProject(t *testing.T) {
+	ts := newTestServer(t)
+	defer ts.Close()
+
+	resp := authPut(t, ts, "/api/0/projects/my-org/my-project/", map[string]any{
+		"name":            "Renamed Project",
+		"slug":            "renamed-project",
+		"platform":        "go",
+		"isBookmarked":    true,
+		"resolveAge":      7,
+		"subjectPrefix":   "[my-org]",
+		"subjectTemplate": "{project} {title}",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var proj Project
+	decodeBody(t, resp, &proj)
+	if proj.Name != "Renamed Project" {
+		t.Fatalf("expected updated name, got %q", proj.Name)
+	}
+	if proj.Slug != "renamed-project" {
+		t.Fatalf("expected updated slug, got %q", proj.Slug)
+	}
+	if proj.Platform != "go" {
+		t.Fatalf("expected updated platform go, got %q", proj.Platform)
+	}
+
+	resp = authGet(t, ts, "/api/0/projects/my-org/renamed-project/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected renamed project GET 200, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = authGet(t, ts, "/api/0/projects/my-org/my-project/")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected old slug GET 404, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
 func TestCreateProject_TeamNotFound(t *testing.T) {
 	ts := newTestServer(t)
 	defer ts.Close()
