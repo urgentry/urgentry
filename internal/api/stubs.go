@@ -2,7 +2,9 @@ package api
 
 import (
 	"net/http"
+	"time"
 
+	authpkg "urgentry/internal/auth"
 	"urgentry/internal/httputil"
 )
 
@@ -31,7 +33,13 @@ func handleReleaseThresholdStatuses(auth authFunc) http.HandlerFunc {
 // handleSeerModels handles GET /api/0/seer/models/.
 // Stub returning empty AI models list.
 func handleSeerModels() http.HandlerFunc {
+	limiter := authpkg.NewFixedWindowRateLimiter(time.Minute)
 	return func(w http.ResponseWriter, r *http.Request) {
-		httputil.WriteJSON(w, http.StatusOK, []any{})
+		if retryAfter, allowed := limiter.Allow("seer-models:"+requestClientIP(r), 100, time.Now().UTC()); !allowed {
+			writeRateLimitError(w, retryAfter, "Rate limit exceeded.")
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=600")
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"models": []any{}})
 	}
 }

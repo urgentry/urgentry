@@ -446,12 +446,12 @@ func handleAcceptInvite(admin controlplane.AdminStore) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-store")
 		inviteToken := strings.TrimSpace(PathParam(r, "invite_token"))
 		now := time.Now().UTC()
-		if retryAfter, allowed := limiter.Allow("invite-accept:ip:"+inviteAcceptClientIP(r), inviteAcceptIPRateLimit, now); !allowed {
-			writeInviteAcceptRateLimit(w, retryAfter)
+		if retryAfter, allowed := limiter.Allow("invite-accept:ip:"+requestClientIP(r), inviteAcceptIPRateLimit, now); !allowed {
+			writeRateLimitError(w, retryAfter, "Too many invite accept attempts.")
 			return
 		}
 		if retryAfter, allowed := limiter.Allow("invite-accept:token:"+inviteAcceptTokenKey(inviteToken), inviteAcceptTokenRateLimit, now); !allowed {
-			writeInviteAcceptRateLimit(w, retryAfter)
+			writeRateLimitError(w, retryAfter, "Too many invite accept attempts.")
 			return
 		}
 		var body inviteAcceptRequest
@@ -477,7 +477,7 @@ func handleAcceptInvite(admin controlplane.AdminStore) http.HandlerFunc {
 	}
 }
 
-func writeInviteAcceptRateLimit(w http.ResponseWriter, retryAfter time.Duration) {
+func writeRateLimitError(w http.ResponseWriter, retryAfter time.Duration, message string) {
 	retryAfterSeconds := int(retryAfter / time.Second)
 	if retryAfter%time.Second != 0 {
 		retryAfterSeconds++
@@ -486,10 +486,10 @@ func writeInviteAcceptRateLimit(w http.ResponseWriter, retryAfter time.Duration)
 		retryAfterSeconds = 1
 	}
 	w.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
-	httputil.WriteError(w, http.StatusTooManyRequests, "Too many invite accept attempts.")
+	httputil.WriteError(w, http.StatusTooManyRequests, message)
 }
 
-func inviteAcceptClientIP(r *http.Request) string {
+func requestClientIP(r *http.Request) string {
 	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
 		if first, _, ok := strings.Cut(forwarded, ","); ok {
 			return strings.TrimSpace(first)
