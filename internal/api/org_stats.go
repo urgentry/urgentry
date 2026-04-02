@@ -123,27 +123,132 @@ func handleListOrgProjectKeys(catalog controlplane.CatalogStore, auth authFunc) 
 // GET /api/0/organizations/{org_slug}/repos/
 // ---------------------------------------------------------------------------
 
-// handleListOrgRepos returns an empty array stub for repository listing.
-func handleListOrgRepos(auth authFunc) http.HandlerFunc {
+// RepoResponse is the API response for a repository.
+type RepoResponse struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Provider     string `json:"provider"`
+	URL          string `json:"url"`
+	ExternalSlug string `json:"externalSlug,omitempty"`
+	Status       string `json:"status"`
+	DateCreated  string `json:"dateCreated,omitempty"`
+}
+
+// handleListOrgRepos lists repositories for an organization.
+func handleListOrgRepos(db *sql.DB, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, []any{})
+		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+		if err != nil || org == nil {
+			httputil.WriteJSON(w, http.StatusOK, []any{})
+			return
+		}
+		rows, err := db.QueryContext(r.Context(),
+			`SELECT id, name, provider, url, external_slug, status, created_at
+			 FROM repositories WHERE organization_id = ? ORDER BY created_at DESC`, org.ID)
+		if err != nil {
+			httputil.WriteJSON(w, http.StatusOK, []any{})
+			return
+		}
+		defer rows.Close()
+		repos := make([]RepoResponse, 0)
+		for rows.Next() {
+			var repo RepoResponse
+			var createdAt sql.NullString
+			if err := rows.Scan(&repo.ID, &repo.Name, &repo.Provider, &repo.URL, &repo.ExternalSlug, &repo.Status, &createdAt); err != nil {
+				continue
+			}
+			if createdAt.Valid {
+				repo.DateCreated = createdAt.String
+			}
+			repos = append(repos, repo)
+		}
+		httputil.WriteJSON(w, http.StatusOK, repos)
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GET /api/0/organizations/{org_slug}/repos/{repo_id}/commits/
-// ---------------------------------------------------------------------------
-
-// handleListRepoCommits returns an empty array stub for repository commits.
-func handleListRepoCommits(auth authFunc) http.HandlerFunc {
+// handleCreateOrgRepo creates a repository for an organization.
+func handleCreateOrgRepo(db *sql.DB, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, []any{})
+		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+		if err != nil || org == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+			return
+		}
+		var body struct {
+			Name     string `json:"name"`
+			Provider string `json:"provider"`
+			URL      string `json:"url"`
+		}
+		if err := decodeJSON(r, &body); err != nil || body.Name == "" {
+			httputil.WriteError(w, http.StatusBadRequest, "name is required.")
+			return
+		}
+		if body.Provider == "" {
+			body.Provider = "manual"
+		}
+		repoID := generateAPIID()
+		_, err = db.ExecContext(r.Context(),
+			`INSERT INTO repositories (id, organization_id, name, provider, url) VALUES (?, ?, ?, ?, ?)`,
+			repoID, org.ID, body.Name, body.Provider, body.URL)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to create repository.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusCreated, RepoResponse{
+			ID:       repoID,
+			Name:     body.Name,
+			Provider: body.Provider,
+			URL:      body.URL,
+			Status:   "active",
+		})
+	}
+}
+
+// handleListRepoCommits lists commits for a repository.
+func handleListRepoCommits(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		repoID := PathParam(r, "repo_id")
+		// Find release commits associated with this repo.
+		rows, err := db.QueryContext(r.Context(),
+			`SELECT id, commit_sha, repository, author_name, author_email, message, created_at
+			 FROM release_commits WHERE repository = ?
+			 ORDER BY created_at DESC LIMIT 100`, repoID)
+		if err != nil {
+			httputil.WriteJSON(w, http.StatusOK, []any{})
+			return
+		}
+		defer rows.Close()
+		type CommitResponse struct {
+			ID          string `json:"id"`
+			SHA         string `json:"sha,omitempty"`
+			Repository  string `json:"repository,omitempty"`
+			AuthorName  string `json:"authorName,omitempty"`
+			AuthorEmail string `json:"authorEmail,omitempty"`
+			Message     string `json:"message,omitempty"`
+			DateCreated string `json:"dateCreated,omitempty"`
+		}
+		commits := make([]CommitResponse, 0)
+		for rows.Next() {
+			var c CommitResponse
+			var createdAt sql.NullString
+			if err := rows.Scan(&c.ID, &c.SHA, &c.Repository, &c.AuthorName, &c.AuthorEmail, &c.Message, &createdAt); err != nil {
+				continue
+			}
+			if createdAt.Valid {
+				c.DateCreated = createdAt.String
+			}
+			commits = append(commits, c)
+		}
+		httputil.WriteJSON(w, http.StatusOK, commits)
 	}
 }
 

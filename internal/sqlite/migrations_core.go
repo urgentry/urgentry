@@ -322,4 +322,17 @@ var migrationsCore = []schemaMigration{
 		);
 		CREATE INDEX IF NOT EXISTS idx_project_teams_team ON project_teams(team_id);
 	`},
+	{73, `
+		CREATE TABLE IF NOT EXISTS repositories (
+			id TEXT PRIMARY KEY,
+			organization_id TEXT NOT NULL REFERENCES organizations(id),
+			name TEXT NOT NULL,
+			provider TEXT NOT NULL DEFAULT 'manual',
+			url TEXT DEFAULT '',
+			external_slug TEXT DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_repositories_org ON repositories(organization_id);
+	`},
 }
