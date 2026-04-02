@@ -101,6 +101,57 @@ func TestAPIOrganizationDiscover_SQLite(t *testing.T) {
 	}
 }
 
+func TestAPIOrganizationIssuesQueryParams_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+
+	if _, err := db.Exec(`INSERT INTO teams (id, organization_id, slug, name) VALUES ('team-discover-2', 'test-org-id', 'frontend', 'Frontend')`); err != nil {
+		t.Fatalf("insert team: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, team_id, slug, name, platform, status) VALUES ('test-proj-id-2', 'test-org-id', 'team-discover-2', 'test-project-2', 'Test Project 2', 'javascript', 'active')`); err != nil {
+		t.Fatalf("insert second project: %v", err)
+	}
+
+	insertSQLiteGroup(t, db, "grp-api-issues-params-1", "Primary issue", "main.go", "error", "unresolved")
+	insertSQLiteGroup(t, db, "grp-api-issues-params-2", "Secondary issue", "worker.go", "error", "unresolved")
+	if _, err := db.Exec(`UPDATE groups SET project_id = 'test-proj-id-2', times_seen = 2 WHERE id = 'grp-api-issues-params-2'`); err != nil {
+		t.Fatalf("update second group: %v", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(
+		`INSERT INTO events
+			(id, project_id, event_id, group_id, release, environment, platform, level, event_type, title, message, culprit, occurred_at, tags_json, payload_json)
+		 VALUES
+			('evt-api-issues-params-1', 'test-proj-id', 'evt-api-issues-params-1', 'grp-api-issues-params-1', '1.0.0', 'production', 'go', 'error', 'error', 'Primary issue', 'Primary issue', 'main.go', ?, '{}', '{}'),
+			('evt-api-issues-params-2', 'test-proj-id-2', 'evt-api-issues-params-2', 'grp-api-issues-params-2', '1.0.0', 'staging', 'javascript', 'error', 'error', 'Secondary issue', 'Secondary issue', 'worker.go', ?, '{}', '{}')`,
+		now, now,
+	); err != nil {
+		t.Fatalf("insert issue param events: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE groups SET times_seen = 5 WHERE id = 'grp-api-issues-params-1'`); err != nil {
+		t.Fatalf("update first group count: %v", err)
+	}
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/organizations/test-org/issues/?project=test-proj-id&environment=production&sort=freq&limit=1&statsPeriod=24h")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var issues []Issue
+	decodeBody(t, resp, &issues)
+	if len(issues) != 1 {
+		t.Fatalf("issue count = %d, want 1", len(issues))
+	}
+	if issues[0].ID != "grp-api-issues-params-1" {
+		t.Fatalf("issue id = %q, want grp-api-issues-params-1", issues[0].ID)
+	}
+	if issues[0].ProjectRef.ID != "test-proj-id" {
+		t.Fatalf("project ref = %+v, want test-proj-id", issues[0].ProjectRef)
+	}
+}
+
 func TestAPIOrganizationDiscoverRequiresOrgQueryScope(t *testing.T) {
 	db := openTestSQLite(t)
 	seedSQLiteAuth(t, db)

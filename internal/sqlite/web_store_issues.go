@@ -306,6 +306,10 @@ func (s *WebStore) SearchDiscoverIssues(ctx context.Context, orgSlug, filter, ra
 	return SearchDiscoverIssues(ctx, s.db, orgSlug, filter, rawQuery, limit)
 }
 
+func (s *WebStore) SearchDiscoverIssuesWithOptions(ctx context.Context, orgSlug string, opts store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error) {
+	return SearchDiscoverIssuesWithOptions(ctx, s.db, orgSlug, opts)
+}
+
 // EventChartData returns event counts per day for the last N days.
 func (s *WebStore) EventChartData(ctx context.Context, groupID string, days int) ([]store.ChartPoint, error) {
 	rows, err := s.db.QueryContext(ctx,

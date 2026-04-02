@@ -2,6 +2,17 @@ package store
 
 import "time"
 
+// DiscoverIssueSearchOptions captures the supported org issue list params.
+type DiscoverIssueSearchOptions struct {
+	Filter      string
+	Query       string
+	Environment string
+	ProjectID   string
+	Sort        string
+	Limit       int
+	StatsPeriod string
+}
+
 // DiscoverIssue is an org-wide issue row used by discover and cross-project views.
 type DiscoverIssue struct {
 	ID              string    `json:"id"`

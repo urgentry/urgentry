@@ -83,6 +83,15 @@ func (s *bridgeService) SearchDiscoverIssues(ctx context.Context, orgSlug, filte
 	return s.issueSearch.SearchDiscoverIssues(ctx, orgSlug, filter, rawQuery, limit)
 }
 
+func (s *bridgeService) SearchDiscoverIssuesWithOptions(ctx context.Context, orgSlug string, opts store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error) {
+	if search, ok := s.issueSearch.(interface {
+		SearchDiscoverIssuesWithOptions(context.Context, string, store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error)
+	}); ok {
+		return search.SearchDiscoverIssuesWithOptions(ctx, orgSlug, opts)
+	}
+	return s.issueSearch.SearchDiscoverIssues(ctx, orgSlug, opts.Filter, opts.Query, opts.Limit)
+}
+
 func (s *bridgeService) ExecuteTable(ctx context.Context, query discover.Query) (discover.TableResult, error) {
 	if query.Dataset == discover.DatasetLogs || query.Dataset == discover.DatasetTransactions {
 		return s.executeBridgeTable(ctx, query)

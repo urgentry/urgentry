@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,8 +9,13 @@ import (
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
 	"urgentry/internal/sqlite"
+	"urgentry/internal/store"
 	"urgentry/internal/telemetryquery"
 )
+
+type discoverIssueSearchServiceWithOptions interface {
+	SearchDiscoverIssuesWithOptions(ctx context.Context, orgSlug string, opts store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error)
+}
 
 func handleListOrganizationIssues(catalog controlplane.CatalogStore, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -26,9 +32,18 @@ func handleListOrganizationIssues(catalog controlplane.CatalogStore, queries tel
 			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
 			return
 		}
-		limit := discoverLimit(r, 50)
+		limit := discoverLimit(r, 25)
 		filter := strings.TrimSpace(r.URL.Query().Get("filter"))
 		query := strings.TrimSpace(r.URL.Query().Get("query"))
+		opts := store.DiscoverIssueSearchOptions{
+			Filter:      filter,
+			Query:       query,
+			Environment: strings.TrimSpace(r.URL.Query().Get("environment")),
+			ProjectID:   firstNonEmpty(r.URL.Query()["project"]),
+			Sort:        strings.TrimSpace(r.URL.Query().Get("sort")),
+			Limit:       limit,
+			StatsPeriod: strings.TrimSpace(r.URL.Query().Get("statsPeriod")),
+		}
 		if !enforceQueryGuard(w, r, guard, org.ID, "", sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadOrgIssues,
 			Limit:    limit,
@@ -38,7 +53,12 @@ func handleListOrganizationIssues(catalog controlplane.CatalogStore, queries tel
 			return
 		}
 
-		rows, err := queries.SearchDiscoverIssues(r.Context(), orgSlug, filter, query, limit)
+		searcher, ok := queries.(discoverIssueSearchServiceWithOptions)
+		if !ok {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization issues.")
+			return
+		}
+		rows, err := searcher.SearchDiscoverIssuesWithOptions(r.Context(), orgSlug, opts)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization issues.")
 			return
@@ -49,6 +69,16 @@ func handleListOrganizationIssues(catalog controlplane.CatalogStore, queries tel
 		}
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
+}
+
+func firstNonEmpty(values []string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func handleDiscover(catalog controlplane.CatalogStore, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {

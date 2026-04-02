@@ -19,6 +19,10 @@ type sqliteService struct {
 	discover discoverharness.Executor
 }
 
+type issueSearchStoreWithOptions interface {
+	SearchDiscoverIssuesWithOptions(ctx context.Context, orgSlug string, opts store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error)
+}
+
 func NewSQLiteService(db *sql.DB, blobs store.BlobStore) Service {
 	return newSQLiteService(db, blobs, nil)
 }
@@ -62,6 +66,13 @@ func newSQLiteServiceWithDependencies(deps Dependencies) Service {
 
 func (s *sqliteService) SearchDiscoverIssues(ctx context.Context, orgSlug, filter, rawQuery string, limit int) ([]store.DiscoverIssue, error) {
 	return s.issues.SearchDiscoverIssues(ctx, orgSlug, filter, rawQuery, limit)
+}
+
+func (s *sqliteService) SearchDiscoverIssuesWithOptions(ctx context.Context, orgSlug string, opts store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error) {
+	if search, ok := s.issues.(issueSearchStoreWithOptions); ok {
+		return search.SearchDiscoverIssuesWithOptions(ctx, orgSlug, opts)
+	}
+	return s.issues.SearchDiscoverIssues(ctx, orgSlug, opts.Filter, opts.Query, opts.Limit)
 }
 
 func (s *sqliteService) ListRecentLogs(ctx context.Context, orgSlug string, limit int) ([]store.DiscoverLog, error) {

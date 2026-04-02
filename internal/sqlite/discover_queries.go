@@ -17,7 +17,21 @@ type DiscoverIssueRef struct {
 }
 
 func SearchDiscoverIssues(ctx context.Context, db *sql.DB, orgSlug, filter, rawQuery string, limit int) ([]store.DiscoverIssue, error) {
-	query, args := buildDiscoverIssueSearchQuery(orgSlug, filter, rawQuery, limit, 0)
+	query, args := buildDiscoverIssueSearchQuery(orgSlug, store.DiscoverIssueSearchOptions{
+		Filter: filter,
+		Query:  rawQuery,
+		Limit:  limit,
+	}, 0)
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanDiscoverIssues(rows)
+}
+
+func SearchDiscoverIssuesWithOptions(ctx context.Context, db *sql.DB, orgSlug string, opts store.DiscoverIssueSearchOptions) ([]store.DiscoverIssue, error) {
+	query, args := buildDiscoverIssueSearchQuery(orgSlug, opts, 0)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -73,7 +87,8 @@ func ListRecentTransactions(ctx context.Context, db *sql.DB, orgSlug string, lim
 	return SearchTransactions(ctx, db, orgSlug, "", limit)
 }
 
-func buildDiscoverIssueSearchQuery(orgSlug, filter, rawQuery string, limit, offset int) (string, []any) {
+func buildDiscoverIssueSearchQuery(orgSlug string, opts store.DiscoverIssueSearchOptions, offset int) (string, []any) {
+	limit := opts.Limit
 	if limit <= 0 {
 		limit = 50
 	}
@@ -83,7 +98,11 @@ func buildDiscoverIssueSearchQuery(orgSlug, filter, rawQuery string, limit, offs
 		clauses = append(clauses, "o.slug = ?")
 		args = append(args, strings.TrimSpace(orgSlug))
 	}
-	issueClauses, issueArgs := buildIssueSearchClauses("", filter, rawQuery, "", time.Time{})
+	if strings.TrimSpace(opts.ProjectID) != "" {
+		clauses = append(clauses, "p.id = ?")
+		args = append(args, strings.TrimSpace(opts.ProjectID))
+	}
+	issueClauses, issueArgs := buildIssueSearchClauses("", opts.Filter, opts.Query, opts.Environment, time.Time{})
 	clauses = append(clauses, issueClauses[1:]...)
 	args = append(args, issueArgs...)
 	query := `SELECT g.id, p.id, p.slug, COALESCE(p.name, ''), COALESCE(p.platform, ''),
@@ -95,10 +114,25 @@ func buildDiscoverIssueSearchQuery(orgSlug, filter, rawQuery string, limit, offs
 	 JOIN projects p ON p.id = g.project_id
 	 JOIN organizations o ON o.id = p.organization_id
 	 WHERE ` + strings.Join(clauses, " AND ") + `
-	 ORDER BY ` + sqlutil.SortToOrderBy("last_seen", "g.") + `
+	 ORDER BY ` + sqlutil.SortToOrderBy(normalizeDiscoverIssueSort(opts.Sort), "g.") + `
 	 LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 	return query, args
+}
+
+func normalizeDiscoverIssueSort(sort string) string {
+	switch strings.ToLower(strings.TrimSpace(sort)) {
+	case "priority":
+		return "priority"
+	case "freq", "events":
+		return "events"
+	case "new", "first_seen":
+		return "first_seen"
+	case "date", "last_seen", "":
+		return "last_seen"
+	default:
+		return "last_seen"
+	}
 }
 
 func buildDiscoverIssueRefSearchQuery(orgSlug, filter, rawQuery string, limit, offset int) (string, []any) {

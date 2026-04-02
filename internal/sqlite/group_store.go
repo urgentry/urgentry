@@ -181,6 +181,10 @@ func (s *GroupStore) SearchDiscoverIssues(ctx context.Context, orgSlug, filter, 
 	return SearchDiscoverIssues(ctx, s.db, orgSlug, filter, rawQuery, limit)
 }
 
+func (s *GroupStore) SearchDiscoverIssuesWithOptions(ctx context.Context, orgSlug string, opts sharedstore.DiscoverIssueSearchOptions) ([]sharedstore.DiscoverIssue, error) {
+	return SearchDiscoverIssuesWithOptions(ctx, s.db, orgSlug, opts)
+}
+
 // UpdateStatus changes the status of a group (e.g. "resolved", "ignored").
 func (s *GroupStore) UpdateStatus(ctx context.Context, id string, status string) error {
 	empty := ""
