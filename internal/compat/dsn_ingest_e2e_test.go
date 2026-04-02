@@ -257,7 +257,16 @@ func TestE2EEventRetrievalAPI(t *testing.T) {
 		"event_id": "%s",
 		"message": "event retrieval test",
 		"level": "warning",
-		"platform": "python"
+		"platform": "python",
+		"request": {"method": "GET", "url": "https://app.example.com/checkout"},
+		"contexts": {"trace": {"trace_id": "trace-e2e-1", "span_id": "span-e2e-1", "type": "trace"}},
+		"sdk": {"name": "sentry.python", "version": "2.0.0"},
+		"user": {"id": "user-e2e", "email": "compat@example.com"},
+		"fingerprint": ["{{ default }}", "checkout"],
+		"modules": {"pkg/errors": "v0.9.1"},
+		"measurements": {"lcp": {"value": 1234.5, "unit": "millisecond"}},
+		"breadcrumbs": {"values": [{"type": "default", "category": "auth", "message": "signed in", "level": "info"}]},
+		"exception": {"values": [{"type": "ValueError", "value": "bad input"}]}
 	}`, eventID)
 
 	resp := doRequest(t, http.MethodPost, srv.server.URL+"/api/default-project/store/", strings.NewReader(payload), map[string]string{
@@ -299,6 +308,32 @@ func TestE2EEventRetrievalAPI(t *testing.T) {
 	}
 	if got, ok := evt["platform"].(string); !ok || got != "python" {
 		t.Fatalf("platform = %v, want python", evt["platform"])
+	}
+	if entries, ok := evt["entries"].([]interface{}); !ok || len(entries) < 4 {
+		t.Fatalf("entries = %v, want synthesized interfaces", evt["entries"])
+	}
+	contexts, ok := evt["contexts"].(map[string]interface{})
+	if !ok || contexts["trace"] == nil {
+		t.Fatalf("contexts = %v, want trace context", evt["contexts"])
+	}
+	sdk, ok := evt["sdk"].(map[string]interface{})
+	if !ok || sdk["name"] != "sentry.python" {
+		t.Fatalf("sdk = %v, want sentry.python", evt["sdk"])
+	}
+	user, ok := evt["user"].(map[string]interface{})
+	if !ok || user["email"] != "compat@example.com" {
+		t.Fatalf("user = %v, want compat@example.com", evt["user"])
+	}
+	if got, ok := evt["fingerprints"].([]interface{}); !ok || len(got) != 2 {
+		t.Fatalf("fingerprints = %v, want 2 items", evt["fingerprints"])
+	}
+	packages, ok := evt["packages"].(map[string]interface{})
+	if !ok || packages["pkg/errors"] != "v0.9.1" {
+		t.Fatalf("packages = %v, want pkg/errors", evt["packages"])
+	}
+	measurements, ok := evt["measurements"].(map[string]interface{})
+	if !ok || measurements["lcp"] == nil {
+		t.Fatalf("measurements = %v, want lcp", evt["measurements"])
 	}
 }
 

@@ -31,7 +31,7 @@ func GetIssue(ctx context.Context, db *sql.DB, id string) (*store.WebIssue, erro
 
 func ListGroupEvents(ctx context.Context, db *sql.DB, groupID string, limit int) ([]store.WebEvent, error) {
 	q := `SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
-	             COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
+	             payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
 	      FROM events WHERE group_id = ? ORDER BY ingested_at DESC`
 	args := []any{groupID}
 	if limit > 0 {
@@ -62,7 +62,7 @@ func ListProjectEvents(ctx context.Context, db *sql.DB, projectID string, limit 
 	}
 	rows, err := db.QueryContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
-		        COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
+		        payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
 		 FROM events WHERE project_id = ? ORDER BY ingested_at DESC LIMIT ?`, projectID, limit)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func ListRecentEvents(ctx context.Context, db *sql.DB, limit int) ([]store.WebEv
 	}
 	rows, err := db.QueryContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
-		        COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
+		        payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
 		 FROM events ORDER BY ingested_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func ResolveEventID(ctx context.Context, db *sql.DB, orgSlug, eventID string) (*
 	resolved.GroupID = sqlutil.NullStr(groupID)
 	resolved.Event = store.WebEvent{
 		EventID:          resolved.EventID,
-		GroupID:           resolved.GroupID,
+		GroupID:          resolved.GroupID,
 		Title:            sqlutil.NullStr(title),
 		Message:          sqlutil.NullStr(message),
 		Level:            sqlutil.NullStr(level),

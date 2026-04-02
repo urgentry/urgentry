@@ -111,27 +111,41 @@ type ProjectRef struct {
 
 // Event represents a single error event.
 type Event struct {
-	ID               string     `json:"id"`
-	EventID          string     `json:"eventID"`
-	ProjectID        string     `json:"projectID,omitempty"`
-	IssueID          string     `json:"groupID"`
-	Title            string     `json:"title"`
-	Message          string     `json:"message"`
-	Level            string     `json:"level"`
-	Platform         string     `json:"platform"`
-	Culprit          string     `json:"culprit"`
-	ProcessingStatus string     `json:"processingStatus,omitempty"`
-	IngestError      string     `json:"ingestError,omitempty"`
-	ResolvedFrames   int        `json:"resolvedFrames,omitempty"`
-	UnresolvedFrames int        `json:"unresolvedFrames,omitempty"`
-	DateCreated      time.Time  `json:"dateCreated"`
-	Tags             []EventTag `json:"tags,omitempty"`
+	ID               string       `json:"id"`
+	EventID          string       `json:"eventID"`
+	ProjectID        string       `json:"projectID,omitempty"`
+	IssueID          string       `json:"groupID"`
+	Title            string       `json:"title"`
+	Message          string       `json:"message"`
+	Level            string       `json:"level"`
+	Platform         string       `json:"platform"`
+	Culprit          string       `json:"culprit"`
+	ProcessingStatus string       `json:"processingStatus,omitempty"`
+	IngestError      string       `json:"ingestError,omitempty"`
+	ResolvedFrames   int          `json:"resolvedFrames,omitempty"`
+	UnresolvedFrames int          `json:"unresolvedFrames,omitempty"`
+	DateCreated      time.Time    `json:"dateCreated"`
+	Tags             []EventTag   `json:"tags,omitempty"`
+	Entries          []EventEntry `json:"entries,omitempty"`
+	Contexts         Metadata     `json:"contexts,omitempty"`
+	SDK              Metadata     `json:"sdk,omitempty"`
+	User             Metadata     `json:"user,omitempty"`
+	Fingerprints     []string     `json:"fingerprints,omitempty"`
+	Errors           []Metadata   `json:"errors,omitempty"`
+	Packages         Metadata     `json:"packages,omitempty"`
+	Measurements     Metadata     `json:"measurements,omitempty"`
 }
 
 // EventTag is the Sentry-compatible event tag shape used in API responses.
 type EventTag struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+// EventEntry is one Sentry-style event interface entry.
+type EventEntry struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
 // IssueComment represents a stored comment on an issue.

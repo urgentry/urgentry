@@ -74,9 +74,9 @@ func scanWebEvents(rows *sql.Rows) ([]store.WebEvent, error) {
 	var events []store.WebEvent
 	for rows.Next() {
 		var ev store.WebEvent
-		var groupID, title, message, level, platform, culprit, occurredAt, tagsJSON, processingStatus, ingestError sql.NullString
+		var groupID, title, message, level, platform, culprit, occurredAt, tagsJSON, payloadJSON, processingStatus, ingestError sql.NullString
 		if err := rows.Scan(&ev.EventID, &groupID, &title, &message, &level, &platform,
-			&culprit, &occurredAt, &tagsJSON, &processingStatus, &ingestError); err != nil {
+			&culprit, &occurredAt, &tagsJSON, &payloadJSON, &processingStatus, &ingestError); err != nil {
 			return nil, err
 		}
 		ev.GroupID = sqlutil.NullStr(groupID)
@@ -87,6 +87,7 @@ func scanWebEvents(rows *sql.Rows) ([]store.WebEvent, error) {
 		ev.Culprit = sqlutil.NullStr(culprit)
 		ev.Timestamp = sqlutil.ParseDBTime(sqlutil.NullStr(occurredAt))
 		ev.Tags = sqlutil.ParseTags(sqlutil.NullStr(tagsJSON))
+		ev.NormalizedJSON = sqlutil.NullStr(payloadJSON)
 		ev.ProcessingStatus = store.EventProcessingStatus(sqlutil.NullStr(processingStatus))
 		ev.IngestError = sqlutil.NullStr(ingestError)
 		events = append(events, ev)

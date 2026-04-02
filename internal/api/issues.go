@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -35,6 +36,31 @@ type issueResponseExtras struct {
 	NumComments  int
 	UserCount    int
 	Stats        IssueStats
+}
+
+type eventResponseExtras struct {
+	Entries      []EventEntry
+	Contexts     Metadata
+	SDK          Metadata
+	User         Metadata
+	Fingerprints []string
+	Errors       []Metadata
+	Packages     Metadata
+	Measurements Metadata
+}
+
+type storedEventPayload struct {
+	Request      Metadata          `json:"request,omitempty"`
+	Exception    Metadata          `json:"exception,omitempty"`
+	Breadcrumbs  Metadata          `json:"breadcrumbs,omitempty"`
+	Contexts     Metadata          `json:"contexts,omitempty"`
+	SDK          Metadata          `json:"sdk,omitempty"`
+	User         Metadata          `json:"user,omitempty"`
+	Fingerprint  []string          `json:"fingerprint,omitempty"`
+	Errors       []Metadata        `json:"errors,omitempty"`
+	Packages     Metadata          `json:"packages,omitempty"`
+	Modules      map[string]string `json:"modules,omitempty"`
+	Measurements Metadata          `json:"measurements,omitempty"`
 }
 
 // handleListProjectIssues handles GET /api/0/projects/{org_slug}/{proj_slug}/issues/.
@@ -703,6 +729,7 @@ func apiEventTags(tags map[string]string) []EventTag {
 
 func apiEventFromWebEvent(row store.WebEvent) *Event {
 	resolvedFrames, unresolvedFrames := normalize.CountNativeFrames(row.NormalizedJSON)
+	extras := eventResponseExtrasFromWebEvent(row)
 	return &Event{
 		ID:               row.EventID,
 		EventID:          row.EventID,
@@ -718,7 +745,57 @@ func apiEventFromWebEvent(row store.WebEvent) *Event {
 		UnresolvedFrames: unresolvedFrames,
 		DateCreated:      row.Timestamp,
 		Tags:             apiEventTags(row.Tags),
+		Entries:          extras.Entries,
+		Contexts:         extras.Contexts,
+		SDK:              extras.SDK,
+		User:             extras.User,
+		Fingerprints:     extras.Fingerprints,
+		Errors:           extras.Errors,
+		Packages:         extras.Packages,
+		Measurements:     extras.Measurements,
 	}
+}
+
+func eventResponseExtrasFromWebEvent(row store.WebEvent) eventResponseExtras {
+	extras := eventResponseExtras{}
+	if message := strings.TrimSpace(row.Message); message != "" {
+		extras.Entries = append(extras.Entries, EventEntry{
+			Type: "message",
+			Data: Metadata{"message": message},
+		})
+	}
+	if strings.TrimSpace(row.NormalizedJSON) == "" {
+		return extras
+	}
+
+	var payload storedEventPayload
+	if err := json.Unmarshal([]byte(row.NormalizedJSON), &payload); err != nil {
+		return extras
+	}
+
+	if len(payload.Exception) > 0 {
+		extras.Entries = append(extras.Entries, EventEntry{Type: "exception", Data: payload.Exception})
+	}
+	if len(payload.Request) > 0 {
+		extras.Entries = append(extras.Entries, EventEntry{Type: "request", Data: payload.Request})
+	}
+	if len(payload.Breadcrumbs) > 0 {
+		extras.Entries = append(extras.Entries, EventEntry{Type: "breadcrumbs", Data: payload.Breadcrumbs})
+	}
+	extras.Contexts = payload.Contexts
+	extras.SDK = payload.SDK
+	extras.User = payload.User
+	extras.Fingerprints = append([]string(nil), payload.Fingerprint...)
+	extras.Errors = payload.Errors
+	extras.Measurements = payload.Measurements
+	extras.Packages = payload.Packages
+	if len(extras.Packages) == 0 && len(payload.Modules) > 0 {
+		extras.Packages = make(Metadata, len(payload.Modules))
+		for name, version := range payload.Modules {
+			extras.Packages[name] = version
+		}
+	}
+	return extras
 }
 
 func issueCommentFromStore(item store.IssueComment) IssueComment {

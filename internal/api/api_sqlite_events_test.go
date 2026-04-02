@@ -26,6 +26,23 @@ func assertHasEventTag(t *testing.T, tags []EventTag, key, value string) {
 	t.Fatalf("tags = %+v, want {%q %q}", tags, key, value)
 }
 
+const normalizedEventInterfacesPayload = `{
+	"message":"bad input",
+	"request":{"method":"GET","url":"https://app.example.com/checkout"},
+	"contexts":{
+		"trace":{"trace_id":"trace-1","span_id":"span-1","type":"trace"},
+		"device":{"name":"iPhone","family":"iPhone","type":"device"}
+	},
+	"sdk":{"name":"sentry.go","version":"1.2.3"},
+	"user":{"id":"user-1","email":"dev@example.com"},
+	"fingerprint":["{{ default }}","checkout"],
+	"errors":[{"type":"js_no_source"}],
+	"packages":{"pkg/errors":"v0.9.1"},
+	"measurements":{"lcp":{"value":1234.5,"unit":"millisecond"}},
+	"exception":{"values":[{"type":"ValueError","value":"bad input"}]},
+	"breadcrumbs":{"values":[{"type":"default","category":"auth","message":"signed in","level":"info"}]}
+}`
+
 func TestAPIListEvents_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 
@@ -85,6 +102,55 @@ func TestAPIGetProjectEvent_SQLite(t *testing.T) {
 	assertHasEventTag(t, evt.Tags, "environment", "production")
 }
 
+func TestAPIListEvents_SQLite_IncludesNormalizedInterfaces(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-evt-interfaces", "EventInterfaces", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-interfaces", "grp-api-evt-interfaces", "EventInterfaces", "error")
+	if _, err := db.Exec(`UPDATE events SET payload_json = ? WHERE event_id = 'evt-api-interfaces'`, normalizedEventInterfacesPayload); err != nil {
+		t.Fatalf("update payload_json: %v", err)
+	}
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/projects/test-org/test-project/events/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var events []Event
+	decodeBody(t, resp, &events)
+
+	var target *Event
+	for i := range events {
+		if events[i].EventID == "evt-api-interfaces" {
+			target = &events[i]
+			break
+		}
+	}
+	if target == nil {
+		t.Fatal("expected interface-rich event in list response")
+	}
+	if len(target.Entries) < 4 {
+		t.Fatalf("entries = %+v, want synthesized interfaces", target.Entries)
+	}
+	if target.Contexts["trace"] == nil {
+		t.Fatalf("contexts = %#v, want trace context", target.Contexts)
+	}
+	if target.SDK["name"] != "sentry.go" {
+		t.Fatalf("sdk = %#v, want sentry.go", target.SDK)
+	}
+	if target.User["email"] != "dev@example.com" {
+		t.Fatalf("user = %#v, want dev@example.com", target.User)
+	}
+	if len(target.Fingerprints) != 2 {
+		t.Fatalf("fingerprints = %#v, want two items", target.Fingerprints)
+	}
+	if target.Measurements["lcp"] == nil {
+		t.Fatalf("measurements = %#v, want lcp", target.Measurements)
+	}
+}
+
 func TestAPIListOrgEvents_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 
@@ -142,6 +208,38 @@ func TestAPIResolveEventID_SQLite(t *testing.T) {
 		t.Fatalf("eventId = %q, want %q", body.EventID, "evt-api-resolve")
 	}
 	assertHasEventTag(t, body.Event.Tags, "environment", "production")
+}
+
+func TestAPIGetIssueEvent_SQLite_IncludesNormalizedInterfaces(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-issue-event", "IssueEventInterfaces", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-issue-event", "grp-api-issue-event", "IssueEventInterfaces", "error")
+	if _, err := db.Exec(`UPDATE events SET payload_json = ? WHERE event_id = 'evt-api-issue-event'`, normalizedEventInterfacesPayload); err != nil {
+		t.Fatalf("update payload_json: %v", err)
+	}
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/organizations/test-org/issues/grp-api-issue-event/events/evt-api-issue-event/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var evt Event
+	decodeBody(t, resp, &evt)
+	if len(evt.Entries) < 4 {
+		t.Fatalf("entries = %+v, want synthesized interfaces", evt.Entries)
+	}
+	if evt.Contexts["device"] == nil {
+		t.Fatalf("contexts = %#v, want device context", evt.Contexts)
+	}
+	if evt.Packages["pkg/errors"] != "v0.9.1" {
+		t.Fatalf("packages = %#v, want pkg/errors", evt.Packages)
+	}
+	if len(evt.Errors) != 1 {
+		t.Fatalf("errors = %#v, want one error", evt.Errors)
+	}
 }
 
 func TestAPIResolveShortID_SQLite_ParityFields(t *testing.T) {
