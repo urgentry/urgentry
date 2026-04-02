@@ -237,6 +237,9 @@ type updateIssueRequest struct {
 	IsSubscribed        *bool  `json:"isSubscribed"`
 	Priority            *int   `json:"priority"`
 	Substatus           string `json:"substatus"`
+	Discard             *bool  `json:"discard"`
+	Merge               *bool  `json:"merge"`
+	MergeTarget         string `json:"mergeTarget"`
 }
 
 // handleUpdateIssue handles PUT /api/0/issues/{issue_id}/.
@@ -294,9 +297,31 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 		principal := authPrincipalFromContext(r.Context())
 		userID := principalUserID(principal)
 
-		hasSideEffects := body.HasSeen != nil || body.IsBookmarked != nil || body.IsSubscribed != nil
+		hasSideEffects := body.HasSeen != nil || body.IsBookmarked != nil || body.IsSubscribed != nil || body.Discard != nil || body.Merge != nil
 		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil && patch.ResolvedInRelease == nil && patch.Priority == nil && !hasSideEffects {
 			httputil.WriteError(w, http.StatusBadRequest, "No issue changes requested.")
+			return
+		}
+
+		// Handle discard: mark issue as ignored and delete future events.
+		if body.Discard != nil && *body.Discard {
+			discardStatus := "ignored"
+			patch.Status = &discardStatus
+			if err := issues.DeleteGroup(r.Context(), id); err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to discard issue.")
+				return
+			}
+			httputil.WriteJSON(w, http.StatusOK, map[string]any{"discard": true})
+			return
+		}
+
+		// Handle merge: merge this issue into a target.
+		if body.Merge != nil && *body.Merge && body.MergeTarget != "" {
+			if err := issues.MergeIssue(r.Context(), id, body.MergeTarget, userID); err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to merge issue.")
+				return
+			}
+			httputil.WriteJSON(w, http.StatusOK, map[string]any{"merge": map[string]string{"parent": body.MergeTarget, "children": id}})
 			return
 		}
 
