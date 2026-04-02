@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"urgentry/internal/auth"
@@ -17,8 +18,27 @@ import (
 	"urgentry/internal/store"
 )
 
+type issueWorkflowStateReader interface {
+	GetIssueWorkflowState(ctx context.Context, groupID, userID string) (store.IssueWorkflowState, error)
+}
+
+type issueResponseExtras struct {
+	AssignedTo   *IssueUser
+	HasSeen      bool
+	IsBookmarked bool
+	IsPublic     bool
+	IsSubscribed bool
+	Priority     int
+	Substatus    string
+	Metadata     Metadata
+	Type         string
+	NumComments  int
+	UserCount    int
+	Stats        IssueStats
+}
+
 // handleListProjectIssues handles GET /api/0/projects/{org_slug}/{proj_slug}/issues/.
-func handleListProjectIssues(catalog controlplane.CatalogStore, reads controlplane.IssueReadStore, auth authFunc) http.HandlerFunc {
+func handleListProjectIssues(db *sql.DB, catalog controlplane.CatalogStore, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -40,9 +60,10 @@ func handleListProjectIssues(catalog controlplane.CatalogStore, reads controlpla
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list issues.")
 			return
 		}
+		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), rows)
 		issues := make([]Issue, 0, len(rows))
 		for _, row := range rows {
-			issue := apiIssueFromWebIssue(row)
+			issue := apiIssueFromWebIssueWithExtras(row, extras[row.ID])
 			issue.ProjectRef = ProjectRef{ID: project.ID, Slug: project.Slug}
 			issues = append(issues, issue)
 		}
@@ -55,7 +76,7 @@ func handleListProjectIssues(catalog controlplane.CatalogStore, reads controlpla
 }
 
 // handleGetIssue handles GET /api/0/issues/{issue_id}/.
-func handleGetIssue(reads controlplane.IssueReadStore, auth authFunc) http.HandlerFunc {
+func handleGetIssue(db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -71,7 +92,8 @@ func handleGetIssue(reads controlplane.IssueReadStore, auth authFunc) http.Handl
 			httputil.WriteError(w, http.StatusNotFound, "Issue not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssue(*row))
+		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*row})
+		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssueWithExtras(*row, extras[row.ID]))
 	}
 }
 
@@ -167,7 +189,8 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 		if len(resolveTransitions) > 0 {
 			fireResolvedIssueHooks(r.Context(), hooks, reads, db, "", resolveTransitions)
 		}
-		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssue(*iss))
+		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*iss})
+		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssueWithExtras(*iss, extras[iss.ID]))
 	}
 }
 
@@ -490,6 +513,10 @@ func getLatestIssueEventFromDB(r *http.Request, db *sql.DB, groupID string) (*Ev
 }
 
 func apiIssueFromWebIssue(row store.WebIssue) Issue {
+	return apiIssueFromWebIssueWithExtras(row, defaultIssueResponseExtras(row))
+}
+
+func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtras) Issue {
 	shortID := row.ID
 	if row.ShortID > 0 {
 		shortID = fmt.Sprintf("GENTRY-%d", row.ShortID)
@@ -501,6 +528,18 @@ func apiIssueFromWebIssue(row store.WebIssue) Issue {
 		Culprit:             row.Culprit,
 		Level:               row.Level,
 		Status:              row.Status,
+		Type:                extras.Type,
+		AssignedTo:          extras.AssignedTo,
+		HasSeen:             extras.HasSeen,
+		IsBookmarked:        extras.IsBookmarked,
+		IsPublic:            extras.IsPublic,
+		IsSubscribed:        extras.IsSubscribed,
+		Priority:            extras.Priority,
+		Substatus:           extras.Substatus,
+		Metadata:            extras.Metadata,
+		NumComments:         extras.NumComments,
+		UserCount:           extras.UserCount,
+		Stats:               extras.Stats,
 		ResolutionSubstatus: row.ResolutionSubstatus,
 		ResolvedInRelease:   row.ResolvedInRelease,
 		MergedIntoIssueID:   row.MergedIntoGroupID,
@@ -508,6 +547,134 @@ func apiIssueFromWebIssue(row store.WebIssue) Issue {
 		LastSeen:            row.LastSeen,
 		Count:               int(row.Count),
 	}
+}
+
+func defaultIssueResponseExtras(row store.WebIssue) issueResponseExtras {
+	return issueResponseExtras{
+		AssignedTo:   apiIssueAssignee(row.Assignee),
+		HasSeen:      true,
+		IsBookmarked: false,
+		IsPublic:     false,
+		IsSubscribed: false,
+		Priority:     row.Priority,
+		Substatus:    row.ResolutionSubstatus,
+		Metadata:     issueMetadata(row),
+		Type:         "error",
+		NumComments:  0,
+		UserCount:    0,
+		Stats:        IssueStats{Last24Hours: []int{}},
+	}
+}
+
+func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplane.IssueWorkflowStore, userID string, rows []store.WebIssue) map[string]issueResponseExtras {
+	extras := make(map[string]issueResponseExtras, len(rows))
+	groupIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		extras[row.ID] = defaultIssueResponseExtras(row)
+		groupIDs = append(groupIDs, row.ID)
+	}
+
+	if db != nil && len(groupIDs) > 0 {
+		webStore := sqlite.NewWebStore(db)
+		if counts, err := webStore.BatchUserCounts(ctx, groupIDs); err == nil {
+			for groupID, count := range counts {
+				item := extras[groupID]
+				item.UserCount = count
+				extras[groupID] = item
+			}
+		}
+		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 24, 24*time.Hour); err == nil {
+			for _, groupID := range groupIDs {
+				item := extras[groupID]
+				item.Stats = IssueStats{Last24Hours: append([]int(nil), sparklines[groupID]...)}
+				if item.Stats.Last24Hours == nil {
+					item.Stats.Last24Hours = []int{}
+				}
+				extras[groupID] = item
+			}
+		}
+	}
+
+	if issues == nil {
+		return extras
+	}
+
+	var stateReader issueWorkflowStateReader
+	if reader, ok := any(issues).(issueWorkflowStateReader); ok {
+		stateReader = reader
+	}
+	for _, row := range rows {
+		item := extras[row.ID]
+		if comments, err := issues.ListIssueComments(ctx, row.ID, 100); err == nil {
+			item.NumComments = len(comments)
+		}
+		if stateReader != nil {
+			if state, err := stateReader.GetIssueWorkflowState(ctx, row.ID, userID); err == nil {
+				item.IsBookmarked = state.Bookmarked
+				item.IsSubscribed = state.Subscribed
+				if item.Substatus == "" {
+					item.Substatus = state.ResolutionSubstatus
+				}
+			}
+		}
+		extras[row.ID] = item
+	}
+
+	return extras
+}
+
+func apiIssueAssignee(value string) *IssueUser {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if slug, ok := strings.CutPrefix(value, "team:"); ok {
+		slug = strings.TrimSpace(slug)
+		if slug == "" {
+			return nil
+		}
+		return &IssueUser{
+			ID:       slug,
+			Type:     "team",
+			Name:     slug,
+			Username: slug,
+		}
+	}
+	user := &IssueUser{
+		ID:   value,
+		Type: "user",
+		Name: value,
+	}
+	if strings.Contains(value, "@") {
+		user.Email = value
+		user.Username = strings.TrimSpace(strings.SplitN(value, "@", 2)[0])
+		return user
+	}
+	user.Username = value
+	return user
+}
+
+func issueMetadata(row store.WebIssue) Metadata {
+	return issueMetadataFromParts(row.Title, row.Culprit)
+}
+
+func issueMetadataFromParts(title, culprit string) Metadata {
+	meta := Metadata{}
+	title = strings.TrimSpace(title)
+	if prefix, value, ok := strings.Cut(title, ":"); ok {
+		if prefix = strings.TrimSpace(prefix); prefix != "" {
+			meta["type"] = prefix
+		}
+		if value = strings.TrimSpace(value); value != "" {
+			meta["value"] = value
+		}
+	} else if title != "" {
+		meta["value"] = title
+	}
+	if culprit = strings.TrimSpace(culprit); culprit != "" {
+		meta["culprit"] = culprit
+	}
+	return meta
 }
 
 func apiEventsFromWebEvents(rows []store.WebEvent) []*Event {

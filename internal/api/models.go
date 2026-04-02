@@ -47,6 +47,18 @@ type Issue struct {
 	Culprit             string     `json:"culprit"`
 	Level               string     `json:"level"`
 	Status              string     `json:"status"`
+	Type                string     `json:"type"`
+	AssignedTo          *IssueUser `json:"assignedTo"`
+	HasSeen             bool       `json:"hasSeen"`
+	IsBookmarked        bool       `json:"isBookmarked"`
+	IsPublic            bool       `json:"isPublic"`
+	IsSubscribed        bool       `json:"isSubscribed"`
+	Priority            int        `json:"priority"`
+	Substatus           string     `json:"substatus"`
+	Metadata            Metadata   `json:"metadata"`
+	NumComments         int        `json:"numComments"`
+	UserCount           int        `json:"userCount"`
+	Stats               IssueStats `json:"stats"`
 	ResolutionSubstatus string     `json:"resolutionSubstatus,omitempty"`
 	ResolvedInRelease   string     `json:"resolvedInRelease,omitempty"`
 	MergedIntoIssueID   string     `json:"mergedIntoIssueId,omitempty"`
@@ -54,6 +66,23 @@ type Issue struct {
 	LastSeen            time.Time  `json:"lastSeen"`
 	Count               int        `json:"count"`
 	ProjectRef          ProjectRef `json:"project"`
+}
+
+// IssueUser is the Sentry-compatible assignee object embedded in issue responses.
+type IssueUser struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Name     string `json:"name"`
+	Email    string `json:"email,omitempty"`
+	Username string `json:"username,omitempty"`
+}
+
+// Metadata is a generic object wrapper used by issue responses.
+type Metadata map[string]any
+
+// IssueStats carries the compact issue sparkline fields used by list/detail UIs.
+type IssueStats struct {
+	Last24Hours []int `json:"24h"`
 }
 
 // DiscoverIssue is the org-wide issue row used by discover/search endpoints.

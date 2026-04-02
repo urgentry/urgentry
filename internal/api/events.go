@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
 	"urgentry/internal/sqlite"
+	"urgentry/internal/store"
 )
 
 // Keep imports that are used by concurrent edits.
@@ -174,7 +176,7 @@ func handleResolveEventID(db *sql.DB, auth authFunc) http.HandlerFunc {
 
 // handleResolveShortID handles GET /api/0/organizations/{org_slug}/shortids/{short_id}/.
 // Given a short ID like "GENTRY-42", returns the full issue.
-func handleResolveShortID(db *sql.DB, auth authFunc) http.HandlerFunc {
+func handleResolveShortID(db *sql.DB, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -203,7 +205,8 @@ func handleResolveShortID(db *sql.DB, auth authFunc) http.HandlerFunc {
 			return
 		}
 
-		apiIssue := apiIssueFromWebIssue(*issue)
+		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*issue})
+		apiIssue := apiIssueFromWebIssueWithExtras(*issue, extras[issue.ID])
 		apiIssue.ShortID = fmt.Sprintf("GENTRY-%d", issue.ShortID)
 		apiIssue.ProjectRef = ProjectRef{Slug: projectSlug}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{

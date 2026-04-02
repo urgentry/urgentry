@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -141,6 +142,67 @@ func TestAPIResolveEventID_SQLite(t *testing.T) {
 		t.Fatalf("eventId = %q, want %q", body.EventID, "evt-api-resolve")
 	}
 	assertHasEventTag(t, body.Event.Tags, "environment", "production")
+}
+
+func TestAPIResolveShortID_SQLite_ParityFields(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-resolve-short", "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(
+		`INSERT INTO events
+			(id, project_id, event_id, group_id, level, title, message, platform, culprit, occurred_at, user_identifier, tags_json)
+		 VALUES
+			('evt-short-1', 'test-proj-id', 'evt-short-1', 'grp-api-resolve-short', 'error', 'ValueError: bad input', 'bad input', 'go', 'main.go in handler', ?, 'user-a', '{}'),
+			('evt-short-2', 'test-proj-id', 'evt-short-2', 'grp-api-resolve-short', 'error', 'ValueError: bad input', 'bad input', 'go', 'main.go in handler', ?, 'user-b', '{}')`,
+		now, now,
+	); err != nil {
+		t.Fatalf("insert short id events: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE groups SET short_id = 42, assignee = 'owner@example.com', priority = 1 WHERE id = 'grp-api-resolve-short'`); err != nil {
+		t.Fatalf("update short id group parity fields: %v", err)
+	}
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	authStore := sqlite.NewAuthStore(db)
+	principal, err := authStore.AuthenticatePAT(context.Background(), "gpat_test_admin_token")
+	if err != nil {
+		t.Fatalf("AuthenticatePAT: %v", err)
+	}
+	groupStore := sqlite.NewGroupStore(db)
+	if err := groupStore.ToggleIssueBookmark(context.Background(), "grp-api-resolve-short", principal.User.ID, true); err != nil {
+		t.Fatalf("ToggleIssueBookmark: %v", err)
+	}
+	if _, err := groupStore.AddIssueComment(context.Background(), "grp-api-resolve-short", principal.User.ID, "first"); err != nil {
+		t.Fatalf("AddIssueComment: %v", err)
+	}
+
+	resp := authGet(t, ts, "/api/0/organizations/test-org/shortids/GENTRY-42/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Group Issue `json:"group"`
+	}
+	decodeBody(t, resp, &body)
+	if body.Group.Priority != 1 {
+		t.Fatalf("priority = %d, want 1", body.Group.Priority)
+	}
+	if body.Group.AssignedTo == nil || body.Group.AssignedTo.Email != "owner@example.com" {
+		t.Fatalf("assignedTo = %+v, want owner@example.com", body.Group.AssignedTo)
+	}
+	if !body.Group.IsBookmarked {
+		t.Fatalf("isBookmarked = %v, want true", body.Group.IsBookmarked)
+	}
+	if body.Group.NumComments != 1 {
+		t.Fatalf("numComments = %d, want 1", body.Group.NumComments)
+	}
+	if body.Group.UserCount != 2 {
+		t.Fatalf("userCount = %d, want 2", body.Group.UserCount)
+	}
 }
 
 func TestAPIEventAttachments_SQLite(t *testing.T) {

@@ -16,6 +16,9 @@ func TestAPIOrganizationDiscover_SQLite(t *testing.T) {
 	seedSQLiteAuth(t, db)
 
 	insertSQLiteGroup(t, db, "grp-api-discover-1", "ImportError: bad input", "main.go in handler", "error", "unresolved")
+	if _, err := db.Exec(`UPDATE groups SET assignee = 'owner@example.com', priority = 1 WHERE id = 'grp-api-discover-1'`); err != nil {
+		t.Fatalf("update discover group parity fields: %v", err)
+	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := db.Exec(
 		`INSERT INTO events
@@ -57,6 +60,18 @@ func TestAPIOrganizationDiscover_SQLite(t *testing.T) {
 	decodeBody(t, resp, &issues)
 	if len(issues) != 1 || issues[0].ProjectRef.Slug != "test-project" {
 		t.Fatalf("unexpected org issue results: %+v", issues)
+	}
+	if issues[0].Priority != 1 {
+		t.Fatalf("priority = %d, want 1", issues[0].Priority)
+	}
+	if issues[0].AssignedTo == nil || issues[0].AssignedTo.Email != "owner@example.com" {
+		t.Fatalf("assignedTo = %+v, want owner@example.com", issues[0].AssignedTo)
+	}
+	if issues[0].Type != "error" {
+		t.Fatalf("type = %q, want error", issues[0].Type)
+	}
+	if issues[0].Metadata["type"] != "ImportError" {
+		t.Fatalf("metadata = %#v, want derived type", issues[0].Metadata)
 	}
 
 	resp = authGet(t, ts, "/api/0/organizations/test-org/logs/?query=api")
