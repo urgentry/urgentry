@@ -53,6 +53,16 @@ func TestMigrationsIdempotent(t *testing.T) {
 	}
 }
 
+func TestMigrationsHaveUniqueVersions(t *testing.T) {
+	seen := make(map[int]struct{}, len(migrations))
+	for _, migration := range migrations {
+		if _, exists := seen[migration.version]; exists {
+			t.Fatalf("duplicate migration version %d", migration.version)
+		}
+		seen[migration.version] = struct{}{}
+	}
+}
+
 func TestEventStore_SaveAndGet(t *testing.T) {
 	dir := t.TempDir()
 	db, err := Open(dir)
