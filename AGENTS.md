@@ -33,6 +33,7 @@ Issue list/detail response extras batch comment counts through the real issue st
 Invite acceptance stays token-based but is now rate-limited per client IP and per invite token, and rejects obviously short garbage tokens before any store lookup.
 Request logging redacts the invite token segment on `/api/0/invites/{token}/accept/` so leaked invite secrets do not persist in structured logs.
 The `/api/0/seer/models/` stub stays public for Sentry parity, but it now returns the canonical `{"models":[]}` shape and is IP-rate-limited instead of remaining anonymously unbounded.
+Successful ingest responses now emit the empty `X-Sentry-Rate-Limits` header only when an ingest limiter is actually configured, while real 429 responses keep the populated retry metadata.
 Inbound integration webhooks now fail closed. GitHub installs need `github_webhook_secret` configured before `/api/0/organizations/{org}/integrations/{integration}/webhook` will accept traffic, outbound-only integrations no longer expose a usable inbound receiver, and orgs with multiple installs of the same provider must target the installation ID route instead of the provider slug.
 User-configured outbound targets also fail closed. Project hooks, project or org data-forwarding destinations, alert webhooks, generic integration webhooks, and uptime monitors reject localhost, link-local, loopback, and private-network HTTP(S) targets at validation time, and the runtime clients re-check those targets before dialing so legacy rows cannot bypass the guard.
 

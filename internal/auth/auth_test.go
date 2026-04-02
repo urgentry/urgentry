@@ -252,6 +252,40 @@ func TestMiddleware_RateLimited(t *testing.T) {
 	}
 }
 
+func TestMiddleware_SuccessWithoutLimiterOmitsRateLimitHeader(t *testing.T) {
+	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "nolimit", ProjectID: "10", Status: "active"})
+	handler := Middleware(store, nil, 60)(okHandler)
+
+	req := httptest.NewRequest("POST", "/api/10/store/", nil)
+	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=nolimit,sentry_version=7")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if got := w.Header().Get("X-Sentry-Rate-Limits"); got != "" {
+		t.Fatalf("X-Sentry-Rate-Limits = %q, want empty/absent", got)
+	}
+}
+
+func TestMiddleware_SuccessWithLimiterSetsEmptyRateLimitHeader(t *testing.T) {
+	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "rl-ok", ProjectID: "11", Status: "active", RateLimit: 10})
+	handler := Middleware(store, NewFixedWindowRateLimiter(time.Minute), 60)(okHandler)
+
+	req := httptest.NewRequest("POST", "/api/11/store/", nil)
+	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=rl-ok,sentry_version=7")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if got := w.Header().Get("X-Sentry-Rate-Limits"); got != "" {
+		t.Fatalf("X-Sentry-Rate-Limits = %q, want empty string", got)
+	}
+}
+
 func TestProjectKeyFromContext_Nil(t *testing.T) {
 	pk := ProjectKeyFromContext(context.Background())
 	if pk != nil {

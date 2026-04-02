@@ -59,14 +59,15 @@ func Middleware(store KeyStore, limiter RateLimiter, defaultRateLimit int) func(
 					httputil.WriteError(w, http.StatusTooManyRequests, "Rate limit exceeded")
 					return
 				}
+
+				// Set empty rate limits header on successful responses for SDK compat
+				// only when a limiter was configured for this request path.
+				w.Header().Set("X-Sentry-Rate-Limits", "")
 			}
 
 			if toucher, ok := store.(KeyToucher); ok {
 				_ = toucher.TouchProjectKey(r.Context(), publicKey)
 			}
-
-			// Set empty rate limits header on successful responses for SDK compat.
-			w.Header().Set("X-Sentry-Rate-Limits", "")
 
 			ctx := context.WithValue(r.Context(), projectKeyContextKey, pk)
 			next.ServeHTTP(w, r.WithContext(ctx))
