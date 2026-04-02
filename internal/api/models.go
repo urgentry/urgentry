@@ -70,7 +70,6 @@ type Issue struct {
 	NumComments         int        `json:"numComments"`
 	UserCount           int        `json:"userCount"`
 	Stats               IssueStats `json:"stats"`
-	ResolutionSubstatus string     `json:"resolutionSubstatus,omitempty"`
 	ResolvedInRelease   string     `json:"resolvedInRelease,omitempty"`
 	MergedIntoIssueID   string     `json:"mergedIntoIssueId,omitempty"`
 	FirstSeen           time.Time  `json:"firstSeen"`

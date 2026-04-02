@@ -566,7 +566,6 @@ func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtr
 		NumComments:         extras.NumComments,
 		UserCount:           extras.UserCount,
 		Stats:               extras.Stats,
-		ResolutionSubstatus: row.ResolutionSubstatus,
 		ResolvedInRelease:   row.ResolvedInRelease,
 		MergedIntoIssueID:   row.MergedIntoGroupID,
 		FirstSeen:           row.FirstSeen,

@@ -134,6 +134,9 @@ func TestAPIListIssues_SQLite_IncludesParityFields(t *testing.T) {
 			t.Fatalf("expected key %q in issue payload: %+v", key, payload[0])
 		}
 	}
+	if _, ok := payload[0]["resolutionSubstatus"]; ok {
+		t.Fatalf("unexpected legacy resolutionSubstatus field in issue payload: %+v", payload[0])
+	}
 }
 
 func TestAPIGetIssue_SQLite_ParityFields(t *testing.T) {
@@ -200,6 +203,9 @@ func TestAPIGetIssue_SQLite_ParityFields(t *testing.T) {
 	}
 	if payload["substatus"] != "next_release" {
 		t.Fatalf("substatus = %#v, want next_release", payload["substatus"])
+	}
+	if _, ok := payload["resolutionSubstatus"]; ok {
+		t.Fatalf("unexpected legacy resolutionSubstatus field in issue detail: %+v", payload)
 	}
 	if comments, ok := payload["numComments"].(float64); !ok || int(comments) != 1 {
 		t.Fatalf("numComments = %#v, want 1", payload["numComments"])
