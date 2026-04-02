@@ -13,6 +13,23 @@ import (
 	"urgentry/internal/sqlite"
 )
 
+// handleListProcessingIssues returns processing issues for a project.
+func handleListProcessingIssues(auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{
+			"hasMore":            false,
+			"hasMoreResolveableIssues": false,
+			"numIssues":          0,
+			"lastSeen":           nil,
+			"signedLink":         nil,
+			"issues":             []any{},
+		})
+	}
+}
+
 // handleRootCapabilities returns the API root with version and capabilities.
 func handleRootCapabilities() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

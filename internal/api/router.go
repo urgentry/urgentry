@@ -218,6 +218,11 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/releases/{version}/files/{file_id}/", handleDeleteReleaseFile(control.Catalog, smStore, withAuth(auth.Policy{Scope: auth.ScopeReleaseWrite, Resource: auth.ResourceOrganizationPath})))
 	}
 
+	// Chunk upload for large source map bundles
+	if deps.BlobStore != nil {
+		mux.Handle("POST /api/0/organizations/{org_slug}/chunk-upload/", handleChunkUpload(deps.BlobStore, withAuth(auth.Policy{Scope: auth.ScopeReleaseWrite, Resource: auth.ResourceOrganizationPath})))
+	}
+
 	// Projects (global)
 	mux.Handle("GET /api/0/projects/", handleListAllProjects(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceAnyMembership})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/", handleGetProject(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
@@ -492,6 +497,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	// Project stats and users
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/stats/", handleGetProjectStats(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/users/", handleListProjectUsers(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/processingissues/", handleListProcessingIssues(withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 
 	// Spike protection
 	mux.Handle("POST /api/0/organizations/{org_slug}/spike-protections/", handleEnableSpikeProtection(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))

@@ -17,13 +17,6 @@ import (
 	"urgentry/internal/store"
 )
 
-// Keep imports that are used by concurrent edits.
-var (
-	_ = fmt.Sprintf
-	_ = strconv.Itoa
-	_ = strings.TrimSpace
-)
-
 // handleListOrgEvents handles GET /api/0/organizations/{org_slug}/events/.
 // Returns events across all projects in the organization (Discover events endpoint).
 func handleListOrgEvents(db *sql.DB, auth authFunc) http.HandlerFunc {

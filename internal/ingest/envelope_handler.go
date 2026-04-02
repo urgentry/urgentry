@@ -43,6 +43,7 @@ type IngestDeps struct {
 	MonitorStore    controlplane.MonitorStore
 	SamplingRules    *sqlite.SamplingRuleStore
 	MetricBuckets    *sqlite.MetricBucketStore
+	SpikeThrottle    *pipeline.SpikeThrottle
 	Metrics          *metrics.Metrics
 }
 
@@ -126,6 +127,14 @@ func EnvelopeHandlerWithDeps(deps IngestDeps) http.Handler {
 							}
 							continue
 						}
+					}
+					// Spike protection: throttle when volume exceeds baseline.
+					if deps.SpikeThrottle != nil && !deps.SpikeThrottle.Allow(ctx, projectID) {
+						if deps.Metrics != nil {
+							deps.Metrics.RecordIngest(len(body), errSpikeThrottled)
+						}
+						httputil.WriteError(w, http.StatusTooManyRequests, "event rate exceeded, spike protection active")
+						return
 					}
 					if ok := deps.Pipeline.EnqueueNonBlocking(pipeline.Item{
 						ProjectID: projectID,
@@ -249,7 +258,7 @@ func EnvelopeHandlerWithDeps(deps IngestDeps) http.Handler {
 			case "check_in":
 				saveCheckIn(ctx, deps.MonitorStore, projectID, item.Payload)
 
-			case "statsd":
+			case "statsd", "metric_buckets":
 				saveStatsdMetrics(ctx, deps.MetricBuckets, projectID, item.Payload)
 
 			default:
