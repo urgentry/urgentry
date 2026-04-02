@@ -197,6 +197,7 @@ func handleGetRelease(db *sql.DB, catalog controlplane.CatalogStore, releases co
 		}
 		rel := mapRelease(*row, org, summary)
 		rel.Projects = loadReleaseProjects(r.Context(), db, org, row.Version)
+		enrichReleaseDetail(r.Context(), db, releases, orgRecord.ID, row.Version, rel)
 		httputil.WriteJSON(w, http.StatusOK, rel)
 	}
 }
@@ -245,6 +246,52 @@ func mapRelease(row sqlite.Release, orgSlug string, summary sqlite.NativeRelease
 		NativeReprocessStatus:    summary.LastRunStatus,
 		NativeReprocessLastError: summary.LastRunLastError,
 		NativeReprocessUpdatedAt: nativeReprocessUpdatedAt,
+		Status:                   "open",
+		VersionInfo:              &VersionInfo{Version: row.Version},
+	}
+}
+
+func enrichReleaseDetail(ctx context.Context, db *sql.DB, releases controlplane.ReleaseStore, orgID, version string, rel *Release) {
+	// Commit count and authors
+	commits, err := releases.ListCommits(ctx, orgID, version, 100)
+	if err == nil {
+		rel.CommitCount = len(commits)
+		seen := map[string]bool{}
+		for _, c := range commits {
+			key := c.AuthorEmail
+			if key == "" {
+				key = c.AuthorName
+			}
+			if key != "" && !seen[key] {
+				seen[key] = true
+				rel.Authors = append(rel.Authors, ReleaseAuthor{
+					Name:  c.AuthorName,
+					Email: c.AuthorEmail,
+				})
+			}
+		}
+	}
+
+	// Deploy count and last deploy
+	deploys, err := releases.ListDeploys(ctx, orgID, version, 100)
+	if err == nil {
+		rel.DeployCount = len(deploys)
+		if len(deploys) > 0 {
+			d := deploys[0]
+			deploy := &ReleaseDeploy{
+				ID:          d.ID,
+				Environment: d.Environment,
+				Name:        d.Name,
+				URL:         d.URL,
+			}
+			if !d.DateStarted.IsZero() {
+				deploy.DateStarted = &d.DateStarted
+			}
+			if !d.DateFinished.IsZero() {
+				deploy.DateFinished = &d.DateFinished
+			}
+			rel.LastDeploy = deploy
+		}
 	}
 }
 

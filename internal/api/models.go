@@ -9,6 +9,60 @@ import (
 
 type Organization = sharedstore.Organization
 
+// OrganizationDetail is the enriched organization response for GET /organizations/{slug}/.
+type OrganizationDetail struct {
+	ID              string              `json:"id"`
+	Slug            string              `json:"slug"`
+	Name            string              `json:"name"`
+	DateCreated     time.Time           `json:"dateCreated"`
+	Features        []string            `json:"features"`
+	Access          []string            `json:"access"`
+	Teams           []OrgTeamResponse   `json:"teams"`
+	Projects        []OrgProjectResponse `json:"projects"`
+	Avatar          OrgAvatar           `json:"avatar"`
+	Status          OrgStatus           `json:"status"`
+	IsEarlyAdopter  bool                `json:"isEarlyAdopter"`
+	OnboardingTasks []any               `json:"onboardingTasks"`
+}
+
+// OrgTeamResponse is the nested team shape inside an organization detail response.
+type OrgTeamResponse struct {
+	ID          string    `json:"id"`
+	Slug        string    `json:"slug"`
+	Name        string    `json:"name"`
+	DateCreated time.Time `json:"dateCreated"`
+	IsMember    bool      `json:"isMember"`
+	MemberCount int       `json:"memberCount"`
+	Avatar      teamAvatar `json:"avatar"`
+	HasAccess   bool      `json:"hasAccess"`
+	IsPending   bool      `json:"isPending"`
+}
+
+// OrgProjectResponse is the nested project shape inside an organization detail response.
+type OrgProjectResponse struct {
+	ID          string    `json:"id"`
+	Slug        string    `json:"slug"`
+	Name        string    `json:"name"`
+	Platform    string    `json:"platform,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	DateCreated time.Time `json:"dateCreated"`
+	HasAccess   bool      `json:"hasAccess"`
+	IsBookmarked bool     `json:"isBookmarked"`
+	IsMember    bool      `json:"isMember"`
+}
+
+// OrgAvatar is the avatar shape in organization detail responses.
+type OrgAvatar struct {
+	Type string `json:"avatarType"`
+	UUID string `json:"avatarUuid,omitempty"`
+}
+
+// OrgStatus is the status shape in organization detail responses.
+type OrgStatus struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type Team = sharedstore.Team
 
 type Project = sharedstore.Project
@@ -158,6 +212,54 @@ type ProjectRef struct {
 	Platform string `json:"platform,omitempty"`
 }
 
+// ProjectDetail is the enriched project response returned by the project
+// detail endpoint. It embeds the base Project fields and adds Sentry-compatible
+// enrichment: features, firstEvent, teams, latestRelease, etc.
+type ProjectDetail struct {
+	ID                  string                `json:"id"`
+	Slug                string                `json:"slug"`
+	Name                string                `json:"name"`
+	OrgSlug             string                `json:"organization,omitempty"`
+	Platform            string                `json:"platform,omitempty"`
+	Status              string                `json:"status,omitempty"`
+	EventRetentionDays  int                   `json:"eventRetentionDays,omitempty"`
+	AttachRetentionDays int                   `json:"attachmentRetentionDays,omitempty"`
+	DebugRetentionDays  int                   `json:"debugFileRetentionDays,omitempty"`
+	DateCreated         time.Time             `json:"dateCreated"`
+	TeamSlug            string                `json:"team,omitempty"`
+	Features            []string              `json:"features"`
+	FirstEvent          *time.Time            `json:"firstEvent"`
+	HasAccess           bool                  `json:"hasAccess"`
+	LatestRelease       *ReleaseRef           `json:"latestRelease"`
+	Teams               []projectTeamResponse `json:"teams"`
+	Options             map[string]any        `json:"options"`
+	Plugins             []any                 `json:"plugins"`
+	ProcessingIssues    int                   `json:"processingIssues"`
+	ScrapeJavaScript    bool                  `json:"scrapeJavaScript"`
+}
+
+// ReleaseRef is a compact release reference used in project detail responses.
+type ReleaseRef struct {
+	Version     string    `json:"version"`
+	DateCreated time.Time `json:"dateCreated"`
+}
+
+// defaultProjectFeatures returns the default set of project feature flags.
+func defaultProjectFeatures() []string {
+	return []string{
+		"alert-filters",
+		"custom-inbound-filters",
+		"data-forwarding",
+		"discard-groups",
+		"minidump",
+		"race-free-group-creation",
+		"rate-limits",
+		"servicehooks",
+		"similarity-indexing",
+		"similarity-view",
+	}
+}
+
 // Event represents a single error event.
 type Event struct {
 	ID               string       `json:"id"`
@@ -280,7 +382,37 @@ type Release struct {
 	NativeReprocessRunID     string     `json:"nativeReprocessRunId,omitempty"`
 	NativeReprocessStatus    string     `json:"nativeReprocessStatus,omitempty"`
 	NativeReprocessLastError string     `json:"nativeReprocessLastError,omitempty"`
-	NativeReprocessUpdatedAt *time.Time `json:"nativeReprocessUpdatedAt,omitempty"`
+	NativeReprocessUpdatedAt *time.Time     `json:"nativeReprocessUpdatedAt,omitempty"`
+	Projects                 []string       `json:"projects,omitempty"`
+	Status                   string         `json:"status"`
+	CommitCount              int            `json:"commitCount"`
+	DeployCount              int            `json:"deployCount"`
+	LastDeploy               *ReleaseDeploy `json:"lastDeploy,omitempty"`
+	Authors                  []ReleaseAuthor `json:"authors,omitempty"`
+	VersionInfo              *VersionInfo   `json:"versionInfo,omitempty"`
+}
+
+// ReleaseAuthor is a commit author in a release.
+type ReleaseAuthor struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// ReleaseDeploy is a deploy associated with a release.
+type ReleaseDeploy struct {
+	ID           string     `json:"id"`
+	Environment  string     `json:"environment"`
+	Name         string     `json:"name,omitempty"`
+	URL          string     `json:"url,omitempty"`
+	DateStarted  *time.Time `json:"dateStarted,omitempty"`
+	DateFinished *time.Time `json:"dateFinished,omitempty"`
+}
+
+// VersionInfo provides parsed version metadata.
+type VersionInfo struct {
+	Package     string `json:"package,omitempty"`
+	Description string `json:"description,omitempty"`
+	Version     string `json:"version"`
 }
 
 // OrgEventRow is an event with project context for org-level event listing.
@@ -357,14 +489,25 @@ type Outcome struct {
 	DateCreated time.Time       `json:"dateCreated"`
 }
 
+// AlertRuleRef is a minimal alert rule reference embedded in monitor responses.
+type AlertRuleRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // Monitor describes one persisted cron monitor.
 type Monitor struct {
 	ID            string        `json:"id"`
 	ProjectID     string        `json:"projectId"`
+	Name          string        `json:"name"`
 	Slug          string        `json:"slug"`
 	Status        string        `json:"status"`
+	IsMuted       bool          `json:"isMuted"`
 	Environment   string        `json:"environment,omitempty"`
+	Environments  []string      `json:"environments"`
 	Config        MonitorConfig `json:"config"`
+	Project       ProjectRef    `json:"project"`
+	AlertRule     *AlertRuleRef `json:"alertRule"`
 	LastCheckInID string        `json:"lastCheckInId,omitempty"`
 	LastStatus    string        `json:"lastStatus,omitempty"`
 	LastCheckInAt *time.Time    `json:"lastCheckInAt,omitempty"`
@@ -640,8 +783,6 @@ type DebugFile struct {
 type ProjectSettings = sharedstore.ProjectSettings
 
 type OwnershipRule = sharedstore.OwnershipRule
-
-type ReleaseDeploy = sharedstore.ReleaseDeploy
 
 type ReleaseCommit = sharedstore.ReleaseCommit
 

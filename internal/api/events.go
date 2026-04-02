@@ -11,15 +11,21 @@ import (
 	"time"
 
 	"urgentry/internal/controlplane"
+	"urgentry/internal/discover"
 	"urgentry/internal/httputil"
 	"urgentry/internal/sqlite"
 	"urgentry/internal/sqlutil"
 	"urgentry/internal/store"
+	"urgentry/internal/telemetryquery"
 )
 
 // handleListOrgEvents handles GET /api/0/organizations/{org_slug}/events/.
 // Returns events across all projects in the organization (Discover events endpoint).
-func handleListOrgEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
+//
+// When the request includes field[] query parameters (Sentry discover format),
+// the handler delegates to the discover query engine which supports field
+// selection and aggregations like count(), p95(duration.ms), avg(duration.ms).
+func handleListOrgEvents(db *sql.DB, queries telemetryquery.Service, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -31,6 +37,16 @@ func handleListOrgEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 			sortField = "-timestamp"
 		}
 		limit := discoverLimit(r, 100)
+
+		// If field[] params are present, use the discover query engine.
+		fields := r.URL.Query()["field"]
+		if len(fields) == 0 {
+			fields = r.URL.Query()["field[]"]
+		}
+		if len(fields) > 0 && queries != nil {
+			handleOrgEventsDiscover(w, r, queries, org, fields, query, sortField, limit)
+			return
+		}
 
 		rows, err := sqlite.ListOrgEvents(r.Context(), db, org, query, sortField, limit)
 		if err != nil {
@@ -53,6 +69,207 @@ func handleListOrgEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"data": data})
 	}
+}
+
+// handleOrgEventsDiscover executes a discover query for the org events endpoint
+// when field[] parameters are present.
+func handleOrgEventsDiscover(w http.ResponseWriter, r *http.Request, queries telemetryquery.Service, orgSlug string, fields []string, rawQuery, sortField string, limit int) {
+	selects, err := parseDiscoverFields(fields)
+	if err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	dataset := inferDataset(r, selects)
+
+	dq := discover.Query{
+		Version: discover.CurrentVersion,
+		Dataset: dataset,
+		Scope: discover.Scope{
+			Kind:         discover.ScopeKindOrganization,
+			Organization: orgSlug,
+		},
+		Select: selects,
+		Limit:  limit,
+	}
+
+	// Add sort/order_by.
+	if orderBy := discoverOrderBy(sortField); orderBy != nil {
+		dq.OrderBy = []discover.OrderBy{*orderBy}
+	}
+
+	// For non-issues datasets, require a time range to avoid rejected queries.
+	if dataset != discover.DatasetIssues {
+		statsPeriod := strings.TrimSpace(r.URL.Query().Get("statsPeriod"))
+		if statsPeriod == "" {
+			statsPeriod = "24h"
+		}
+		dq.TimeRange = &discover.TimeRange{Kind: "relative", Value: statsPeriod}
+	}
+
+	// Add groupBy for aggregations mixed with plain fields.
+	hasAggregate := false
+	var dimensionFields []discover.Expression
+	for _, s := range selects {
+		if s.Expr.Call != "" {
+			hasAggregate = true
+		} else if s.Expr.Field != "" {
+			dimensionFields = append(dimensionFields, discover.Expression{Field: s.Expr.Field})
+		}
+	}
+	if hasAggregate && len(dimensionFields) > 0 {
+		dq.GroupBy = dimensionFields
+	}
+
+	result, err := queries.ExecuteTable(r.Context(), dq)
+	if err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid discover query: "+err.Error())
+		return
+	}
+
+	// Build Sentry-compatible response with data and meta.
+	meta := map[string]string{}
+	for _, col := range result.Columns {
+		meta[col.Name] = discoverFieldType(col.Name, selects)
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{
+		"data": result.Rows,
+		"meta": map[string]any{"fields": meta},
+	})
+}
+
+// parseDiscoverFields parses Sentry-style field[] strings into discover SelectItems.
+// Supported formats:
+//   - "title" -> field reference
+//   - "count()" -> zero-arg aggregate
+//   - "p95(duration.ms)" -> one-arg aggregate
+//   - "avg(duration.ms)" -> one-arg aggregate
+func parseDiscoverFields(fields []string) ([]discover.SelectItem, error) {
+	selects := make([]discover.SelectItem, 0, len(fields))
+	for _, raw := range fields {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		item, err := parseOneField(raw)
+		if err != nil {
+			return nil, err
+		}
+		selects = append(selects, item)
+	}
+	if len(selects) == 0 {
+		return nil, fmt.Errorf("no valid fields specified")
+	}
+	return selects, nil
+}
+
+// parseOneField parses a single Sentry-style field string.
+func parseOneField(raw string) (discover.SelectItem, error) {
+	parenIdx := strings.Index(raw, "(")
+	if parenIdx < 0 {
+		// Plain field reference like "title" or "project".
+		return discover.SelectItem{
+			Expr: discover.Expression{Field: raw},
+		}, nil
+	}
+
+	// Function call like "count()" or "p95(duration.ms)".
+	if !strings.HasSuffix(raw, ")") {
+		return discover.SelectItem{}, fmt.Errorf("invalid field expression %q: missing closing parenthesis", raw)
+	}
+	funcName := strings.TrimSpace(raw[:parenIdx])
+	argsStr := strings.TrimSpace(raw[parenIdx+1 : len(raw)-1])
+
+	expr := discover.Expression{Call: funcName}
+	if argsStr != "" {
+		// Parse comma-separated args (currently all aggregates take 0 or 1 args).
+		argParts := strings.Split(argsStr, ",")
+		for _, arg := range argParts {
+			arg = strings.TrimSpace(arg)
+			if arg != "" {
+				expr.Args = append(expr.Args, discover.Expression{Field: arg})
+			}
+		}
+	}
+
+	return discover.SelectItem{
+		Alias: raw,
+		Expr:  expr,
+	}, nil
+}
+
+// inferDataset picks the discover dataset based on the requested fields
+// and an explicit dataset query parameter.
+func inferDataset(r *http.Request, selects []discover.SelectItem) discover.Dataset {
+	if ds := strings.TrimSpace(r.URL.Query().Get("dataset")); ds != "" {
+		return discover.Dataset(strings.ToLower(ds))
+	}
+	// Infer from fields: if any transaction-specific fields are requested, use transactions.
+	txnFields := map[string]bool{
+		"transaction": true, "op": true, "duration.ms": true,
+	}
+	for _, s := range selects {
+		field := s.Expr.Field
+		if field == "" && len(s.Expr.Args) > 0 {
+			field = s.Expr.Args[0].Field
+		}
+		if txnFields[field] {
+			return discover.DatasetTransactions
+		}
+	}
+	// Default to issues for backwards compat with the events endpoint.
+	return discover.DatasetIssues
+}
+
+// discoverOrderBy converts a Sentry-style sort string (e.g. "-timestamp",
+// "count") into a discover OrderBy clause.
+func discoverOrderBy(sort string) *discover.OrderBy {
+	if sort == "" {
+		return nil
+	}
+	direction := "asc"
+	field := sort
+	if strings.HasPrefix(sort, "-") {
+		direction = "desc"
+		field = sort[1:]
+	}
+	// Check if this looks like a function call alias (e.g. "-count()").
+	if strings.Contains(field, "(") {
+		return &discover.OrderBy{
+			Expr:      discover.Expression{Alias: field},
+			Direction: direction,
+		}
+	}
+	return &discover.OrderBy{
+		Expr:      discover.Expression{Field: field},
+		Direction: direction,
+	}
+}
+
+// discoverFieldType returns the Sentry-compatible type string for a column.
+func discoverFieldType(colName string, selects []discover.SelectItem) string {
+	for _, s := range selects {
+		if s.Expr.Call != "" {
+			alias := s.Alias
+			if alias == "" {
+				alias = s.Expr.Call
+			}
+			if alias == colName {
+				return "number"
+			}
+		}
+		if s.Expr.Field == colName {
+			switch colName {
+			case "timestamp", "first_seen", "last_seen":
+				return "date"
+			case "count", "duration.ms":
+				return "number"
+			default:
+				return "string"
+			}
+		}
+	}
+	return "string"
 }
 
 // handleListProjectEvents handles GET /api/0/projects/{org_slug}/{proj_slug}/events/.
