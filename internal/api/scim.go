@@ -8,68 +8,34 @@ import (
 	"strings"
 	"time"
 
+	"urgentry/internal/controlplane"
+	scimcore "urgentry/internal/scim"
 )
 
-// ---------------------------------------------------------------------------
-// SCIM 2.0 /Users provisioning endpoint
-// ---------------------------------------------------------------------------
-
-// SCIMUserStore abstracts user CRUD needed by the SCIM handler. Implementors
-// map SCIM operations to the Urgentry user model.
-type SCIMUserStore interface {
-	SCIMListUsers(ctx context.Context, orgID string, startIndex, count int, filter string) ([]SCIMUserRecord, int, error)
-	SCIMGetUser(ctx context.Context, orgID, userID string) (*SCIMUserRecord, error)
-	SCIMCreateUser(ctx context.Context, orgID string, user SCIMUserRecord) (*SCIMUserRecord, error)
-	SCIMPatchUser(ctx context.Context, orgID, userID string, ops []SCIMPatchOp) (*SCIMUserRecord, error)
-}
-
-// SCIMUserRecord is the Urgentry-side representation of a SCIM User.
-type SCIMUserRecord struct {
-	ID          string
-	ExternalID  string
-	Email       string
-	DisplayName string
-	GivenName   string
-	FamilyName  string
-	Active      bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-// SCIMPatchOp represents one RFC 7644 PATCH operation.
-type SCIMPatchOp struct {
-	Op    string `json:"op"`
-	Path  string `json:"path"`
-	Value any    `json:"value"`
-}
-
-// SCIMBearerAuth validates the bearer token for SCIM requests. It reuses
-// the automation token pattern: callers supply a function that resolves a
-// bearer token to an org ID (or returns an error).
-type SCIMBearerAuth func(ctx context.Context, token string) (orgID string, err error)
+type scimOrganizationContextKey struct{}
 
 // ---------------------------------------------------------------------------
 // SCIM JSON wire types (RFC 7643 / 7644)
 // ---------------------------------------------------------------------------
 
 type scimListResponse struct {
-	Schemas      []string        `json:"schemas"`
-	TotalResults int             `json:"totalResults"`
-	StartIndex   int             `json:"startIndex"`
-	ItemsPerPage int             `json:"itemsPerPage"`
-	Resources    []scimUserRepr  `json:"Resources"`
+	Schemas      []string       `json:"schemas"`
+	TotalResults int            `json:"totalResults"`
+	StartIndex   int            `json:"startIndex"`
+	ItemsPerPage int            `json:"itemsPerPage"`
+	Resources    []scimUserRepr `json:"Resources"`
 }
 
 type scimUserRepr struct {
-	Schemas    []string       `json:"schemas"`
-	ID         string         `json:"id"`
-	ExternalID string         `json:"externalId,omitempty"`
-	UserName   string         `json:"userName"`
-	Name       *scimName      `json:"name,omitempty"`
-	DisplayName string        `json:"displayName,omitempty"`
-	Emails     []scimEmail    `json:"emails,omitempty"`
-	Active     bool           `json:"active"`
-	Meta       scimMeta       `json:"meta"`
+	Schemas     []string    `json:"schemas"`
+	ID          string      `json:"id"`
+	ExternalID  string      `json:"externalId,omitempty"`
+	UserName    string      `json:"userName"`
+	Name        *scimName   `json:"name,omitempty"`
+	DisplayName string      `json:"displayName,omitempty"`
+	Emails      []scimEmail `json:"emails,omitempty"`
+	Active      bool        `json:"active"`
+	Meta        scimMeta    `json:"meta"`
 }
 
 type scimName struct {
@@ -100,8 +66,8 @@ type scimCreateRequest struct {
 }
 
 type scimPatchRequest struct {
-	Schemas    []string     `json:"schemas"`
-	Operations []SCIMPatchOp `json:"Operations"`
+	Schemas    []string           `json:"schemas"`
+	Operations []scimcore.PatchOp `json:"Operations"`
 }
 
 type scimError struct {
@@ -110,18 +76,22 @@ type scimError struct {
 	Status  int      `json:"status"`
 }
 
-// ---------------------------------------------------------------------------
-// Mapping helpers
-// ---------------------------------------------------------------------------
-
 const (
-	scimUserSchema    = "urn:ietf:params:scim:schemas:core:2.0:User"
-	scimListSchema    = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
-	scimPatchSchema   = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
-	scimErrorSchema   = "urn:ietf:params:scim:api:messages:2.0:Error"
+	scimUserSchema  = "urn:ietf:params:scim:schemas:core:2.0:User"
+	scimListSchema  = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+	scimPatchSchema = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+	scimErrorSchema = "urn:ietf:params:scim:api:messages:2.0:Error"
 )
 
-func recordToSCIM(rec SCIMUserRecord) scimUserRepr {
+func recordToSCIM(rec scimcore.UserRecord) scimUserRepr {
+	createdAt := ""
+	if !rec.CreatedAt.IsZero() {
+		createdAt = rec.CreatedAt.Format(time.RFC3339)
+	}
+	updatedAt := createdAt
+	if !rec.UpdatedAt.IsZero() {
+		updatedAt = rec.UpdatedAt.Format(time.RFC3339)
+	}
 	r := scimUserRepr{
 		Schemas:     []string{scimUserSchema},
 		ID:          rec.ID,
@@ -131,8 +101,8 @@ func recordToSCIM(rec SCIMUserRecord) scimUserRepr {
 		Active:      rec.Active,
 		Meta: scimMeta{
 			ResourceType: "User",
-			Created:      rec.CreatedAt.Format(time.RFC3339),
-			LastModified: rec.UpdatedAt.Format(time.RFC3339),
+			Created:      createdAt,
+			LastModified: updatedAt,
 		},
 	}
 	if rec.Email != "" {
@@ -160,10 +130,6 @@ func writeSCIMJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// ---------------------------------------------------------------------------
-// Handlers
-// ---------------------------------------------------------------------------
-
 func extractSCIMBearer(r *http.Request) string {
 	header := strings.TrimSpace(r.Header.Get("Authorization"))
 	if !strings.HasPrefix(header, "Bearer ") {
@@ -172,17 +138,43 @@ func extractSCIMBearer(r *http.Request) string {
 	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 }
 
-// handleSCIMListUsers handles GET /api/scim/v2/Users.
-func handleSCIMListUsers(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerFunc {
+func scimOrganizationID(ctx context.Context) string {
+	orgID, _ := ctx.Value(scimOrganizationContextKey{}).(string)
+	return strings.TrimSpace(orgID)
+}
+
+func withSCIMOrganization(r *http.Request, orgID string) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), scimOrganizationContextKey{}, strings.TrimSpace(orgID)))
+}
+
+func scimOrgAdminGuard(catalog controlplane.CatalogStore, authorize authFunc, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := extractSCIMBearer(r)
-		if token == "" {
+		if extractSCIMBearer(r) == "" {
 			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
 			return
 		}
-		orgID, err := auth(r.Context(), token)
+		if !authorize(w, r) {
+			return
+		}
+		org, err := catalog.GetOrganization(r.Context(), PathParam(r, "org_slug"))
 		if err != nil {
-			writeSCIMError(w, http.StatusUnauthorized, "Invalid bearer token.")
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to load organization.")
+			return
+		}
+		if org == nil {
+			writeSCIMError(w, http.StatusNotFound, "Organization not found.")
+			return
+		}
+		next.ServeHTTP(w, withSCIMOrganization(r, org.ID))
+	}
+}
+
+// handleSCIMListUsers handles GET /api/0/organizations/{org_slug}/scim/v2/Users.
+func handleSCIMListUsers(store scimcore.UserStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
 			return
 		}
 
@@ -202,7 +194,7 @@ func handleSCIMListUsers(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerF
 		}
 		filter := r.URL.Query().Get("filter")
 
-		records, total, err := store.SCIMListUsers(r.Context(), orgID, startIndex, count, filter)
+		records, total, err := store.ListUsers(r.Context(), orgID, startIndex, count, filter)
 		if err != nil {
 			writeSCIMError(w, http.StatusInternalServerError, "Failed to list users.")
 			return
@@ -222,22 +214,16 @@ func handleSCIMListUsers(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerF
 	}
 }
 
-// handleSCIMGetUser handles GET /api/scim/v2/Users/{id}.
-func handleSCIMGetUser(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerFunc {
+// handleSCIMGetUser handles GET /api/0/organizations/{org_slug}/scim/v2/Users/{id}.
+func handleSCIMGetUser(store scimcore.UserStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := extractSCIMBearer(r)
-		if token == "" {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
 			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
 			return
 		}
-		orgID, err := auth(r.Context(), token)
-		if err != nil {
-			writeSCIMError(w, http.StatusUnauthorized, "Invalid bearer token.")
-			return
-		}
 
-		userID := PathParam(r, "id")
-		rec, err := store.SCIMGetUser(r.Context(), orgID, userID)
+		rec, err := store.GetUser(r.Context(), orgID, PathParam(r, "id"))
 		if err != nil {
 			writeSCIMError(w, http.StatusInternalServerError, "Failed to get user.")
 			return
@@ -250,17 +236,12 @@ func handleSCIMGetUser(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerFun
 	}
 }
 
-// handleSCIMCreateUser handles POST /api/scim/v2/Users.
-func handleSCIMCreateUser(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerFunc {
+// handleSCIMCreateUser handles POST /api/0/organizations/{org_slug}/scim/v2/Users.
+func handleSCIMCreateUser(store scimcore.UserStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := extractSCIMBearer(r)
-		if token == "" {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
 			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
-			return
-		}
-		orgID, err := auth(r.Context(), token)
-		if err != nil {
-			writeSCIMError(w, http.StatusUnauthorized, "Invalid bearer token.")
 			return
 		}
 
@@ -270,7 +251,6 @@ func handleSCIMCreateUser(store SCIMUserStore, auth SCIMBearerAuth) http.Handler
 			return
 		}
 
-		// Resolve primary email.
 		email := strings.TrimSpace(body.UserName)
 		if email == "" {
 			for _, e := range body.Emails {
@@ -289,7 +269,7 @@ func handleSCIMCreateUser(store SCIMUserStore, auth SCIMBearerAuth) http.Handler
 			active = *body.Active
 		}
 
-		rec := SCIMUserRecord{
+		rec := scimcore.UserRecord{
 			ExternalID:  strings.TrimSpace(body.ExternalID),
 			Email:       email,
 			DisplayName: strings.TrimSpace(body.DisplayName),
@@ -299,13 +279,11 @@ func handleSCIMCreateUser(store SCIMUserStore, auth SCIMBearerAuth) http.Handler
 			rec.GivenName = strings.TrimSpace(body.Name.GivenName)
 			rec.FamilyName = strings.TrimSpace(body.Name.FamilyName)
 		}
-		if rec.DisplayName == "" && (rec.GivenName != "" || rec.FamilyName != "") {
-			rec.DisplayName = strings.TrimSpace(rec.GivenName + " " + rec.FamilyName)
-		}
+		scimcore.NormalizeUserRecord(&rec)
 
-		created, err := store.SCIMCreateUser(r.Context(), orgID, rec)
+		created, err := store.CreateUser(r.Context(), orgID, rec)
 		if err != nil {
-			if strings.Contains(err.Error(), "conflict") || strings.Contains(err.Error(), "duplicate") {
+			if strings.Contains(strings.ToLower(err.Error()), "conflict") || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 				writeSCIMError(w, http.StatusConflict, "User already exists.")
 				return
 			}
@@ -316,36 +294,28 @@ func handleSCIMCreateUser(store SCIMUserStore, auth SCIMBearerAuth) http.Handler
 	}
 }
 
-// handleSCIMPatchUser handles PATCH /api/scim/v2/Users/{id}.
-func handleSCIMPatchUser(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerFunc {
+// handleSCIMPatchUser handles PATCH /api/0/organizations/{org_slug}/scim/v2/Users/{id}.
+func handleSCIMPatchUser(store scimcore.UserStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := extractSCIMBearer(r)
-		if token == "" {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
 			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
 			return
 		}
-		orgID, err := auth(r.Context(), token)
-		if err != nil {
-			writeSCIMError(w, http.StatusUnauthorized, "Invalid bearer token.")
-			return
-		}
-
-		userID := PathParam(r, "id")
 
 		var body scimPatchRequest
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeSCIMError(w, http.StatusBadRequest, "Invalid JSON body.")
 			return
 		}
-
 		if len(body.Operations) == 0 {
 			writeSCIMError(w, http.StatusBadRequest, "At least one operation is required.")
 			return
 		}
 
-		updated, err := store.SCIMPatchUser(r.Context(), orgID, userID, body.Operations)
+		updated, err := store.PatchUser(r.Context(), orgID, PathParam(r, "id"), body.Operations)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if strings.Contains(strings.ToLower(err.Error()), "not found") {
 				writeSCIMError(w, http.StatusNotFound, "User not found.")
 				return
 			}
@@ -356,18 +326,13 @@ func handleSCIMPatchUser(store SCIMUserStore, auth SCIMBearerAuth) http.HandlerF
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Route registration
-// ---------------------------------------------------------------------------
-
-// RegisterSCIMRoutes registers SCIM 2.0 /Users endpoints on the given mux.
-// The auth callback resolves a bearer token to an org ID.
-func RegisterSCIMRoutes(mux *http.ServeMux, store SCIMUserStore, auth SCIMBearerAuth) {
-	if store == nil || auth == nil {
+// RegisterSCIMRoutes registers org-scoped SCIM 2.0 /Users endpoints on the given mux.
+func RegisterSCIMRoutes(mux *http.ServeMux, catalog controlplane.CatalogStore, store scimcore.UserStore, authorize authFunc) {
+	if mux == nil || catalog == nil || store == nil || authorize == nil {
 		return
 	}
-	mux.Handle("GET /api/scim/v2/Users", handleSCIMListUsers(store, auth))
-	mux.Handle("POST /api/scim/v2/Users", handleSCIMCreateUser(store, auth))
-	mux.Handle("GET /api/scim/v2/Users/{id}", handleSCIMGetUser(store, auth))
-	mux.Handle("PATCH /api/scim/v2/Users/{id}", handleSCIMPatchUser(store, auth))
+	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Users", scimOrgAdminGuard(catalog, authorize, handleSCIMListUsers(store)))
+	mux.Handle("POST /api/0/organizations/{org_slug}/scim/v2/Users", scimOrgAdminGuard(catalog, authorize, handleSCIMCreateUser(store)))
+	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Users/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMGetUser(store)))
+	mux.Handle("PATCH /api/0/organizations/{org_slug}/scim/v2/Users/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMPatchUser(store)))
 }

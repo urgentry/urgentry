@@ -12,6 +12,7 @@ import (
 	"urgentry/internal/controlplane"
 	"urgentry/internal/integration"
 	"urgentry/internal/proguard"
+	scimcore "urgentry/internal/scim"
 	"urgentry/internal/sourcemap"
 	"urgentry/internal/sqlite"
 	"urgentry/internal/store"
@@ -58,6 +59,7 @@ type Dependencies struct {
 	FeedbackStore       *sqlite.FeedbackStore
 	Detectors           store.DetectorStore
 	Workflows           store.WorkflowStore
+	SCIMUsers           scimcore.UserStore
 	ExternalUsers       store.ExternalUserStore
 	OrgForwarders       store.OrgForwarderStore
 	NotificationActions *sqlite.NotificationActionStore
@@ -112,6 +114,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	control := deps.Control
 	queryGuard := deps.QueryGuard
 	queries := deps.Queries
+	scimUsers := deps.SCIMUsers
 	principalShadows := deps.PrincipalShadows
 	tokenManager := deps.TokenManager
 	baseAuth := deps.Auth.API
@@ -122,6 +125,11 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 				*r = *r.WithContext(context.WithValue(r.Context(), catalogContextKey{}, control.Catalog))
 			}
 			return check(w, r)
+		}
+	}
+	if scimUsers == nil {
+		if candidate, ok := any(control.Admin).(scimcore.UserStore); ok {
+			scimUsers = candidate
 		}
 	}
 
@@ -166,6 +174,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/organizations/{org_slug}/members/{member_id}/", handleGetOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("PUT /api/0/organizations/{org_slug}/members/{member_id}/", handleUpdateOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/members/{member_id}/", handleRemoveOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	RegisterSCIMRoutes(mux, control.Catalog, scimUsers, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath}))
 	mux.Handle("POST /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleAddMemberToTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleRemoveMemberFromTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/user-teams/", handleListUserTeams(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))

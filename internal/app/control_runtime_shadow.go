@@ -9,6 +9,7 @@ import (
 	"urgentry/internal/auth"
 	"urgentry/internal/controlplane"
 	"urgentry/internal/postgrescontrol"
+	scimcore "urgentry/internal/scim"
 	"urgentry/internal/sqlite"
 )
 
@@ -218,6 +219,38 @@ func (s *shadowingAdminStore) UpdateProjectMemberRole(ctx context.Context, orgSl
 
 func (s *shadowingAdminStore) AddProjectMember(ctx context.Context, orgSlug, projectSlug, userID, role string) (*controlplane.ProjectMemberRecord, error) {
 	return s.base.AddProjectMember(ctx, orgSlug, projectSlug, userID, role)
+}
+
+func (s *shadowingAdminStore) ListUsers(ctx context.Context, orgID string, startIndex, count int, filter string) ([]scimcore.UserRecord, int, error) {
+	store, ok := s.base.(scimcore.UserStore)
+	if !ok {
+		return []scimcore.UserRecord{}, 0, fmt.Errorf("scim user store unavailable")
+	}
+	return store.ListUsers(ctx, orgID, startIndex, count, filter)
+}
+
+func (s *shadowingAdminStore) GetUser(ctx context.Context, orgID, userID string) (*scimcore.UserRecord, error) {
+	store, ok := s.base.(scimcore.UserStore)
+	if !ok {
+		return nil, fmt.Errorf("scim user store unavailable")
+	}
+	return store.GetUser(ctx, orgID, userID)
+}
+
+func (s *shadowingAdminStore) CreateUser(ctx context.Context, orgID string, user scimcore.UserRecord) (*scimcore.UserRecord, error) {
+	store, ok := s.base.(scimcore.UserStore)
+	if !ok {
+		return nil, fmt.Errorf("scim user store unavailable")
+	}
+	return store.CreateUser(ctx, orgID, user)
+}
+
+func (s *shadowingAdminStore) PatchUser(ctx context.Context, orgID, userID string, ops []scimcore.PatchOp) (*scimcore.UserRecord, error) {
+	store, ok := s.base.(scimcore.UserStore)
+	if !ok {
+		return nil, fmt.Errorf("scim user store unavailable")
+	}
+	return store.PatchUser(ctx, orgID, userID, ops)
 }
 
 func (s *shadowingAdminStore) ListTeamProjects(ctx context.Context, orgSlug, teamSlug string) ([]controlplane.TeamProjectRecord, error) {
