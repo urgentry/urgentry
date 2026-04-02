@@ -133,6 +133,9 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		}
 	}
 
+	// Root capabilities
+	mux.Handle("GET /api/0/", handleRootCapabilities())
+
 	// Organizations
 	mux.Handle("GET /api/0/organizations/", handleListOrgs(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceAnyMembership})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/", handleGetOrg(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))

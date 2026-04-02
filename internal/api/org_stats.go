@@ -13,6 +13,30 @@ import (
 	"urgentry/internal/sqlite"
 )
 
+// handleRootCapabilities returns the API root with version and capabilities.
+func handleRootCapabilities() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{
+			"version": "0",
+			"auth": map[string]any{
+				"login": map[string]string{
+					"url": "/auth/login/",
+				},
+			},
+			"user": nil,
+			"features": map[string]bool{
+				"organizations:discover":   true,
+				"organizations:events":     true,
+				"organizations:monitors":   true,
+				"organizations:replays":    true,
+				"organizations:profiles":   true,
+				"organizations:dashboards": true,
+				"organizations:alerts":     true,
+			},
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/0/organizations/{org_slug}/events-timeseries/
 // ---------------------------------------------------------------------------
