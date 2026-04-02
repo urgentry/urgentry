@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -28,6 +29,19 @@ type ReplayViewer struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email,omitempty"`
+}
+
+func deleteReplayManifestTx(ctx context.Context, tx *sql.Tx, manifestID string) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM replay_timeline_items WHERE manifest_id = ?`, manifestID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM replay_assets WHERE manifest_id = ?`, manifestID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM replay_manifests WHERE id = ?`, manifestID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // handleListOrgReplays lists replays across all projects in an organization.
@@ -144,6 +158,7 @@ func handleDeleteOrgReplay(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
 			return
 		}
+		defer func() { _ = tx.Rollback() }()
 		var manifestID string
 		err = tx.QueryRowContext(r.Context(),
 			`SELECT rm.id FROM replay_manifests rm
@@ -160,10 +175,7 @@ func handleDeleteOrgReplay(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
 			return
 		}
-		tx.ExecContext(r.Context(), `DELETE FROM replay_timeline_items WHERE manifest_id = ?`, manifestID)
-		tx.ExecContext(r.Context(), `DELETE FROM replay_assets WHERE manifest_id = ?`, manifestID)
-		tx.ExecContext(r.Context(), `DELETE FROM replay_manifests WHERE id = ?`, manifestID)
-		if err := tx.Commit(); err != nil {
+		if err := deleteReplayManifestTx(r.Context(), tx, manifestID); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
 			return
 		}
@@ -287,6 +299,7 @@ func handleDeleteReplay(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
 			return
 		}
+		defer func() { _ = tx.Rollback() }()
 		var manifestID string
 		err = tx.QueryRowContext(r.Context(),
 			`SELECT id FROM replay_manifests WHERE project_id = ? AND replay_id = ?`,
@@ -301,10 +314,7 @@ func handleDeleteReplay(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
 			return
 		}
-		tx.ExecContext(r.Context(), `DELETE FROM replay_timeline_items WHERE manifest_id = ?`, manifestID)
-		tx.ExecContext(r.Context(), `DELETE FROM replay_assets WHERE manifest_id = ?`, manifestID)
-		tx.ExecContext(r.Context(), `DELETE FROM replay_manifests WHERE id = ?`, manifestID)
-		if err := tx.Commit(); err != nil {
+		if err := deleteReplayManifestTx(r.Context(), tx, manifestID); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
 			return
 		}
