@@ -29,14 +29,18 @@ func handleListReleases(catalog controlplane.CatalogStore, releases controlplane
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list releases.")
 			return
 		}
+		versions := make([]string, 0, len(rows))
+		for _, row := range rows {
+			versions = append(versions, row.Version)
+		}
+		summaries, err := native.ReleaseSummaries(r.Context(), orgRecord.ID, versions)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to summarize release.")
+			return
+		}
 		releases := make([]*Release, 0, len(rows))
 		for _, row := range rows {
-			summary, err := native.ReleaseSummary(r.Context(), orgRecord.ID, row.Version)
-			if err != nil {
-				httputil.WriteError(w, http.StatusInternalServerError, "Failed to summarize release.")
-				return
-			}
-			releases = append(releases, mapRelease(row, org, summary))
+			releases = append(releases, mapRelease(row, org, summaries[row.Version]))
 		}
 		page := Paginate(w, r, releases)
 		if page == nil {

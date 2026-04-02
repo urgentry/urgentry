@@ -74,3 +74,56 @@ func TestNativeControlStoreReleaseSummaryAndDebugFiles(t *testing.T) {
 		t.Fatalf("unexpected scoped runs: %+v", runs)
 	}
 }
+
+func TestNativeControlStoreReleaseSummaries(t *testing.T) {
+	db := openStoreTestDB(t)
+	seedReleaseHealthProject(t, db, "org-1", "acme", "proj-1", "mobile")
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	if _, err := db.Exec(
+		`INSERT INTO events
+			(id, project_id, event_id, group_id, release, environment, platform, level, event_type, title, message, culprit, occurred_at, ingested_at, tags_json, payload_json, processing_status, ingest_error)
+		 VALUES
+			('evt-native-ios', 'proj-1', 'evt-native-ios', 'grp-1', 'ios@1.2.3', 'production', 'cocoa', 'fatal', 'error', 'iOS crash', 'boom', 'App', ?, ?, '{}',
+			 '{"event_id":"evt-native-ios","release":"ios@1.2.3","exception":{"values":[{"stacktrace":{"frames":[{"instruction_addr":"0x1010","debug_id":"debug-1","package":"code-1","filename":"src/AppDelegate.swift","function":"main"}]}}]}}',
+			 'completed', ''),
+			('evt-native-android', 'proj-1', 'evt-native-android', 'grp-2', 'android@2.0.0', 'production', 'android', 'fatal', 'error', 'Android crash', 'boom', 'App', ?, ?, '{}',
+			 '{"event_id":"evt-native-android","release":"android@2.0.0","exception":{"values":[{"stacktrace":{"frames":[{"instruction_addr":"0x2020","package":"libapp.so","function":"main"}]}}]}}',
+			 'failed', 'stackwalk failed')`,
+		now.Format(time.RFC3339), now.Format(time.RFC3339),
+		now.Add(time.Minute).Format(time.RFC3339), now.Add(time.Minute).Format(time.RFC3339),
+	); err != nil {
+		t.Fatalf("insert native events: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO backfill_runs
+			(id, kind, status, organization_id, project_id, release_version, debug_file_id, cursor_rowid, total_items, processed_items, updated_items, failed_items, requested_via, last_error, created_at, updated_at)
+		 VALUES
+			('run-native-ios', 'native_reprocess', 'completed', 'org-1', 'proj-1', 'ios@1.2.3', '', 0, 1, 1, 1, 0, 'test', '', ?, ?),
+			('run-native-android', 'native_reprocess', 'failed', 'org-1', NULL, 'android@2.0.0', '', 0, 1, 1, 0, 1, 'test', 'stackwalk failed', ?, ?)`,
+		now.Format(time.RFC3339), now.Format(time.RFC3339),
+		now.Add(time.Minute).Format(time.RFC3339), now.Add(time.Minute).Format(time.RFC3339),
+	); err != nil {
+		t.Fatalf("insert native runs: %v", err)
+	}
+
+	control := NewNativeControlStore(db, nil, nil)
+	summaries, err := control.ReleaseSummaries(ctx, "org-1", []string{"ios@1.2.3", "android@2.0.0"})
+	if err != nil {
+		t.Fatalf("ReleaseSummaries: %v", err)
+	}
+	if len(summaries) != 2 {
+		t.Fatalf("len(summaries) = %d, want 2", len(summaries))
+	}
+
+	ios := summaries["ios@1.2.3"]
+	if ios.TotalEvents != 1 || ios.ResolvedFrames != 1 || ios.LastRunStatus != "completed" {
+		t.Fatalf("unexpected ios summary: %+v", ios)
+	}
+
+	android := summaries["android@2.0.0"]
+	if android.TotalEvents != 1 || android.FailedEvents != 1 || android.LastError != "stackwalk failed" || android.LastRunStatus != "failed" {
+		t.Fatalf("unexpected android summary: %+v", android)
+	}
+}

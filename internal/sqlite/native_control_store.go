@@ -115,37 +115,65 @@ func (s *NativeControlStore) CreateRun(ctx context.Context, in CreateNativeRepro
 }
 
 func (s *NativeControlStore) ReleaseSummary(ctx context.Context, organizationID, releaseVersion string) (NativeReleaseSummary, error) {
-	summary := NativeReleaseSummary{
-		OrganizationID: organizationID,
-		ReleaseVersion: strings.TrimSpace(releaseVersion),
+	releaseVersion = strings.TrimSpace(releaseVersion)
+	summaries, err := s.ReleaseSummaries(ctx, organizationID, []string{releaseVersion})
+	if err != nil {
+		return summaries[releaseVersion], err
+	}
+	return summaries[releaseVersion], nil
+}
+
+func (s *NativeControlStore) ReleaseSummaries(ctx context.Context, organizationID string, releaseVersions []string) (map[string]NativeReleaseSummary, error) {
+	summaries := make(map[string]NativeReleaseSummary, len(releaseVersions))
+	versions := make([]string, 0, len(releaseVersions))
+	seen := make(map[string]bool, len(releaseVersions))
+	for _, releaseVersion := range releaseVersions {
+		releaseVersion = strings.TrimSpace(releaseVersion)
+		if releaseVersion == "" || seen[releaseVersion] {
+			continue
+		}
+		seen[releaseVersion] = true
+		versions = append(versions, releaseVersion)
+		summaries[releaseVersion] = NativeReleaseSummary{
+			OrganizationID: organizationID,
+			ReleaseVersion: releaseVersion,
+		}
 	}
 	if s == nil || s.db == nil {
-		return summary, errors.New("native control store is not configured")
+		return summaries, errors.New("native control store is not configured")
 	}
+	if len(versions) == 0 {
+		return summaries, nil
+	}
+
+	eventArgs := make([]any, 0, len(versions)+1)
+	eventArgs = append(eventArgs, organizationID)
+	eventArgs = append(eventArgs, stringArgs(versions)...)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT e.project_id, COALESCE(e.processing_status, 'completed'), COALESCE(e.ingest_error, ''), COALESCE(e.payload_json, '')
+		`SELECT COALESCE(e.release, ''), e.project_id, COALESCE(e.processing_status, 'completed'), COALESCE(e.ingest_error, ''), COALESCE(e.payload_json, '')
 		   FROM events e
 		   JOIN projects p ON p.id = e.project_id
 		  WHERE p.organization_id = ?
-		    AND COALESCE(e.release, '') = ?
+		    AND COALESCE(e.release, '') IN (`+placeholders(len(versions))+`)
 		    AND COALESCE(e.event_type, 'error') = 'error'
 		    AND (
 		          instr(COALESCE(e.payload_json, ''), '"instruction_addr"') > 0
 		       OR instr(COALESCE(e.payload_json, ''), '"debug_id"') > 0
 		       OR instr(COALESCE(e.payload_json, ''), '"code_id"') > 0
 		    )
-		  ORDER BY COALESCE(e.ingested_at, e.occurred_at, '') DESC, e.id DESC`,
-		organizationID, summary.ReleaseVersion,
+		  ORDER BY COALESCE(e.release, '') ASC, COALESCE(e.ingested_at, e.occurred_at, '') DESC, e.id DESC`,
+		eventArgs...,
 	)
 	if err != nil {
-		return summary, fmt.Errorf("list native release events: %w", err)
+		return summaries, fmt.Errorf("list native release events: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var projectID, status, ingestError, payload string
-		if err := rows.Scan(&projectID, &status, &ingestError, &payload); err != nil {
-			return summary, fmt.Errorf("scan native release event: %w", err)
+		var releaseVersion, projectID, status, ingestError, payload string
+		if err := rows.Scan(&releaseVersion, &projectID, &status, &ingestError, &payload); err != nil {
+			return summaries, fmt.Errorf("scan native release event: %w", err)
 		}
+		summary := summaries[releaseVersion]
 		if summary.ProjectID == "" {
 			summary.ProjectID = projectID
 		}
@@ -166,15 +194,45 @@ func (s *NativeControlStore) ReleaseSummary(ctx context.Context, organizationID,
 		if summary.LastError == "" && strings.TrimSpace(ingestError) != "" {
 			summary.LastError = strings.TrimSpace(ingestError)
 		}
+		summaries[releaseVersion] = summary
 	}
 	if err := rows.Err(); err != nil {
-		return summary, fmt.Errorf("iterate native release events: %w", err)
+		return summaries, fmt.Errorf("iterate native release events: %w", err)
 	}
-	run, err := NewBackfillStore(s.db).LatestScopedRun(ctx, organizationID, "", summary.ReleaseVersion, "")
+
+	runArgs := make([]any, 0, len(versions)+2)
+	runArgs = append(runArgs, organizationID, string(BackfillKindNativeReprocess))
+	runArgs = append(runArgs, stringArgs(versions)...)
+	runRows, err := s.db.QueryContext(ctx,
+		`SELECT id, kind, status, organization_id, COALESCE(project_id, ''), COALESCE(release_version, ''),
+		        COALESCE(debug_file_id, ''), COALESCE(started_after, ''), COALESCE(ended_before, ''), cursor_rowid,
+		        total_items, processed_items, updated_items, failed_items,
+		        COALESCE(requested_by_user_id, ''), COALESCE(requested_via, ''), COALESCE(worker_id, ''),
+		        COALESCE(last_error, ''), created_at, COALESCE(started_at, ''), COALESCE(finished_at, ''),
+		        updated_at, COALESCE(lease_until, '')
+		   FROM (
+		        SELECT id, kind, status, organization_id, project_id, release_version, debug_file_id, started_after, ended_before, cursor_rowid,
+		               total_items, processed_items, updated_items, failed_items, requested_by_user_id, requested_via, worker_id,
+		               last_error, created_at, started_at, finished_at, updated_at, lease_until,
+		               ROW_NUMBER() OVER (PARTITION BY COALESCE(release_version, '') ORDER BY created_at DESC, id DESC) AS rn
+		          FROM backfill_runs
+		         WHERE organization_id = ?
+		           AND kind = ?
+		           AND COALESCE(release_version, '') IN (`+placeholders(len(versions))+`)
+		   )
+		  WHERE rn = 1`,
+		runArgs...,
+	)
 	if err != nil {
-		return summary, err
+		return summaries, fmt.Errorf("list latest native release runs: %w", err)
 	}
-	if run != nil {
+	defer runRows.Close()
+	for runRows.Next() {
+		run, err := scanBackfillRun(runRows)
+		if err != nil {
+			return summaries, err
+		}
+		summary := summaries[run.ReleaseVersion]
 		summary.LastRunID = run.ID
 		summary.LastRunStatus = string(run.Status)
 		summary.LastRunLastError = run.LastError
@@ -182,8 +240,12 @@ func (s *NativeControlStore) ReleaseSummary(ctx context.Context, organizationID,
 		summary.LastRunProcessed = run.ProcessedItems
 		summary.LastRunUpdatedItems = run.UpdatedItems
 		summary.LastRunFailedItems = run.FailedItems
+		summaries[run.ReleaseVersion] = summary
 	}
-	return summary, nil
+	if err := runRows.Err(); err != nil {
+		return summaries, fmt.Errorf("iterate latest native release runs: %w", err)
+	}
+	return summaries, nil
 }
 
 func (s *NativeControlStore) ListReleaseDebugFiles(ctx context.Context, organizationID, projectID, releaseVersion string) ([]DebugFileProcessing, error) {
