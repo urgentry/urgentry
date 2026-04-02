@@ -102,6 +102,9 @@ func (f *fakeAdminStore) ListTeamProjects(context.Context, string, string) ([]co
 func (f *fakeAdminStore) ListUserTeams(context.Context, string, string) ([]*controlplane.TeamRecord, error) {
 	return nil, nil
 }
+func (f *fakeAdminStore) ListOrgMemberTeams(context.Context, string) (map[string][]string, error) {
+	return nil, nil
+}
 func (f *fakeAdminStore) AddMemberToTeamByMemberID(context.Context, string, string, string) (*controlplane.TeamMemberRecord, error) {
 	return nil, nil
 }

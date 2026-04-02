@@ -18,6 +18,7 @@ type AdminStore interface {
 	RemoveTeamMember(ctx context.Context, orgSlug, teamSlug, userID string) (bool, error)
 	ListTeamProjects(ctx context.Context, orgSlug, teamSlug string) ([]TeamProjectRecord, error)
 	ListUserTeams(ctx context.Context, orgSlug, userID string) ([]*TeamRecord, error)
+	ListOrgMemberTeams(ctx context.Context, orgSlug string) (map[string][]string, error)
 	AddMemberToTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (*TeamMemberRecord, error)
 	RemoveMemberFromTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (bool, error)
 	ListInvites(ctx context.Context, orgSlug string) ([]*InviteRecord, error)

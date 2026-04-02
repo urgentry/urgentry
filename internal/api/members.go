@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"net/http"
 	"sort"
 	"strings"
@@ -99,14 +98,13 @@ func handleListOrgMembers(admin controlplane.AdminStore, auth authFunc) http.Han
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization members.")
 			return
 		}
-		teamCache := map[string][]string{}
+		teamsByUser, err := admin.ListOrgMemberTeams(r.Context(), orgSlug)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization members.")
+			return
+		}
 		members := make([]*OrganizationMemberListEntry, 0, len(items)+len(invites))
 		for _, item := range items {
-			teams, err := orgMemberTeams(r.Context(), admin, orgSlug, item.UserID, teamCache)
-			if err != nil {
-				httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization members.")
-				return
-			}
 			members = append(members, &OrganizationMemberListEntry{
 				ID:             item.ID,
 				UserID:         item.UserID,
@@ -114,7 +112,7 @@ func handleListOrgMembers(admin controlplane.AdminStore, auth authFunc) http.Han
 				Email:          item.Email,
 				Name:           item.Name,
 				Role:           item.Role,
-				Teams:          teams,
+				Teams:          append([]string(nil), teamsByUser[item.UserID]...),
 				DateCreated:    item.CreatedAt,
 			})
 		}
@@ -146,28 +144,6 @@ func handleListOrgMembers(admin controlplane.AdminStore, auth authFunc) http.Han
 		}
 		httputil.WriteJSON(w, http.StatusOK, members)
 	}
-}
-
-func orgMemberTeams(ctx context.Context, admin controlplane.AdminStore, orgSlug, userID string, cache map[string][]string) ([]string, error) {
-	if userID == "" {
-		return nil, nil
-	}
-	if teams, ok := cache[userID]; ok {
-		return teams, nil
-	}
-	items, err := admin.ListUserTeams(ctx, orgSlug, userID)
-	if err != nil {
-		return nil, err
-	}
-	teams := make([]string, 0, len(items))
-	for _, item := range items {
-		if item == nil || strings.TrimSpace(item.Slug) == "" {
-			continue
-		}
-		teams = append(teams, item.Slug)
-	}
-	cache[userID] = teams
-	return teams, nil
 }
 
 // handleRemoveOrgMember handles DELETE /api/0/organizations/{org_slug}/members/{member_id}/.

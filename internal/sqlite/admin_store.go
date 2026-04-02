@@ -654,6 +654,35 @@ func (s *AdminStore) ListUserTeams(ctx context.Context, orgSlug, userID string) 
 	return teams, rows.Err()
 }
 
+func (s *AdminStore) ListOrgMemberTeams(ctx context.Context, orgSlug string) (map[string][]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT tm.user_id, t.slug
+		 FROM teams t
+		 JOIN organizations o ON o.id = t.organization_id
+		 JOIN team_members tm ON tm.team_id = t.id
+		 WHERE o.slug = ?
+		 ORDER BY t.created_at ASC, t.slug ASC`,
+		orgSlug,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	teamsByUser := map[string][]string{}
+	for rows.Next() {
+		var userID, teamSlug string
+		if err := rows.Scan(&userID, &teamSlug); err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(userID) == "" || strings.TrimSpace(teamSlug) == "" {
+			continue
+		}
+		teamsByUser[userID] = append(teamsByUser[userID], teamSlug)
+	}
+	return teamsByUser, rows.Err()
+}
+
 // AddMemberToTeamByMemberID adds an org member (by org membership ID) to a team.
 func (s *AdminStore) AddMemberToTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (*TeamMemberRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)

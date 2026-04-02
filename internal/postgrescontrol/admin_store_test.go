@@ -180,6 +180,43 @@ func TestAdminStoreInviteLifecycle(t *testing.T) {
 	}
 }
 
+func TestAdminStoreListOrgMemberTeams(t *testing.T) {
+	t.Parallel()
+
+	db := openMigratedControlDB(t)
+	ctx := context.Background()
+
+	seedOrganization(t, db, "org-1", "acme", "Acme")
+	seedOrganization(t, db, "org-2", "other", "Other")
+	seedTeam(t, db, "team-1", "org-1", "backend", "Backend")
+	seedTeam(t, db, "team-2", "org-1", "ops", "Operations")
+	seedTeam(t, db, "team-3", "org-2", "mobile", "Mobile")
+	seedUser(t, db, "user-1", "owner@example.com", "Owner")
+	seedUser(t, db, "user-2", "other@example.com", "Other")
+	now := time.Now().UTC()
+	if _, err := db.Exec(
+		`INSERT INTO team_members (id, team_id, user_id, role, created_at) VALUES
+			('tm-1', 'team-1', 'user-1', 'member', $1),
+			('tm-2', 'team-2', 'user-1', 'member', $1),
+			('tm-3', 'team-3', 'user-2', 'member', $1)`,
+		now,
+	); err != nil {
+		t.Fatalf("insert team members: %v", err)
+	}
+
+	store := NewAdminStore(db)
+	teamsByUser, err := store.ListOrgMemberTeams(ctx, "acme")
+	if err != nil {
+		t.Fatalf("ListOrgMemberTeams: %v", err)
+	}
+	if len(teamsByUser["user-1"]) != 2 || teamsByUser["user-1"][0] != "backend" || teamsByUser["user-1"][1] != "ops" {
+		t.Fatalf("unexpected org teams: %+v", teamsByUser)
+	}
+	if _, ok := teamsByUser["user-2"]; ok {
+		t.Fatalf("unexpected foreign-org teams: %+v", teamsByUser)
+	}
+}
+
 func openMigratedControlDB(t *testing.T) *sql.DB {
 	t.Helper()
 	return openMigratedTestDatabase(t)

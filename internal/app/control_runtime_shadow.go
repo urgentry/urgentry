@@ -267,6 +267,9 @@ func (s *shadowingAdminStore) ListTeamProjects(ctx context.Context, orgSlug, tea
 func (s *shadowingAdminStore) ListUserTeams(ctx context.Context, orgSlug, userID string) ([]*controlplane.TeamRecord, error) {
 	return s.base.ListUserTeams(ctx, orgSlug, userID)
 }
+func (s *shadowingAdminStore) ListOrgMemberTeams(ctx context.Context, orgSlug string) (map[string][]string, error) {
+	return s.base.ListOrgMemberTeams(ctx, orgSlug)
+}
 func (s *shadowingAdminStore) AddMemberToTeamByMemberID(ctx context.Context, orgSlug, memberID, teamSlug string) (*controlplane.TeamMemberRecord, error) {
 	return s.base.AddMemberToTeamByMemberID(ctx, orgSlug, memberID, teamSlug)
 }
