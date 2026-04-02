@@ -134,6 +134,16 @@ func TestAPIListIssues_SQLite_IncludesParityFields(t *testing.T) {
 			t.Fatalf("expected key %q in issue payload: %+v", key, payload[0])
 		}
 	}
+	project, ok := payload[0]["project"].(map[string]any)
+	if !ok {
+		t.Fatalf("project = %#v, want object", payload[0]["project"])
+	}
+	if project["name"] != "Test Project" || project["platform"] != "go" {
+		t.Fatalf("project = %#v, want Test Project/go", project)
+	}
+	if payload[0]["count"] != "1" {
+		t.Fatalf("count = %#v, want string 1", payload[0]["count"])
+	}
 	if _, ok := payload[0]["resolutionSubstatus"]; ok {
 		t.Fatalf("unexpected legacy resolutionSubstatus field in issue payload: %+v", payload[0])
 	}
@@ -203,6 +213,16 @@ func TestAPIGetIssue_SQLite_ParityFields(t *testing.T) {
 	}
 	if payload["substatus"] != "next_release" {
 		t.Fatalf("substatus = %#v, want next_release", payload["substatus"])
+	}
+	project, ok := payload["project"].(map[string]any)
+	if !ok {
+		t.Fatalf("project = %#v, want object", payload["project"])
+	}
+	if project["name"] != "Test Project" || project["platform"] != "go" {
+		t.Fatalf("project = %#v, want Test Project/go", project)
+	}
+	if payload["count"] != "1" {
+		t.Fatalf("count = %#v, want string 1", payload["count"])
 	}
 	if _, ok := payload["resolutionSubstatus"]; ok {
 		t.Fatalf("unexpected legacy resolutionSubstatus field in issue detail: %+v", payload)

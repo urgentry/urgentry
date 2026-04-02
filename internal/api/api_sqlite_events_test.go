@@ -301,6 +301,12 @@ func TestAPIResolveShortID_SQLite_ParityFields(t *testing.T) {
 	if body.Group.UserCount != 2 {
 		t.Fatalf("userCount = %d, want 2", body.Group.UserCount)
 	}
+	if body.Group.ProjectRef.Name != "Test Project" || body.Group.ProjectRef.Platform != "go" {
+		t.Fatalf("project ref = %+v, want Test Project/go", body.Group.ProjectRef)
+	}
+	if body.Group.Count != "1" {
+		t.Fatalf("count = %#v, want string 1", body.Group.Count)
+	}
 }
 
 func TestAPIEventAttachments_SQLite(t *testing.T) {

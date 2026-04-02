@@ -208,7 +208,14 @@ func handleResolveShortID(db *sql.DB, issues controlplane.IssueWorkflowStore, au
 		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*issue})
 		apiIssue := apiIssueFromWebIssueWithExtras(*issue, extras[issue.ID])
 		apiIssue.ShortID = fmt.Sprintf("GENTRY-%d", issue.ShortID)
-		apiIssue.ProjectRef = ProjectRef{Slug: projectSlug}
+		apiIssue.ProjectRef, err = projectRefForIssue(r.Context(), db, issue.ID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to resolve short ID.")
+			return
+		}
+		if apiIssue.ProjectRef.Slug == "" {
+			apiIssue.ProjectRef.Slug = projectSlug
+		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{
 			"organizationSlug": orgSlug,
 			"projectSlug":      projectSlug,

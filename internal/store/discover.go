@@ -4,21 +4,23 @@ import "time"
 
 // DiscoverIssue is an org-wide issue row used by discover and cross-project views.
 type DiscoverIssue struct {
-	ID          string    `json:"id"`
-	ProjectID   string    `json:"projectId"`
-	ProjectSlug string    `json:"projectSlug"`
-	Release     string    `json:"release,omitempty"`
-	Environment string    `json:"environment,omitempty"`
-	Title       string    `json:"title"`
-	Culprit     string    `json:"culprit"`
-	Level       string    `json:"level"`
-	Status      string    `json:"status"`
-	FirstSeen   time.Time `json:"firstSeen"`
-	LastSeen    time.Time `json:"lastSeen"`
-	Count       int64     `json:"count"`
-	ShortID     int       `json:"shortId"`
-	Priority    int       `json:"priority"`
-	Assignee    string    `json:"assignee,omitempty"`
+	ID              string    `json:"id"`
+	ProjectID       string    `json:"projectId"`
+	ProjectSlug     string    `json:"projectSlug"`
+	ProjectName     string    `json:"projectName,omitempty"`
+	ProjectPlatform string    `json:"projectPlatform,omitempty"`
+	Release         string    `json:"release,omitempty"`
+	Environment     string    `json:"environment,omitempty"`
+	Title           string    `json:"title"`
+	Culprit         string    `json:"culprit"`
+	Level           string    `json:"level"`
+	Status          string    `json:"status"`
+	FirstSeen       time.Time `json:"firstSeen"`
+	LastSeen        time.Time `json:"lastSeen"`
+	Count           int64     `json:"count"`
+	ShortID         int       `json:"shortId"`
+	Priority        int       `json:"priority"`
+	Assignee        string    `json:"assignee,omitempty"`
 }
 
 // DiscoverLog is a log-centric row for logs exploration and discover views.

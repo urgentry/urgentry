@@ -215,10 +215,7 @@ func apiIssueFromDiscoverIssue(row DiscoverIssue) Issue {
 		Stats:        extras.Stats,
 		FirstSeen:    row.FirstSeen,
 		LastSeen:     row.LastSeen,
-		Count:        int(row.Count),
-		ProjectRef: ProjectRef{
-			ID:   row.ProjectID,
-			Slug: row.ProjectSlug,
-		},
+		Count:        apiIssueCount(row.Count),
+		ProjectRef:   apiProjectRef(row.ProjectID, row.ProjectSlug, row.ProjectName, row.ProjectPlatform),
 	}
 }

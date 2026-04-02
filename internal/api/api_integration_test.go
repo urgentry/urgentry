@@ -396,6 +396,12 @@ func TestListProjectIssues(t *testing.T) {
 	if issues[0].ProjectRef.Slug != "my-project" {
 		t.Fatalf("expected project slug my-project, got %q", issues[0].ProjectRef.Slug)
 	}
+	if issues[0].ProjectRef.Name != "My Project" || issues[0].ProjectRef.Platform != "python" {
+		t.Fatalf("expected project ref name/platform, got %+v", issues[0].ProjectRef)
+	}
+	if issues[0].Count != "1" {
+		t.Fatalf("expected string count 1, got %#v", issues[0].Count)
+	}
 }
 
 func TestGetIssue(t *testing.T) {
@@ -414,6 +420,12 @@ func TestGetIssue(t *testing.T) {
 	}
 	if iss.Status != "unresolved" {
 		t.Fatalf("expected status unresolved, got %q", iss.Status)
+	}
+	if iss.ProjectRef.Slug != "my-project" || iss.ProjectRef.Name != "My Project" || iss.ProjectRef.Platform != "python" {
+		t.Fatalf("expected project ref for issue detail, got %+v", iss.ProjectRef)
+	}
+	if iss.Count != "1" {
+		t.Fatalf("expected string count 1, got %#v", iss.Count)
 	}
 }
 
@@ -443,6 +455,12 @@ func TestUpdateIssue_Resolve(t *testing.T) {
 	decodeBody(t, resp, &iss)
 	if iss.Status != "resolved" {
 		t.Fatalf("expected status resolved, got %q", iss.Status)
+	}
+	if iss.ProjectRef.Name != "My Project" || iss.ProjectRef.Platform != "python" {
+		t.Fatalf("expected project ref on update response, got %+v", iss.ProjectRef)
+	}
+	if iss.Count != "1" {
+		t.Fatalf("expected string count 1, got %#v", iss.Count)
 	}
 }
 

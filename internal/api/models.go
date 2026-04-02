@@ -52,30 +52,30 @@ type DSNURLs struct {
 
 // Issue represents a grouped set of events.
 type Issue struct {
-	ID                  string     `json:"id"`
-	ShortID             string     `json:"shortId"`
-	Title               string     `json:"title"`
-	Culprit             string     `json:"culprit"`
-	Level               string     `json:"level"`
-	Status              string     `json:"status"`
-	Type                string     `json:"type"`
-	AssignedTo          *IssueUser `json:"assignedTo"`
-	HasSeen             bool       `json:"hasSeen"`
-	IsBookmarked        bool       `json:"isBookmarked"`
-	IsPublic            bool       `json:"isPublic"`
-	IsSubscribed        bool       `json:"isSubscribed"`
-	Priority            int        `json:"priority"`
-	Substatus           string     `json:"substatus"`
-	Metadata            Metadata   `json:"metadata"`
-	NumComments         int        `json:"numComments"`
-	UserCount           int        `json:"userCount"`
-	Stats               IssueStats `json:"stats"`
-	ResolvedInRelease   string     `json:"resolvedInRelease,omitempty"`
-	MergedIntoIssueID   string     `json:"mergedIntoIssueId,omitempty"`
-	FirstSeen           time.Time  `json:"firstSeen"`
-	LastSeen            time.Time  `json:"lastSeen"`
-	Count               int        `json:"count"`
-	ProjectRef          ProjectRef `json:"project"`
+	ID                string     `json:"id"`
+	ShortID           string     `json:"shortId"`
+	Title             string     `json:"title"`
+	Culprit           string     `json:"culprit"`
+	Level             string     `json:"level"`
+	Status            string     `json:"status"`
+	Type              string     `json:"type"`
+	AssignedTo        *IssueUser `json:"assignedTo"`
+	HasSeen           bool       `json:"hasSeen"`
+	IsBookmarked      bool       `json:"isBookmarked"`
+	IsPublic          bool       `json:"isPublic"`
+	IsSubscribed      bool       `json:"isSubscribed"`
+	Priority          int        `json:"priority"`
+	Substatus         string     `json:"substatus"`
+	Metadata          Metadata   `json:"metadata"`
+	NumComments       int        `json:"numComments"`
+	UserCount         int        `json:"userCount"`
+	Stats             IssueStats `json:"stats"`
+	ResolvedInRelease string     `json:"resolvedInRelease,omitempty"`
+	MergedIntoIssueID string     `json:"mergedIntoIssueId,omitempty"`
+	FirstSeen         time.Time  `json:"firstSeen"`
+	LastSeen          time.Time  `json:"lastSeen"`
+	Count             string     `json:"count"`
+	ProjectRef        ProjectRef `json:"project"`
 }
 
 // IssueUser is the Sentry-compatible assignee object embedded in issue responses.
@@ -115,8 +115,10 @@ type DiscoverResponse struct {
 
 // ProjectRef is a minimal project reference embedded in issue responses.
 type ProjectRef struct {
-	ID   string `json:"id"`
-	Slug string `json:"slug"`
+	ID       string `json:"id"`
+	Slug     string `json:"slug"`
+	Name     string `json:"name,omitempty"`
+	Platform string `json:"platform,omitempty"`
 }
 
 // Event represents a single error event.

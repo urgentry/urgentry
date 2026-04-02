@@ -61,6 +61,12 @@ func TestAPIOrganizationDiscover_SQLite(t *testing.T) {
 	if len(issues) != 1 || issues[0].ProjectRef.Slug != "test-project" {
 		t.Fatalf("unexpected org issue results: %+v", issues)
 	}
+	if issues[0].ProjectRef.Name != "Test Project" || issues[0].ProjectRef.Platform != "go" {
+		t.Fatalf("project ref = %+v, want Test Project/go", issues[0].ProjectRef)
+	}
+	if issues[0].Count != "1" {
+		t.Fatalf("count = %#v, want string 1", issues[0].Count)
+	}
 	if issues[0].Priority != 1 {
 		t.Fatalf("priority = %d, want 1", issues[0].Priority)
 	}

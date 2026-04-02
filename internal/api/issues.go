@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,7 +91,7 @@ func handleListProjectIssues(db *sql.DB, catalog controlplane.CatalogStore, read
 		issues := make([]Issue, 0, len(rows))
 		for _, row := range rows {
 			issue := apiIssueFromWebIssueWithExtras(row, extras[row.ID])
-			issue.ProjectRef = ProjectRef{ID: project.ID, Slug: project.Slug}
+			issue.ProjectRef = apiProjectRefFromProject(project)
 			issues = append(issues, issue)
 		}
 		page := Paginate(w, r, issues)
@@ -119,7 +120,13 @@ func handleGetIssue(db *sql.DB, reads controlplane.IssueReadStore, issues contro
 			return
 		}
 		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*row})
-		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssueWithExtras(*row, extras[row.ID]))
+		issue := apiIssueFromWebIssueWithExtras(*row, extras[row.ID])
+		issue.ProjectRef, err = projectRefForIssue(r.Context(), db, row.ID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load issue project.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, issue)
 	}
 }
 
@@ -216,7 +223,13 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 			fireResolvedIssueHooks(r.Context(), hooks, reads, db, "", resolveTransitions)
 		}
 		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*iss})
-		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssueWithExtras(*iss, extras[iss.ID]))
+		issue := apiIssueFromWebIssueWithExtras(*iss, extras[iss.ID])
+		issue.ProjectRef, err = projectRefForIssue(r.Context(), db, iss.ID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load issue project.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, issue)
 	}
 }
 
@@ -548,30 +561,68 @@ func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtr
 		shortID = fmt.Sprintf("GENTRY-%d", row.ShortID)
 	}
 	return Issue{
-		ID:                  row.ID,
-		ShortID:             shortID,
-		Title:               row.Title,
-		Culprit:             row.Culprit,
-		Level:               row.Level,
-		Status:              row.Status,
-		Type:                extras.Type,
-		AssignedTo:          extras.AssignedTo,
-		HasSeen:             extras.HasSeen,
-		IsBookmarked:        extras.IsBookmarked,
-		IsPublic:            extras.IsPublic,
-		IsSubscribed:        extras.IsSubscribed,
-		Priority:            extras.Priority,
-		Substatus:           extras.Substatus,
-		Metadata:            extras.Metadata,
-		NumComments:         extras.NumComments,
-		UserCount:           extras.UserCount,
-		Stats:               extras.Stats,
-		ResolvedInRelease:   row.ResolvedInRelease,
-		MergedIntoIssueID:   row.MergedIntoGroupID,
-		FirstSeen:           row.FirstSeen,
-		LastSeen:            row.LastSeen,
-		Count:               int(row.Count),
+		ID:                row.ID,
+		ShortID:           shortID,
+		Title:             row.Title,
+		Culprit:           row.Culprit,
+		Level:             row.Level,
+		Status:            row.Status,
+		Type:              extras.Type,
+		AssignedTo:        extras.AssignedTo,
+		HasSeen:           extras.HasSeen,
+		IsBookmarked:      extras.IsBookmarked,
+		IsPublic:          extras.IsPublic,
+		IsSubscribed:      extras.IsSubscribed,
+		Priority:          extras.Priority,
+		Substatus:         extras.Substatus,
+		Metadata:          extras.Metadata,
+		NumComments:       extras.NumComments,
+		UserCount:         extras.UserCount,
+		Stats:             extras.Stats,
+		ResolvedInRelease: row.ResolvedInRelease,
+		MergedIntoIssueID: row.MergedIntoGroupID,
+		FirstSeen:         row.FirstSeen,
+		LastSeen:          row.LastSeen,
+		Count:             apiIssueCount(row.Count),
 	}
+}
+
+func apiIssueCount(count int64) string {
+	return strconv.FormatInt(count, 10)
+}
+
+func apiProjectRef(id, slug, name, platform string) ProjectRef {
+	return ProjectRef{
+		ID:       id,
+		Slug:     slug,
+		Name:     name,
+		Platform: platform,
+	}
+}
+
+func apiProjectRefFromProject(project *store.Project) ProjectRef {
+	if project == nil {
+		return ProjectRef{}
+	}
+	return apiProjectRef(project.ID, project.Slug, project.Name, project.Platform)
+}
+
+func projectRefForIssue(ctx context.Context, db *sql.DB, issueID string) (ProjectRef, error) {
+	var ref ProjectRef
+	err := db.QueryRowContext(ctx,
+		`SELECT p.id, p.slug, COALESCE(p.name, ''), COALESCE(p.platform, '')
+		 FROM groups g
+		 JOIN projects p ON p.id = g.project_id
+		 WHERE g.id = ?`,
+		issueID,
+	).Scan(&ref.ID, &ref.Slug, &ref.Name, &ref.Platform)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ProjectRef{}, nil
+		}
+		return ProjectRef{}, err
+	}
+	return ref, nil
 }
 
 func defaultIssueResponseExtras(row store.WebIssue) issueResponseExtras {

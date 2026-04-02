@@ -86,7 +86,7 @@ func buildDiscoverIssueSearchQuery(orgSlug, filter, rawQuery string, limit, offs
 	issueClauses, issueArgs := buildIssueSearchClauses("", filter, rawQuery, "", time.Time{})
 	clauses = append(clauses, issueClauses[1:]...)
 	args = append(args, issueArgs...)
-	query := `SELECT g.id, p.id, p.slug,
+	query := `SELECT g.id, p.id, p.slug, COALESCE(p.name, ''), COALESCE(p.platform, ''),
 	        (SELECT COALESCE(MAX(e.release), '') FROM events e WHERE e.group_id = g.id),
 	        (SELECT COALESCE(MAX(e.environment), '') FROM events e WHERE e.group_id = g.id),
 	        g.title, g.culprit, g.level, g.status, g.first_seen, g.last_seen, g.times_seen,
@@ -237,12 +237,15 @@ func scanDiscoverIssues(rows *sql.Rows) ([]store.DiscoverIssue, error) {
 			firstSeen, lastSeen, assignee sql.NullString
 			count, shortID, priority      sql.NullInt64
 			projectID, projectSlug        sql.NullString
+			projectName, projectPlatform  sql.NullString
 		)
-		if err := rows.Scan(&item.ID, &projectID, &projectSlug, &release, &environment, &title, &culprit, &level, &status, &firstSeen, &lastSeen, &count, &shortID, &priority, &assignee); err != nil {
+		if err := rows.Scan(&item.ID, &projectID, &projectSlug, &projectName, &projectPlatform, &release, &environment, &title, &culprit, &level, &status, &firstSeen, &lastSeen, &count, &shortID, &priority, &assignee); err != nil {
 			return nil, err
 		}
 		item.ProjectID = sqlutil.NullStr(projectID)
 		item.ProjectSlug = sqlutil.NullStr(projectSlug)
+		item.ProjectName = sqlutil.NullStr(projectName)
+		item.ProjectPlatform = sqlutil.NullStr(projectPlatform)
 		item.Release = sqlutil.NullStr(release)
 		item.Environment = sqlutil.NullStr(environment)
 		item.Title = sqlutil.NullStr(title)
