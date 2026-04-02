@@ -344,10 +344,6 @@ func handleGetProjectEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 // SQLite query helpers for events
 // ---------------------------------------------------------------------------
 
-func listRecentEventsFromDB(r *http.Request, db *sql.DB, projectID string, limit int) ([]*Event, error) {
-	return listRecentEventsFromDBPaged(r, db, projectID, limit, 0)
-}
-
 func listRecentEventsFromDBPaged(r *http.Request, db *sql.DB, projectID string, limit, offset int) ([]*Event, error) {
 	rows, err := sqlite.ListProjectEventsPaged(r.Context(), db, projectID, limit, offset)
 	if err != nil {

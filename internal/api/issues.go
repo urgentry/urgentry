@@ -290,6 +290,10 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 			patch.ResolutionSubstatus = &sub
 		}
 		if body.Priority != nil {
+			if *body.Priority < 0 || *body.Priority > 4 {
+				httputil.WriteError(w, http.StatusBadRequest, "Priority must be 0-4.")
+				return
+			}
 			patch.Priority = body.Priority
 		}
 
@@ -705,13 +709,6 @@ func handleGetLatestIssueEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 	}
 }
 
-func listIssueEventsFromDB(r *http.Request, db *sql.DB, groupID string) ([]*Event, error) {
-	rows, err := sqlite.ListGroupEvents(r.Context(), db, groupID, 100)
-	if err != nil {
-		return nil, err
-	}
-	return apiEventsFromWebEvents(rows), nil
-}
 
 func getLatestIssueEventFromDB(r *http.Request, db *sql.DB, groupID string) (*Event, error) {
 	row, err := sqlite.GetLatestGroupEvent(r.Context(), db, groupID)

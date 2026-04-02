@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"time"
 
 	"urgentry/internal/httputil"
@@ -501,17 +502,9 @@ func listProjectIDsForOrg(db *sql.DB, orgID string) ([]string, error) {
 }
 
 func sortReplayManifestsByDate(items []sharedstore.ReplayManifest) {
-	for i := 1; i < len(items); i++ {
-		for j := i; j > 0; j-- {
-			a := replayManifestSortDate(items[j])
-			b := replayManifestSortDate(items[j-1])
-			if a.After(b) {
-				items[j], items[j-1] = items[j-1], items[j]
-			} else {
-				break
-			}
-		}
-	}
+	sort.Slice(items, func(i, j int) bool {
+		return replayManifestSortDate(items[i]).After(replayManifestSortDate(items[j]))
+	})
 }
 
 func replayManifestSortDate(item sharedstore.ReplayManifest) time.Time {

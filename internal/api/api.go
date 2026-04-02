@@ -4,6 +4,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -130,11 +131,14 @@ func PathParam(r *http.Request, name string) string {
 	return r.PathValue(name)
 }
 
+const maxAPIBodySize = 2 << 20 // 2 MB
+
 // decodeJSON reads and decodes a JSON request body into v.
 func decodeJSON(r *http.Request, v any) error {
 	if r.Body == nil {
 		return fmt.Errorf("empty request body")
 	}
+	limited := io.LimitReader(r.Body, maxAPIBodySize)
 	defer r.Body.Close()
-	return json.NewDecoder(r.Body).Decode(v)
+	return json.NewDecoder(limited).Decode(v)
 }

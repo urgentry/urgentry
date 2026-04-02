@@ -257,12 +257,16 @@ func handleListRepoCommits(db *sql.DB, auth authFunc) http.HandlerFunc {
 		if !auth(w, r) {
 			return
 		}
+		orgSlug := PathParam(r, "org_slug")
 		repoID := PathParam(r, "repo_id")
-		// Find release commits associated with this repo.
+		// Scope to org to prevent IDOR.
 		rows, err := db.QueryContext(r.Context(),
-			`SELECT id, commit_sha, repository, author_name, author_email, message, created_at
-			 FROM release_commits WHERE repository = ?
-			 ORDER BY created_at DESC LIMIT 100`, repoID)
+			`SELECT rc.id, rc.commit_sha, rc.repository, rc.author_name, rc.author_email, rc.message, rc.created_at
+			 FROM release_commits rc
+			 JOIN repositories r ON r.id = rc.repository
+			 JOIN organizations o ON o.id = r.organization_id
+			 WHERE o.slug = ? AND rc.repository = ?
+			 ORDER BY rc.created_at DESC LIMIT 100`, orgSlug, repoID)
 		if err != nil {
 			httputil.WriteJSON(w, http.StatusOK, []any{})
 			return

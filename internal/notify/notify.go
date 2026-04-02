@@ -369,6 +369,12 @@ func (n *Notifier) NotifyEmail(ctx context.Context, projectID, recipient string,
 	return smtpErr
 }
 
+// sanitizeHeader strips CR/LF to prevent SMTP header injection.
+func sanitizeHeader(s string) string {
+	r := strings.NewReplacer("\r", "", "\n", "")
+	return r.Replace(s)
+}
+
 // sendSMTP sends an email via the configured SMTP server.
 func (n *Notifier) sendSMTP(to, subject, body string) error {
 	from := n.SMTP.From
@@ -376,7 +382,7 @@ func (n *Notifier) sendSMTP(to, subject, body string) error {
 		from = "urgentry@localhost"
 	}
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
-		from, to, subject, body)
+		sanitizeHeader(from), sanitizeHeader(to), sanitizeHeader(subject), body)
 
 	addr := net.JoinHostPort(n.SMTP.Host, n.SMTP.Port)
 	var auth smtp.Auth

@@ -134,8 +134,8 @@ func ListOrgEvents(ctx context.Context, db *sql.DB, orgSlug string, query string
 	 WHERE o.slug = ?`
 	args := []any{orgSlug}
 	if query != "" {
-		baseQuery += ` AND (e.title LIKE ? OR e.message LIKE ? OR e.culprit LIKE ?)`
-		like := "%" + query + "%"
+		baseQuery += ` AND (e.title LIKE ? ESCAPE '\' OR e.message LIKE ? ESCAPE '\' OR e.culprit LIKE ? ESCAPE '\')`
+		like := "%" + sqlutil.EscapeLike(query) + "%"
 		args = append(args, like, like, like)
 	}
 	baseQuery += ` ORDER BY ` + orderCol + ` ` + orderDir + ` LIMIT ?`
