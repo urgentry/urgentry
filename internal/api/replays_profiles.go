@@ -169,18 +169,42 @@ func handleGetProfile(db *sql.DB, queries telemetryquery.Service, guard sqlite.Q
 }
 
 func mapReplayManifest(item sharedstore.ReplayManifest) Replay {
+	var startedAt, finishedAt *time.Time
+	if !item.StartedAt.IsZero() {
+		t := item.StartedAt
+		startedAt = &t
+	}
+	if !item.EndedAt.IsZero() {
+		t := item.EndedAt
+		finishedAt = &t
+	}
+	urls := replayURLs(item)
+	releases := replayReleases(item)
 	resp := Replay{
-		ID:          item.ReplayID,
-		ProjectID:   item.ProjectID,
-		ReplayID:    item.ReplayID,
-		Title:       replayManifestTitle(item),
-		URL:         item.RequestURL,
-		User:        firstNonEmptyString(item.UserRef.ID, item.UserRef.Email, item.UserRef.Username),
-		Platform:    item.Platform,
-		Release:     item.Release,
-		Environment: item.Environment,
-		DateCreated: replayManifestDate(item),
-		Summary:     replaySummaryFromManifest(item),
+		ID:              item.ReplayID,
+		Title:           replayManifestTitle(item),
+		ProjectID:       item.ProjectID,
+		TraceIDs:        nonNilStringSlice(item.TraceIDs),
+		ErrorIDs:        nonNilStringSlice(item.LinkedEventIDs),
+		URLs:            urls,
+		Releases:        releases,
+		ReplayType:      replayType(item),
+		Platform:        item.Platform,
+		Environment:     item.Environment,
+		Duration:        item.DurationMS / 1000,
+		CountErrors:     item.ErrorMarkerCount,
+		CountSegments:   item.AssetCount,
+		CountURLs:       len(urls),
+		CountDeadClicks: 0,
+		CountRageClicks: 0,
+		Activity:        replayActivity(item),
+		StartedAt:       startedAt,
+		FinishedAt:      finishedAt,
+		User:            replayUser(item.UserRef),
+		SDK:             nil,
+		OS:              nil,
+		Browser:         nil,
+		Device:          nil,
 	}
 	return resp
 }
@@ -188,10 +212,12 @@ func mapReplayManifest(item sharedstore.ReplayManifest) Replay {
 func mapReplayRecord(item *sharedstore.ReplayRecord, includePayload bool) Replay {
 	resp := mapReplayManifest(item.Manifest)
 	resp.Attachments = mapReplayAttachments(item.Manifest, item.Assets)
+	if len(item.Assets) > 0 {
+		resp.CountSegments = len(item.Assets)
+	}
 	if includePayload {
 		resp.Payload = item.Payload
 	}
-	resp.Summary = summarizeReplayRecord(resp, item.Assets)
 	return resp
 }
 
@@ -202,38 +228,60 @@ func replayManifestTitle(item sharedstore.ReplayManifest) string {
 	return "Replay"
 }
 
-func replayManifestDate(item sharedstore.ReplayManifest) time.Time {
-	when := item.StartedAt
-	if when.IsZero() {
-		when = item.CreatedAt
+func replayUser(ref sharedstore.ReplayUserRef) *ReplayUser {
+	if ref.ID == "" && ref.Email == "" && ref.Username == "" {
+		return nil
 	}
-	return when
-}
-
-func replaySummaryFromManifest(item sharedstore.ReplayManifest) ReplaySummary {
-	return ReplaySummary{
-		RequestURL:  item.RequestURL,
-		User:        firstNonEmptyString(item.UserRef.ID, item.UserRef.Email, item.UserRef.Username),
-		Platform:    item.Platform,
-		Release:     item.Release,
-		Environment: item.Environment,
-		AssetCount:  item.AssetCount,
-		AssetKinds:  replayAssetKindsFromManifest(item),
+	name := ref.Username
+	if name == "" {
+		name = ref.Email
+	}
+	return &ReplayUser{
+		ID:       ref.ID,
+		Email:    ref.Email,
+		Username: ref.Username,
+		Name:     name,
 	}
 }
 
-func replayAssetKindsFromManifest(item sharedstore.ReplayManifest) map[string]int {
-	kinds := map[string]int{}
-	if item.AssetCount <= 0 {
-		return kinds
+func replayURLs(item sharedstore.ReplayManifest) []string {
+	if item.RequestURL != "" {
+		return []string{item.RequestURL}
 	}
-	recordingCount := item.AssetCount
-	if item.NavigationCount > 0 || item.NetworkCount > 0 || item.ClickCount > 0 || item.ConsoleCount > 0 || item.ErrorMarkerCount > 0 {
-		kinds["recording"] = recordingCount
-		return kinds
+	return []string{}
+}
+
+func replayReleases(item sharedstore.ReplayManifest) []string {
+	if item.Release != "" {
+		return []string{item.Release}
 	}
-	kinds["recording"] = recordingCount
-	return kinds
+	return nil
+}
+
+func replayType(item sharedstore.ReplayManifest) string {
+	if item.AssetCount > 0 {
+		return "session"
+	}
+	return "buffer"
+}
+
+func replayActivity(item sharedstore.ReplayManifest) float64 {
+	total := item.ClickCount + item.NavigationCount + item.ErrorMarkerCount + item.ConsoleCount
+	if total == 0 {
+		return 0
+	}
+	score := float64(total) / 10.0
+	if score > 10 {
+		score = 10
+	}
+	return score
+}
+
+func nonNilStringSlice(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 func mapReplayAttachments(manifest sharedstore.ReplayManifest, assets []sharedstore.ReplayAssetRef) []Attachment {
@@ -250,18 +298,6 @@ func mapReplayAttachments(manifest sharedstore.ReplayManifest, assets []sharedst
 		})
 	}
 	return result
-}
-
-func summarizeReplayRecord(resp Replay, assets []sharedstore.ReplayAssetRef) ReplaySummary {
-	summary := resp.Summary
-	summary.AssetCount = len(assets)
-	summary.AssetBytes = 0
-	summary.AssetKinds = map[string]int{}
-	for _, asset := range assets {
-		summary.AssetBytes += asset.SizeBytes
-		summary.AssetKinds[replayAssetKind(asset.Name, asset.ContentType)]++
-	}
-	return summary
 }
 
 func mapProfileManifest(item sharedstore.ProfileManifest) Profile {
@@ -310,18 +346,6 @@ func mapProfileBreakdowns(items []sharedstore.ProfileBreakdown) []ProfileBreakdo
 	return result
 }
 
-func replayAssetKind(name, contentType string) string {
-	lowerName := strings.ToLower(name)
-	lowerType := strings.ToLower(contentType)
-	switch {
-	case strings.Contains(lowerName, "video") || strings.Contains(lowerType, "video"):
-		return "video"
-	case strings.Contains(lowerName, "recording") || strings.Contains(lowerName, "replay") || strings.Contains(lowerType, "json"):
-		return "recording"
-	default:
-		return "other"
-	}
-}
 
 func firstNonEmptyString(values ...string) string {
 	for _, value := range values {

@@ -421,32 +421,56 @@ type TraceDetail struct {
 }
 
 // Replay is one stored session replay metadata row.
+// Uses Sentry-compatible snake_case JSON field names.
 type Replay struct {
-	ID          string          `json:"id"`
-	ProjectID   string          `json:"projectId"`
-	ReplayID    string          `json:"replayId"`
-	Title       string          `json:"title"`
-	URL         string          `json:"url,omitempty"`
-	User        string          `json:"user,omitempty"`
-	Platform    string          `json:"platform,omitempty"`
-	Release     string          `json:"release,omitempty"`
-	Environment string          `json:"environment,omitempty"`
-	DateCreated time.Time       `json:"dateCreated"`
-	Summary     ReplaySummary   `json:"summary"`
-	Attachments []Attachment    `json:"attachments,omitempty"`
-	Payload     json.RawMessage `json:"payload,omitempty"`
+	ID              string           `json:"id"`
+	Title           string           `json:"title"`
+	ProjectID       string           `json:"project_id"`
+	TraceIDs        []string         `json:"trace_ids"`
+	ErrorIDs        []string         `json:"error_ids"`
+	URLs            []string         `json:"urls"`
+	Releases        []string         `json:"releases,omitempty"`
+	ReplayType      string           `json:"replay_type"`
+	Platform        string           `json:"platform"`
+	Environment     string           `json:"environment"`
+	Duration        int64            `json:"duration"`
+	CountErrors     int              `json:"count_errors"`
+	CountSegments   int              `json:"count_segments"`
+	CountURLs       int              `json:"count_urls"`
+	CountDeadClicks int              `json:"count_dead_clicks"`
+	CountRageClicks int              `json:"count_rage_clicks"`
+	Activity        float64          `json:"activity"`
+	StartedAt       *time.Time       `json:"started_at"`
+	FinishedAt      *time.Time       `json:"finished_at"`
+	User            *ReplayUser      `json:"user"`
+	SDK             *ReplaySDK       `json:"sdk"`
+	OS              *ReplayTagObj    `json:"os"`
+	Browser         *ReplayTagObj    `json:"browser"`
+	Device          *ReplayTagObj    `json:"device"`
+	Tags            map[string]any   `json:"tags,omitempty"`
+	Attachments     []Attachment     `json:"attachments,omitempty"`
+	Payload         json.RawMessage  `json:"payload,omitempty"`
 }
 
-// ReplaySummary captures the useful session facts for one replay row.
-type ReplaySummary struct {
-	RequestURL  string         `json:"requestUrl,omitempty"`
-	User        string         `json:"user,omitempty"`
-	Platform    string         `json:"platform,omitempty"`
-	Release     string         `json:"release,omitempty"`
-	Environment string         `json:"environment,omitempty"`
-	AssetCount  int            `json:"assetCount"`
-	AssetBytes  int64          `json:"assetBytes"`
-	AssetKinds  map[string]int `json:"assetKinds,omitempty"`
+// ReplayUser represents the user associated with a replay.
+type ReplayUser struct {
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Username string `json:"username,omitempty"`
+	IPAddr   string `json:"ip_address,omitempty"`
+}
+
+// ReplaySDK describes the SDK that captured the replay.
+type ReplaySDK struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// ReplayTagObj is a generic name/version tag object (used for OS, browser, device).
+type ReplayTagObj struct {
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 type ReplayPlaybackManifest struct {

@@ -72,7 +72,7 @@ func TestAPIReplaysAndProfiles_SQLite(t *testing.T) {
 	}
 	var replays []Replay
 	decodeBody(t, resp, &replays)
-	if len(replays) != 1 || replays[0].ReplayID != "replay-1" || replays[0].User != "dev@example.com" || replays[0].Summary.RequestURL != "https://app.example.com/checkout" {
+	if len(replays) != 1 || replays[0].ID != "replay-1" || replays[0].User == nil || replays[0].User.Email != "dev@example.com" || len(replays[0].URLs) == 0 || replays[0].URLs[0] != "https://app.example.com/checkout" {
 		t.Fatalf("unexpected replays: %+v", replays)
 	}
 
@@ -82,7 +82,7 @@ func TestAPIReplaysAndProfiles_SQLite(t *testing.T) {
 	}
 	var replay Replay
 	decodeBody(t, resp, &replay)
-	if replay.ReplayID != "replay-1" || len(replay.Payload) == 0 || replay.Summary.AssetCount != 1 || len(replay.Attachments) != 1 || replay.Summary.AssetKinds["recording"] != 1 {
+	if replay.ID != "replay-1" || len(replay.Payload) == 0 || replay.CountSegments != 1 || len(replay.Attachments) != 1 {
 		t.Fatalf("unexpected replay detail: %+v", replay)
 	}
 	if replay.Attachments[0].ID != "att-api-replay-1" {
