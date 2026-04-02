@@ -147,6 +147,10 @@ func (s *AdminStore) RevokeInvite(ctx context.Context, orgSlug, inviteID string)
 
 // AcceptInvite accepts a pending invite and creates a local user if needed.
 func (s *AdminStore) AcceptInvite(ctx context.Context, rawToken, displayName, password string) (*InviteAcceptanceResult, error) {
+	rawToken = strings.TrimSpace(rawToken)
+	if len(rawToken) < 32 {
+		return nil, ErrInviteNotFound
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err

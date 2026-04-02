@@ -281,6 +281,34 @@ func TestOrganizationMemberDeleteMeAliasUsesAuthenticatedUser(t *testing.T) {
 	}
 }
 
+func TestAcceptInviteRateLimited(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, _ := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	token := string(bytes.Repeat([]byte("a"), 40))
+	for attempt := 0; attempt < inviteAcceptTokenRateLimit; attempt++ {
+		resp := authzJSONRequest(t, ts, http.MethodPost, "/api/0/invites/"+token+"/accept/", "", map[string]any{
+			"displayName": "New User",
+			"password":    "temporary-pass-123",
+		})
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("attempt %d status = %d, want 404 before limit", attempt+1, resp.StatusCode)
+		}
+	}
+
+	resp := authzJSONRequest(t, ts, http.MethodPost, "/api/0/invites/"+token+"/accept/", "", map[string]any{
+		"displayName": "New User",
+		"password":    "temporary-pass-123",
+	})
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("rate limited status = %d, want 429", resp.StatusCode)
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Fatal("expected Retry-After header on rate limited response")
+	}
+}
+
 func TestOrganizationMembershipListShowsExpiredPendingInvite(t *testing.T) {
 	db := openTestSQLite(t)
 	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})

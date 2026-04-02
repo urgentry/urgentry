@@ -1,8 +1,12 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,6 +14,11 @@ import (
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
 	"urgentry/internal/sqlite"
+)
+
+const (
+	inviteAcceptIPRateLimit    = 10
+	inviteAcceptTokenRateLimit = 5
 )
 
 type orgMemberRequest struct {
@@ -432,13 +441,25 @@ func handleRevokeInvite(admin controlplane.AdminStore, auth authFunc) http.Handl
 
 // handleAcceptInvite handles POST /api/0/invites/{invite_token}/accept/.
 func handleAcceptInvite(admin controlplane.AdminStore) http.HandlerFunc {
+	limiter := authpkg.NewFixedWindowRateLimiter(time.Minute)
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		inviteToken := strings.TrimSpace(PathParam(r, "invite_token"))
+		now := time.Now().UTC()
+		if retryAfter, allowed := limiter.Allow("invite-accept:ip:"+inviteAcceptClientIP(r), inviteAcceptIPRateLimit, now); !allowed {
+			writeInviteAcceptRateLimit(w, retryAfter)
+			return
+		}
+		if retryAfter, allowed := limiter.Allow("invite-accept:token:"+inviteAcceptTokenKey(inviteToken), inviteAcceptTokenRateLimit, now); !allowed {
+			writeInviteAcceptRateLimit(w, retryAfter)
+			return
+		}
 		var body inviteAcceptRequest
 		if err := decodeJSON(r, &body); err != nil {
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
 			return
 		}
-		result, err := admin.AcceptInvite(r.Context(), PathParam(r, "invite_token"), strings.TrimSpace(body.DisplayName), strings.TrimSpace(body.Password))
+		result, err := admin.AcceptInvite(r.Context(), inviteToken, strings.TrimSpace(body.DisplayName), strings.TrimSpace(body.Password))
 		if err != nil {
 			switch err {
 			case sqlite.ErrInviteNotFound:
@@ -454,6 +475,40 @@ func handleAcceptInvite(admin controlplane.AdminStore) http.HandlerFunc {
 		}
 		httputil.WriteJSON(w, http.StatusCreated, result)
 	}
+}
+
+func writeInviteAcceptRateLimit(w http.ResponseWriter, retryAfter time.Duration) {
+	retryAfterSeconds := int(retryAfter / time.Second)
+	if retryAfter%time.Second != 0 {
+		retryAfterSeconds++
+	}
+	if retryAfterSeconds < 1 {
+		retryAfterSeconds = 1
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
+	httputil.WriteError(w, http.StatusTooManyRequests, "Too many invite accept attempts.")
+}
+
+func inviteAcceptClientIP(r *http.Request) string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		if first, _, ok := strings.Cut(forwarded, ","); ok {
+			return strings.TrimSpace(first)
+		}
+		return forwarded
+	}
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		return realIP
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil && host != "" {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
+}
+
+func inviteAcceptTokenKey(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:8])
 }
 
 type projectMemberRoleRequest struct {

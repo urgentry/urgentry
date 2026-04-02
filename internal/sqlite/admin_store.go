@@ -878,6 +878,10 @@ func (s *AdminStore) RevokeInvite(ctx context.Context, orgSlug, inviteID string)
 
 // AcceptInvite accepts a pending invite, creating a local user if needed.
 func (s *AdminStore) AcceptInvite(ctx context.Context, rawToken, displayName, password string) (*InviteAcceptanceResult, error) {
+	rawToken = strings.TrimSpace(rawToken)
+	if len(rawToken) < 32 {
+		return nil, ErrInviteNotFound
+	}
 	row := s.db.QueryRowContext(ctx,
 		`SELECT i.id, i.organization_id, o.slug, COALESCE(i.team_id, ''), COALESCE(t.slug, ''), i.email, i.role, i.status, i.expires_at
 		 FROM member_invites i
