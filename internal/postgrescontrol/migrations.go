@@ -673,6 +673,111 @@ JOIN projects p ON p.organization_id = om.organization_id
 ON CONFLICT (project_id, user_id) DO NOTHING;
 `,
 	},
+	{
+		Version: 9,
+		Name:    "prevent-repository-management",
+		SQL: `
+CREATE TABLE IF NOT EXISTS repositories (
+	id TEXT PRIMARY KEY,
+	organization_id TEXT NOT NULL REFERENCES organizations(id),
+	owner_slug TEXT NOT NULL DEFAULT '',
+	name TEXT NOT NULL,
+	provider TEXT NOT NULL DEFAULT 'manual',
+	url TEXT NOT NULL DEFAULT '',
+	external_slug TEXT NOT NULL DEFAULT '',
+	status TEXT NOT NULL DEFAULT 'active',
+	default_branch TEXT NOT NULL DEFAULT '',
+	test_analytics_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+	sync_status TEXT NOT NULL DEFAULT 'idle',
+	last_synced_at TIMESTAMPTZ,
+	last_sync_started_at TIMESTAMPTZ,
+	last_sync_error TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_org_owner_name ON repositories(organization_id, owner_slug, name);
+CREATE INDEX IF NOT EXISTS idx_repositories_org ON repositories(organization_id);
+CREATE INDEX IF NOT EXISTS idx_repositories_owner ON repositories(owner_slug);
+
+CREATE TABLE IF NOT EXISTS prevent_repository_branches (
+	id TEXT PRIMARY KEY,
+	repository_id TEXT NOT NULL REFERENCES repositories(id),
+	name TEXT NOT NULL,
+	is_default BOOLEAN NOT NULL DEFAULT FALSE,
+	status TEXT NOT NULL DEFAULT 'active',
+	last_synced_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	UNIQUE(repository_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_prevent_repository_branches_repo ON prevent_repository_branches(repository_id, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS prevent_repository_tokens (
+	id TEXT PRIMARY KEY,
+	repository_id TEXT NOT NULL REFERENCES repositories(id),
+	label TEXT NOT NULL,
+	token_value TEXT NOT NULL DEFAULT '',
+	token_prefix TEXT NOT NULL,
+	token_hash TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'active',
+	rotated_at TIMESTAMPTZ,
+	last_used_at TIMESTAMPTZ,
+	revoked_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	UNIQUE(repository_id, token_prefix)
+);
+CREATE INDEX IF NOT EXISTS idx_prevent_repository_tokens_repo ON prevent_repository_tokens(repository_id, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS prevent_repository_test_suites (
+	id TEXT PRIMARY KEY,
+	repository_id TEXT NOT NULL REFERENCES repositories(id),
+	external_suite_id TEXT NOT NULL,
+	name TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'active',
+	last_run_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	UNIQUE(repository_id, external_suite_id)
+);
+CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_suites_repo ON prevent_repository_test_suites(repository_id, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS prevent_repository_test_results (
+	id TEXT PRIMARY KEY,
+	repository_id TEXT NOT NULL REFERENCES repositories(id),
+	suite_id TEXT NOT NULL REFERENCES prevent_repository_test_suites(id),
+	suite_name TEXT NOT NULL DEFAULT '',
+	branch_name TEXT NOT NULL,
+	commit_sha TEXT NOT NULL DEFAULT '',
+	status TEXT NOT NULL,
+	duration_ms BIGINT NOT NULL DEFAULT 0,
+	test_count INTEGER NOT NULL DEFAULT 0,
+	failure_count INTEGER NOT NULL DEFAULT 0,
+	skipped_count INTEGER NOT NULL DEFAULT 0,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_results_repo ON prevent_repository_test_results(repository_id, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS prevent_repository_test_result_aggregates (
+	id TEXT PRIMARY KEY,
+	repository_id TEXT NOT NULL REFERENCES repositories(id),
+	branch_name TEXT NOT NULL,
+	total_runs INTEGER NOT NULL DEFAULT 0,
+	passing_runs INTEGER NOT NULL DEFAULT 0,
+	failing_runs INTEGER NOT NULL DEFAULT 0,
+	skipped_runs INTEGER NOT NULL DEFAULT 0,
+	avg_duration_ms BIGINT NOT NULL DEFAULT 0,
+	last_run_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	UNIQUE(repository_id, branch_name)
+);
+CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_aggregates_repo ON prevent_repository_test_result_aggregates(repository_id, created_at ASC);
+
+ALTER TABLE repositories
+	ADD COLUMN IF NOT EXISTS test_analytics_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE prevent_repository_tokens
+	ADD COLUMN IF NOT EXISTS token_value TEXT NOT NULL DEFAULT '';
+UPDATE prevent_repository_tokens
+SET token_value = token_prefix
+WHERE COALESCE(token_value, '') = '';
+`,
+	},
 }
 
 func Open(ctx context.Context, dsn string) (*sql.DB, error) {

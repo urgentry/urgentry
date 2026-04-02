@@ -335,4 +335,92 @@ var migrationsCore = []schemaMigration{
 		);
 		CREATE INDEX IF NOT EXISTS idx_repositories_org ON repositories(organization_id);
 	`},
+	{74, `
+		ALTER TABLE repositories ADD COLUMN owner_slug TEXT DEFAULT '';
+		ALTER TABLE repositories ADD COLUMN default_branch TEXT DEFAULT '';
+		ALTER TABLE repositories ADD COLUMN test_analytics_enabled INTEGER NOT NULL DEFAULT 1;
+		ALTER TABLE repositories ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'idle';
+		ALTER TABLE repositories ADD COLUMN last_synced_at TEXT;
+		ALTER TABLE repositories ADD COLUMN last_sync_started_at TEXT;
+		ALTER TABLE repositories ADD COLUMN last_sync_error TEXT DEFAULT '';
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_org_owner_name ON repositories(organization_id, owner_slug, name);
+		CREATE INDEX IF NOT EXISTS idx_repositories_owner ON repositories(owner_slug);
+
+		CREATE TABLE IF NOT EXISTS prevent_repository_branches (
+			id TEXT PRIMARY KEY,
+			repository_id TEXT NOT NULL REFERENCES repositories(id),
+			name TEXT NOT NULL,
+			is_default INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'active',
+			last_synced_at TEXT,
+			created_at TEXT DEFAULT (datetime('now')),
+			UNIQUE(repository_id, name)
+		);
+		CREATE INDEX IF NOT EXISTS idx_prevent_repository_branches_repo ON prevent_repository_branches(repository_id, created_at ASC);
+
+		CREATE TABLE IF NOT EXISTS prevent_repository_tokens (
+			id TEXT PRIMARY KEY,
+			repository_id TEXT NOT NULL REFERENCES repositories(id),
+			label TEXT NOT NULL,
+			token_value TEXT NOT NULL DEFAULT '',
+			token_prefix TEXT NOT NULL,
+			token_hash TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'active',
+			rotated_at TEXT,
+			last_used_at TEXT,
+			revoked_at TEXT,
+			created_at TEXT DEFAULT (datetime('now')),
+			UNIQUE(repository_id, token_prefix)
+		);
+		CREATE INDEX IF NOT EXISTS idx_prevent_repository_tokens_repo ON prevent_repository_tokens(repository_id, created_at ASC);
+
+		CREATE TABLE IF NOT EXISTS prevent_repository_test_suites (
+			id TEXT PRIMARY KEY,
+			repository_id TEXT NOT NULL REFERENCES repositories(id),
+			external_suite_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'active',
+			last_run_at TEXT,
+			created_at TEXT DEFAULT (datetime('now')),
+			UNIQUE(repository_id, external_suite_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_suites_repo ON prevent_repository_test_suites(repository_id, created_at ASC);
+
+		CREATE TABLE IF NOT EXISTS prevent_repository_test_results (
+			id TEXT PRIMARY KEY,
+			repository_id TEXT NOT NULL REFERENCES repositories(id),
+			suite_id TEXT NOT NULL REFERENCES prevent_repository_test_suites(id),
+			suite_name TEXT DEFAULT '',
+			branch_name TEXT NOT NULL,
+			commit_sha TEXT DEFAULT '',
+			status TEXT NOT NULL,
+			duration_ms INTEGER NOT NULL DEFAULT 0,
+			test_count INTEGER NOT NULL DEFAULT 0,
+			failure_count INTEGER NOT NULL DEFAULT 0,
+			skipped_count INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_results_repo ON prevent_repository_test_results(repository_id, created_at ASC);
+
+		CREATE TABLE IF NOT EXISTS prevent_repository_test_result_aggregates (
+			id TEXT PRIMARY KEY,
+			repository_id TEXT NOT NULL REFERENCES repositories(id),
+			branch_name TEXT NOT NULL,
+			total_runs INTEGER NOT NULL DEFAULT 0,
+			passing_runs INTEGER NOT NULL DEFAULT 0,
+			failing_runs INTEGER NOT NULL DEFAULT 0,
+			skipped_runs INTEGER NOT NULL DEFAULT 0,
+			avg_duration_ms INTEGER NOT NULL DEFAULT 0,
+			last_run_at TEXT,
+			created_at TEXT DEFAULT (datetime('now')),
+			UNIQUE(repository_id, branch_name)
+		);
+		CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_aggregates_repo ON prevent_repository_test_result_aggregates(repository_id, created_at ASC);
+	`},
+	{75, `
+		ALTER TABLE prevent_repository_tokens ADD COLUMN token_value TEXT NOT NULL DEFAULT '';
+		UPDATE prevent_repository_tokens
+		SET token_value = token_prefix
+		WHERE COALESCE(token_value, '') = '';
+	`},
 }
