@@ -123,10 +123,15 @@ type preventSnapshot struct {
 	TestResultName        string
 	TestResultFailureRate float64
 	TestResultFailCount   int
+	FlakyResultCount      int
+	FlakyResultName       string
+	FlakyResultRate       float64
+	FlakyResultFailCount  int
 	AggregateTotalFails   int
 	AggregateTotalSkips   int
 	AggregateSlowTests    int
 	AggregateFlakeCount   int
+	AggregateFlakeRate    float64
 	RegeneratedTokenValid bool
 }
 
@@ -929,15 +934,33 @@ func runControlPlanePreventSuite(t *testing.T, h *controlPlaneHarness) preventSn
 	}
 	decodeJSONBody(t, resultsResp, &results)
 
+	flakyResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/test-results/?interval=INTERVAL_7_DAY&filterBy=FLAKY_TESTS", h.pat, nil)
+	if flakyResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent flaky test results status=%d", h.name, flakyResp.StatusCode)
+	}
+	var flakyResults struct {
+		Results []struct {
+			Name                string  `json:"name"`
+			FlakeRate           float64 `json:"flakeRate"`
+			TotalFlakyFailCount int     `json:"totalFlakyFailCount"`
+		} `json:"results"`
+		TotalCount int `json:"totalCount"`
+	}
+	decodeJSONBody(t, flakyResp, &flakyResults)
+	if flakyResults.TotalCount == 0 || len(flakyResults.Results) == 0 {
+		t.Fatalf("%s flaky Prevent results were empty", h.name)
+	}
+
 	aggregatesResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/test-results-aggregates/", h.pat, nil)
 	if aggregatesResp.StatusCode != http.StatusOK {
 		t.Fatalf("%s list Prevent aggregates status=%d", h.name, aggregatesResp.StatusCode)
 	}
 	var aggregates struct {
-		TotalFails     int `json:"totalFails"`
-		TotalSkips     int `json:"totalSkips"`
-		TotalSlowTests int `json:"totalSlowTests"`
-		FlakeCount     int `json:"flakeCount"`
+		TotalFails     int     `json:"totalFails"`
+		TotalSkips     int     `json:"totalSkips"`
+		TotalSlowTests int     `json:"totalSlowTests"`
+		FlakeCount     int     `json:"flakeCount"`
+		FlakeRate      float64 `json:"flakeRate"`
 	}
 	decodeJSONBody(t, aggregatesResp, &aggregates)
 
@@ -967,10 +990,12 @@ func runControlPlanePreventSuite(t *testing.T, h *controlPlaneHarness) preventSn
 		BranchNames:          branchNames,
 		Suites:               suites.TestSuites,
 		TestResultCount:      results.TotalCount,
+		FlakyResultCount:     flakyResults.TotalCount,
 		AggregateTotalFails:  aggregates.TotalFails,
 		AggregateTotalSkips:  aggregates.TotalSkips,
 		AggregateSlowTests:   aggregates.TotalSlowTests,
 		AggregateFlakeCount:  aggregates.FlakeCount,
+		AggregateFlakeRate:   aggregates.FlakeRate,
 		RegeneratedTokenValid: strings.HasPrefix(regenerated.Token, "gprevent_") &&
 			strings.Count(regenerated.Token, "_") >= 2 &&
 			regenerated.Token != detail.UploadToken,
@@ -989,6 +1014,11 @@ func runControlPlanePreventSuite(t *testing.T, h *controlPlaneHarness) preventSn
 		snapshot.TestResultName = results.Results[0].Name
 		snapshot.TestResultFailureRate = results.Results[0].FailureRate
 		snapshot.TestResultFailCount = results.Results[0].TotalFailCount
+	}
+	if len(flakyResults.Results) > 0 {
+		snapshot.FlakyResultName = flakyResults.Results[0].Name
+		snapshot.FlakyResultRate = flakyResults.Results[0].FlakeRate
+		snapshot.FlakyResultFailCount = flakyResults.Results[0].TotalFlakyFailCount
 	}
 	return snapshot
 }
@@ -1430,7 +1460,7 @@ func seedHarnessSQLitePreventControlPlane(t *testing.T, db *sql.DB, base time.Ti
 
 	lastSynced := base.Add(-30 * time.Minute)
 	lastStarted := base.Add(-45 * time.Minute)
-	previousRun := base.Add(-35 * 24 * time.Hour)
+	previousRun := base.Add(-6 * 24 * time.Hour)
 
 	statements := []struct {
 		query string
@@ -1460,7 +1490,7 @@ VALUES ('suite-prevent-1', 'repo-prevent-1', 'suite-ext-1', 'Unit', 'active', ?,
 		{
 			query: `INSERT INTO prevent_repository_test_results (id, repository_id, suite_id, suite_name, branch_name, commit_sha, status, duration_ms, test_count, failure_count, skipped_count, created_at) VALUES
 	('result-prevent-current', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'abc123', 'failed', 2400, 120, 3, 2, ?),
-	('result-prevent-previous', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'def456', 'passed', 1200, 120, 1, 1, ?)`,
+	('result-prevent-previous', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'def456', 'passed', 1200, 120, 0, 1, ?)`,
 			args: []any{base.Format(time.RFC3339), previousRun.Format(time.RFC3339)},
 		},
 		{
@@ -1481,7 +1511,7 @@ func seedHarnessPostgresPreventControlPlane(t *testing.T, db *sql.DB, base time.
 
 	lastSynced := base.Add(-30 * time.Minute)
 	lastStarted := base.Add(-45 * time.Minute)
-	previousRun := base.Add(-35 * 24 * time.Hour)
+	previousRun := base.Add(-6 * 24 * time.Hour)
 
 	statements := []struct {
 		query string
@@ -1511,7 +1541,7 @@ VALUES ('suite-prevent-1', 'repo-prevent-1', 'suite-ext-1', 'Unit', 'active', $1
 		{
 			query: `INSERT INTO prevent_repository_test_results (id, repository_id, suite_id, suite_name, branch_name, commit_sha, status, duration_ms, test_count, failure_count, skipped_count, created_at) VALUES
 	('result-prevent-current', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'abc123', 'failed', 2400, 120, 3, 2, $1),
-	('result-prevent-previous', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'def456', 'passed', 1200, 120, 1, 1, $2)`,
+	('result-prevent-previous', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'def456', 'passed', 1200, 120, 0, 1, $2)`,
 			args: []any{base, previousRun},
 		},
 		{

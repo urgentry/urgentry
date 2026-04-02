@@ -443,7 +443,8 @@ func handleListPreventRepositoryTestResults(catalog controlplane.CatalogStore, p
 			return
 		}
 		filtered := filterPreventTestResults(results, r)
-		sortPreventTestResults(filtered, r.URL.Query().Get("sortBy"), r.URL.Query().Get("filterBy"))
+		stats := buildPreventTestResultStats(filtered)
+		sortPreventTestResults(filtered, stats, r.URL.Query().Get("sortBy"), r.URL.Query().Get("filterBy"))
 		limit, err := parsePreventLimit(r.URL.Query().Get("limit"), 20)
 		if err != nil {
 			httputil.WriteError(w, http.StatusBadRequest, err.Error())
@@ -456,7 +457,7 @@ func handleListPreventRepositoryTestResults(catalog controlplane.CatalogStore, p
 		}
 		out := make([]preventRepositoryTestResultResponse, 0, len(page))
 		for _, result := range page {
-			out = append(out, preventTestResultResponse(result))
+			out = append(out, preventTestResultResponse(result, stats))
 		}
 		httputil.WriteJSON(w, http.StatusOK, preventRepositoryTestResultsResponse{
 			DefaultBranch: preventDefaultBranch(repo.DefaultBranch),
@@ -623,8 +624,9 @@ func paginatePrevent[T any](items []T, limit int, rawCursor, navigation string) 
 			start = cursor + 1
 		}
 	}
-	if start > len(items) {
-		start = len(items)
+	if start >= len(items) {
+		info.HasPreviousPage = len(items) > 0
+		return []T{}, info, nil
 	}
 	end := start + limit
 	if end > len(items) {
@@ -684,10 +686,18 @@ func filterPreventTestResults(items []store.PreventRepositoryTestResult, r *http
 			if item.SkippedCount == 0 {
 				continue
 			}
-		case "FLAKY_TESTS":
-			continue
 		}
 		filtered = append(filtered, item)
+	}
+	if filterBy == "FLAKY_TESTS" {
+		stats := buildPreventTestResultStats(filtered)
+		flaky := make([]store.PreventRepositoryTestResult, 0, len(filtered))
+		for _, item := range filtered {
+			if stats[preventTestResultKey(item)].IsFlaky {
+				flaky = append(flaky, item)
+			}
+		}
+		return flaky
 	}
 	return filtered
 }
@@ -706,7 +716,7 @@ func filterPreventTestResultsWindow(items []store.PreventRepositoryTestResult, b
 	return filtered
 }
 
-func sortPreventTestResults(items []store.PreventRepositoryTestResult, sortBy, filterBy string) {
+func sortPreventTestResults(items []store.PreventRepositoryTestResult, stats map[string]preventTestResultStats, sortBy, filterBy string) {
 	desc := true
 	field := strings.TrimSpace(sortBy)
 	if field == "" {
@@ -729,11 +739,14 @@ func sortPreventTestResults(items []store.PreventRepositoryTestResult, sortBy, f
 	metric := func(item store.PreventRepositoryTestResult) float64 {
 		switch field {
 		case "AVG_DURATION":
+			if stat, ok := stats[preventTestResultKey(item)]; ok && stat.AvgDuration > 0 {
+				return stat.AvgDuration
+			}
 			return preventAvgDuration(item)
 		case "FAILURE_RATE":
 			return preventFailureRate(item)
 		case "FLAKE_RATE":
-			return 0
+			return stats[preventTestResultKey(item)].FlakeRate
 		case "UPDATED_AT":
 			return float64(item.DateCreated.UnixNano())
 		default:
@@ -770,7 +783,7 @@ func preventFailureRate(item store.PreventRepositoryTestResult) float64 {
 	return float64(item.FailureCount) / float64(item.TestCount)
 }
 
-func preventTestResultResponse(item store.PreventRepositoryTestResult) preventRepositoryTestResultResponse {
+func preventTestResultResponse(item store.PreventRepositoryTestResult, stats map[string]preventTestResultStats) preventRepositoryTestResultResponse {
 	totalPass := item.TestCount - item.FailureCount - item.SkippedCount
 	if totalPass < 0 {
 		totalPass = 0
@@ -779,15 +792,20 @@ func preventTestResultResponse(item store.PreventRepositoryTestResult) preventRe
 	if name == "" {
 		name = item.ID
 	}
+	stat := stats[preventTestResultKey(item)]
+	avgDuration := preventAvgDuration(item)
+	if stat.AvgDuration > 0 {
+		avgDuration = stat.AvgDuration
+	}
 	return preventRepositoryTestResultResponse{
 		UpdatedAt:           item.DateCreated.UTC().Format(time.RFC3339),
-		AvgDuration:         preventAvgDuration(item),
+		AvgDuration:         avgDuration,
 		TotalDuration:       float64(item.DurationMS),
 		Name:                name,
 		FailureRate:         preventFailureRate(item),
-		FlakeRate:           0,
+		FlakeRate:           stat.FlakeRate,
 		TotalFailCount:      item.FailureCount,
-		TotalFlakyFailCount: 0,
+		TotalFlakyFailCount: stat.TotalFlakyFailCount,
 		TotalSkipCount:      item.SkippedCount,
 		TotalPassCount:      totalPass,
 		LastDuration:        float64(item.DurationMS),
@@ -817,16 +835,21 @@ type preventAggregateSnapshot struct {
 
 func buildPreventAggregates(items []store.PreventRepositoryTestResult) preventAggregateSnapshot {
 	snapshot := preventAggregateSnapshot{}
-	slowest := make([]float64, 0, len(items))
+	stats := buildPreventTestResultStats(items)
+	slowest := make([]float64, 0, len(stats))
 	for _, item := range items {
 		snapshot.totalDuration += float64(item.DurationMS)
 		snapshot.totalFails += item.FailureCount
 		snapshot.totalSkips += item.SkippedCount
-		avg := preventAvgDuration(item)
-		if avg >= 1000 {
+	}
+	for _, stat := range stats {
+		if stat.AvgDuration >= 1000 {
 			snapshot.totalSlowTests++
 		}
-		slowest = append(slowest, avg)
+		if stat.IsFlaky {
+			snapshot.flakeCount++
+		}
+		slowest = append(slowest, stat.AvgDuration)
 	}
 	sort.Slice(slowest, func(i, j int) bool { return slowest[i] > slowest[j] })
 	for i, value := range slowest {
@@ -835,7 +858,69 @@ func buildPreventAggregates(items []store.PreventRepositoryTestResult) preventAg
 		}
 		snapshot.slowestTestsDuration += value
 	}
+	if len(stats) > 0 {
+		snapshot.flakeRate = float64(snapshot.flakeCount) / float64(len(stats))
+	}
 	return snapshot
+}
+
+type preventTestResultStats struct {
+	AvgDuration         float64
+	FlakeRate           float64
+	TotalFlakyFailCount int
+	IsFlaky             bool
+}
+
+func buildPreventTestResultStats(items []store.PreventRepositoryTestResult) map[string]preventTestResultStats {
+	type accumulator struct {
+		durationMS int64
+		testCount  int
+		failCount  int
+		hasPass    bool
+		hasFailure bool
+	}
+	accumulators := make(map[string]*accumulator, len(items))
+	for _, item := range items {
+		key := preventTestResultKey(item)
+		acc := accumulators[key]
+		if acc == nil {
+			acc = &accumulator{}
+			accumulators[key] = acc
+		}
+		acc.durationMS += item.DurationMS
+		acc.testCount += item.TestCount
+		acc.failCount += item.FailureCount
+		if item.FailureCount > 0 {
+			acc.hasFailure = true
+		} else {
+			acc.hasPass = true
+		}
+	}
+	stats := make(map[string]preventTestResultStats, len(accumulators))
+	for key, acc := range accumulators {
+		avg := float64(acc.durationMS)
+		if acc.testCount > 0 {
+			avg = float64(acc.durationMS) / float64(acc.testCount)
+		}
+		stat := preventTestResultStats{AvgDuration: avg}
+		if acc.hasFailure && acc.hasPass {
+			stat.IsFlaky = true
+			stat.TotalFlakyFailCount = acc.failCount
+			if acc.testCount > 0 {
+				stat.FlakeRate = float64(acc.failCount) / float64(acc.testCount)
+			}
+		}
+		stats[key] = stat
+	}
+	return stats
+}
+
+func preventTestResultKey(item store.PreventRepositoryTestResult) string {
+	name := strings.TrimSpace(item.SuiteName)
+	if name == "" {
+		name = item.ID
+	}
+	return name + "\x00" + strings.TrimSpace(item.BranchName)
 }
 
 func preventPercentChange(current, previous float64) float64 {

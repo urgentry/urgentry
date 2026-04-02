@@ -1,13 +1,15 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 )
 
-func newSQLitePreventServer(t *testing.T) (*httptest.Server, time.Time) {
+func newSQLitePreventServer(t *testing.T) (*httptest.Server, *sql.DB, time.Time) {
 	t.Helper()
 
 	db := openTestSQLite(t)
@@ -96,11 +98,11 @@ INSERT INTO prevent_repository_test_results (
 	}
 
 	deps := sqliteAuthorizedDependencies(t, db, Dependencies{})
-	return httptest.NewServer(NewRouter(deps)), base
+	return httptest.NewServer(NewRouter(deps)), db, base
 }
 
 func TestAPIPreventRepositoryManagement_SQLite(t *testing.T) {
-	ts, base := newSQLitePreventServer(t)
+	ts, _, base := newSQLitePreventServer(t)
 	defer ts.Close()
 
 	resp := authGet(t, ts, "/api/0/organizations/test-org/prevent/owner/sentry/repositories/")
@@ -235,5 +237,121 @@ func TestAPIPreventRepositoryManagement_SQLite(t *testing.T) {
 	}
 	if aggregates.SlowestTestsDuration != 300 || aggregates.TotalSlowTests != 0 || aggregates.TotalDurationPercentChange != 100 {
 		t.Fatalf("unexpected aggregate changes: %+v", aggregates)
+	}
+}
+
+func TestAPIPreventRepositoryFlakyResults_SQLite(t *testing.T) {
+	ts, db, base := newSQLitePreventServer(t)
+	defer ts.Close()
+
+	if _, err := db.Exec(`
+INSERT INTO prevent_repository_test_results (
+	id, repository_id, suite_id, suite_name, branch_name, commit_sha, status,
+	duration_ms, test_count, failure_count, skipped_count, created_at
+) VALUES (
+	'result-prevent-flaky-pass', 'repo-prevent-1', 'suite-prevent-api', 'api', 'main',
+	'ghi789', 'passed', 800, 4, 0, 0, ?
+)`,
+		base.Add(-30*time.Minute).Format(time.RFC3339),
+	); err != nil {
+		t.Fatalf("seed flaky prevent result: %v", err)
+	}
+
+	resp := authGet(t, ts, "/api/0/organizations/test-org/prevent/owner/sentry/repository/platform/test-results/?interval=INTERVAL_7_DAY&filterBy=FLAKY_TESTS")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("flaky test results status = %d, want 200", resp.StatusCode)
+	}
+	var results preventRepositoryTestResultsResponse
+	decodeBody(t, resp, &results)
+	if results.TotalCount != 2 || len(results.Results) != 2 {
+		t.Fatalf("unexpected flaky test results: %+v", results)
+	}
+	for _, result := range results.Results {
+		if result.Name != "api" {
+			t.Fatalf("unexpected flaky result name: %+v", result)
+		}
+		if result.FlakeRate != 0.125 || result.TotalFlakyFailCount != 1 {
+			t.Fatalf("unexpected flaky metrics: %+v", result)
+		}
+		if result.AvgDuration != 250 {
+			t.Fatalf("unexpected flaky average duration: %+v", result)
+		}
+	}
+	if results.Results[0].TotalFailCount != 1 || results.Results[1].TotalFailCount != 0 {
+		t.Fatalf("unexpected flaky ordering: %+v", results.Results)
+	}
+
+	resp = authGet(t, ts, "/api/0/organizations/test-org/prevent/owner/sentry/repository/platform/test-results-aggregates/?interval=INTERVAL_7_DAY&branch=main")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("flaky test aggregates status = %d, want 200", resp.StatusCode)
+	}
+	var aggregates preventRepositoryTestResultsAggregatesResponse
+	decodeBody(t, resp, &aggregates)
+	if aggregates.TotalDuration != 2000 || aggregates.SlowestTestsDuration != 250 {
+		t.Fatalf("unexpected flaky aggregate durations: %+v", aggregates)
+	}
+	if aggregates.FlakeCount != 1 || aggregates.FlakeRate != 1 {
+		t.Fatalf("unexpected flaky aggregate metrics: %+v", aggregates)
+	}
+}
+
+func TestPaginatePrevent(t *testing.T) {
+	items := []string{"a", "b", "c"}
+
+	page, info, err := paginatePrevent(items, 2, "", "")
+	if err != nil {
+		t.Fatalf("first page error: %v", err)
+	}
+	if !reflect.DeepEqual(page, []string{"a", "b"}) {
+		t.Fatalf("unexpected first page: %#v", page)
+	}
+	if info.HasPreviousPage || !info.HasNextPage {
+		t.Fatalf("unexpected first page info: %+v", info)
+	}
+	if info.StartCursor == nil || *info.StartCursor != "0" || info.EndCursor == nil || *info.EndCursor != "1" {
+		t.Fatalf("unexpected first page cursors: %+v", info)
+	}
+
+	page, info, err = paginatePrevent(items, 2, "1", "")
+	if err != nil {
+		t.Fatalf("next page error: %v", err)
+	}
+	if !reflect.DeepEqual(page, []string{"c"}) {
+		t.Fatalf("unexpected next page: %#v", page)
+	}
+	if !info.HasPreviousPage || info.HasNextPage {
+		t.Fatalf("unexpected next page info: %+v", info)
+	}
+	if info.StartCursor == nil || *info.StartCursor != "2" || info.EndCursor == nil || *info.EndCursor != "2" {
+		t.Fatalf("unexpected next page cursors: %+v", info)
+	}
+
+	page, info, err = paginatePrevent(items, 2, "2", "prev")
+	if err != nil {
+		t.Fatalf("previous page error: %v", err)
+	}
+	if !reflect.DeepEqual(page, []string{"a", "b"}) {
+		t.Fatalf("unexpected previous page: %#v", page)
+	}
+	if info.HasPreviousPage || !info.HasNextPage {
+		t.Fatalf("unexpected previous page info: %+v", info)
+	}
+	if info.StartCursor == nil || *info.StartCursor != "0" || info.EndCursor == nil || *info.EndCursor != "1" {
+		t.Fatalf("unexpected previous page cursors: %+v", info)
+	}
+
+	page, info, err = paginatePrevent(items, 2, "2", "")
+	if err != nil {
+		t.Fatalf("past-end page error: %v", err)
+	}
+	if len(page) != 0 {
+		t.Fatalf("expected empty page past end, got %#v", page)
+	}
+	if !info.HasPreviousPage || info.HasNextPage || info.StartCursor != nil || info.EndCursor != nil {
+		t.Fatalf("unexpected past-end page info: %+v", info)
+	}
+
+	if _, _, err := paginatePrevent(items, 2, "bad", ""); err == nil {
+		t.Fatal("expected invalid cursor error")
 	}
 }
