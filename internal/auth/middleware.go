@@ -63,6 +63,9 @@ func Middleware(store KeyStore, limiter RateLimiter, defaultRateLimit int) func(
 				_ = toucher.TouchProjectKey(r.Context(), publicKey)
 			}
 
+			// Set empty rate limits header on successful responses for SDK compat.
+			w.Header().Set("X-Sentry-Rate-Limits", "")
+
 			ctx := context.WithValue(r.Context(), projectKeyContextKey, pk)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

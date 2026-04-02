@@ -36,6 +36,41 @@ type inviteAcceptRequest struct {
 }
 
 // handleListOrgMembers handles GET /api/0/organizations/{org_slug}/members/.
+// handleListOrgUsers returns users in an organization (user objects, not member objects).
+func handleListOrgUsers(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		orgSlug := PathParam(r, "org_slug")
+		items, err := admin.ListOrgMembers(r.Context(), orgSlug)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list users.")
+			return
+		}
+		type UserResponse struct {
+			ID          string     `json:"id"`
+			Name        string     `json:"name"`
+			Username    string     `json:"username"`
+			Email       string     `json:"email"`
+			IsActive    bool       `json:"isActive"`
+			DateJoined  *time.Time `json:"dateJoined,omitempty"`
+			HasPassAuth bool       `json:"has2fa"`
+		}
+		users := make([]UserResponse, 0, len(items))
+		for _, item := range items {
+			users = append(users, UserResponse{
+				ID:       item.UserID,
+				Name:     strings.TrimSpace(item.Name),
+				Username: strings.TrimSpace(item.Name),
+				Email:    item.Email,
+				IsActive: true,
+			})
+		}
+		httputil.WriteJSON(w, http.StatusOK, users)
+	}
+}
+
 func handleListOrgMembers(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
