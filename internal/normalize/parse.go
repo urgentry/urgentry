@@ -257,6 +257,21 @@ func ParseNormalizedTags(rawJSON string) []KVPair {
 		return pairs
 	}
 
+	var tagsObjects []struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(tagsRaw, &tagsObjects); err == nil {
+		var pairs []KVPair
+		for _, item := range tagsObjects {
+			if item.Key == "" {
+				continue
+			}
+			pairs = append(pairs, KVPair{Key: item.Key, Value: item.Value})
+		}
+		return pairs
+	}
+
 	return nil
 }
 

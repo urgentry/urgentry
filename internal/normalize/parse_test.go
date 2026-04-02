@@ -205,6 +205,24 @@ func TestParseNormalizedTags_Array(t *testing.T) {
 	}
 }
 
+func TestParseNormalizedTags_ObjectArray(t *testing.T) {
+	raw := `{"tags":[{"key":"service.name","value":"order-api"},{"key":"environment","value":"production"}]}`
+	pairs := ParseNormalizedTags(raw)
+	if len(pairs) != 2 {
+		t.Fatalf("expected 2 pairs, got %d", len(pairs))
+	}
+	found := make(map[string]string)
+	for _, p := range pairs {
+		found[p.Key] = p.Value
+	}
+	if found["service.name"] != "order-api" {
+		t.Errorf("service.name = %q, want order-api", found["service.name"])
+	}
+	if found["environment"] != "production" {
+		t.Errorf("environment = %q, want production", found["environment"])
+	}
+}
+
 func TestParseNormalizedTags_Empty(t *testing.T) {
 	pairs := ParseNormalizedTags("")
 	if pairs != nil {

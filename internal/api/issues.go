@@ -806,10 +806,6 @@ func getLatestIssueEventFromDB(r *http.Request, db *sql.DB, groupID string) (*Ev
 	return apiEventFromWebEvent(*row), nil
 }
 
-func apiIssueFromWebIssue(row store.WebIssue) Issue {
-	return apiIssueFromWebIssueWithExtras(row, defaultIssueResponseExtras(row))
-}
-
 func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtras) Issue {
 	shortID := row.ID
 	if row.ShortID > 0 {

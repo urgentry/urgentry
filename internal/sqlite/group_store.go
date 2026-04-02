@@ -652,13 +652,15 @@ func deleteGroupCascadeSQLiteTx(ctx context.Context, tx *sql.Tx, groupID string)
 			return err
 		}
 	}
+	// Delete event attachments before removing their parent event rows.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM event_attachments WHERE event_id IN (SELECT event_id FROM events WHERE group_id = ?)`, groupID); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return err
+		}
+	}
 	// Delete events associated with this group.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM events WHERE group_id = ?`, groupID); err != nil {
 		return err
-	}
-	// Delete event attachments for events in this group.
-	if _, err := tx.ExecContext(ctx, `DELETE FROM event_attachments WHERE event_id IN (SELECT event_id FROM events WHERE group_id = ?)`, groupID); err != nil {
-		// Table may not exist in all configurations; ignore.
 	}
 	_, err := tx.ExecContext(ctx, `DELETE FROM groups WHERE id = ?`, groupID)
 	return err

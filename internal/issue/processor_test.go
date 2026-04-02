@@ -343,6 +343,7 @@ func TestProcessor_TransactionBypassesGrouping(t *testing.T) {
 		"event_id":"22222222222222222222222222222222",
 		"platform":"javascript",
 		"transaction":"GET /items/:id",
+		"tags":[["service.name","order-api"],["environment","production"]],
 		"start_timestamp":"2026-03-27T12:00:00Z",
 		"timestamp":"2026-03-27T12:00:01Z",
 		"contexts":{"trace":{"trace_id":"trace-2","span_id":"root-2","op":"http.server","status":"ok"}},
@@ -366,6 +367,26 @@ func TestProcessor_TransactionBypassesGrouping(t *testing.T) {
 	}
 	if len(trace.Spans) != 1 || trace.Spans[0].Description != "SELECT 1" {
 		t.Fatalf("unexpected spans: %+v", trace.Spans)
+	}
+	if got := trace.Tags["service.name"]; got != "order-api" {
+		t.Fatalf("trace.Tags[service.name] = %q, want order-api", got)
+	}
+
+	var stored map[string]any
+	if err := json.Unmarshal(trace.NormalizedJSON, &stored); err != nil {
+		t.Fatalf("unmarshal stored transaction: %v", err)
+	}
+	tags, _ := stored["tags"].([]any)
+	if len(tags) != 2 {
+		t.Fatalf("len(tags) = %d, want 2", len(tags))
+	}
+	firstTag, _ := tags[0].(map[string]any)
+	if got, _ := firstTag["key"].(string); got != "environment" {
+		t.Fatalf("first tag key = %q, want environment", got)
+	}
+	secondTag, _ := tags[1].(map[string]any)
+	if got, _ := secondTag["key"].(string); got != "service.name" {
+		t.Fatalf("second tag key = %q, want service.name", got)
 	}
 }
 

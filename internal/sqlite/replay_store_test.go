@@ -215,6 +215,8 @@ func TestReplayStoreIdempotentRetryIndexing(t *testing.T) {
 }
 
 func TestReplayStoreListOrgReplays(t *testing.T) {
+	t.Parallel()
+
 	db := openStoreTestDB(t)
 	seedProfileTestProject(t, db, "org-1", "proj-1")
 	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('proj-2', 'org-1', 'test-project-two', 'Test Project Two', 'javascript', 'active')`); err != nil {

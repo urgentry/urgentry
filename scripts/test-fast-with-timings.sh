@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 mapfile -t packages < <(go list ./... | grep -v '^urgentry/internal/compat$')
+package_parallelism="${FAST_TEST_PACKAGE_PARALLELISM:-4}"
 results_dir="${RESULTS_DIR:-test-results}"
 raw_output="$results_dir/fast-suite.jsonl"
 summary_output="$results_dir/fast-suite-timings.json"
@@ -13,7 +14,7 @@ budget_file="./testdata/test_timing_budgets.json"
 mkdir -p "$results_dir"
 
 set +e
-go test -json "${packages[@]}" -count=1 | tee "$raw_output" | go run ./tools/testtimings --emit-output --budget-file "$budget_file" --summary-output "$summary_output"
+go test -json -p "$package_parallelism" "${packages[@]}" -count=1 | tee "$raw_output" | go run ./tools/testtimings --emit-output --budget-file "$budget_file" --summary-output "$summary_output"
 statuses=("${PIPESTATUS[@]}")
 set -e
 

@@ -304,6 +304,8 @@ func TestAPIReplayDeletion_SQLite(t *testing.T) {
 }
 
 func TestAPIOrgReplayListBatchesAcrossProjects_SQLite(t *testing.T) {
+	t.Parallel()
+
 	db := openTestSQLite(t)
 	seedSQLiteAuth(t, db)
 	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('test-proj-id-2', 'test-org-id', 'test-project-two', 'Test Project Two', 'javascript', 'active')`); err != nil {

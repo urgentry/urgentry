@@ -432,6 +432,8 @@ func TestAPIProjectBulkIssueOperationsCapIDs_SQLite(t *testing.T) {
 }
 
 func TestAPIBulkIssueMutateRoutesShareBehavior_SQLite(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		path string

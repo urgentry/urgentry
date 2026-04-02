@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -277,6 +278,10 @@ func (p *Processor) processTransaction(ctx context.Context, projectID string, ev
 	if err != nil {
 		return nil, fmt.Errorf("marshal normalized transaction: %w", err)
 	}
+	storedJSON, err := marshalStoredTransactionPayload(normalizedJSON, evt.Tags)
+	if err != nil {
+		return nil, fmt.Errorf("marshal stored transaction payload: %w", err)
+	}
 	payloadKey := fmt.Sprintf("raw/%s/%s.json", projectID, evt.EventID)
 	if err := p.Blobs.Put(ctx, payloadKey, raw); err != nil {
 		return nil, fmt.Errorf("blob put: %w", err)
@@ -316,7 +321,7 @@ func (p *Processor) processTransaction(ctx context.Context, projectID string, ev
 		DurationMS:     endedAt.Sub(startedAt).Seconds() * 1000,
 		Tags:           evt.Tags,
 		Measurements:   make(map[string]store.StoredMeasurement, len(evt.Measurements)),
-		NormalizedJSON: normalizedJSON,
+		NormalizedJSON: storedJSON,
 		PayloadKey:     payloadKey,
 	}
 	for key, measurement := range evt.Measurements {
@@ -375,4 +380,39 @@ func shortTraceSpanID(eventID string) string {
 		return eventID
 	}
 	return eventID[:16]
+}
+
+func marshalStoredTransactionPayload(normalizedJSON []byte, tags map[string]string) (json.RawMessage, error) {
+	if len(tags) == 0 {
+		return json.RawMessage(normalizedJSON), nil
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(normalizedJSON, &payload); err != nil {
+		return nil, err
+	}
+	payload["tags"] = sentryTagList(tags)
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(data), nil
+}
+
+func sentryTagList(tags map[string]string) []map[string]string {
+	keys := make([]string, 0, len(tags))
+	for key := range tags {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	items := make([]map[string]string, 0, len(keys))
+	for _, key := range keys {
+		items = append(items, map[string]string{
+			"key":   key,
+			"value": tags[key],
+		})
+	}
+	return items
 }

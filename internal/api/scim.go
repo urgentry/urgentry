@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +13,18 @@ import (
 )
 
 type scimOrganizationContextKey struct{}
+
+func parseSCIMPagination(raw string, fallback int) int {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
 
 // ---------------------------------------------------------------------------
 // SCIM JSON wire types (RFC 7643 / 7644)
@@ -89,11 +101,11 @@ type scimGroupListResponse struct {
 }
 
 type scimGroupRepr struct {
-	Schemas     []string         `json:"schemas"`
-	ID          string           `json:"id"`
-	DisplayName string           `json:"displayName"`
+	Schemas     []string          `json:"schemas"`
+	ID          string            `json:"id"`
+	DisplayName string            `json:"displayName"`
 	Members     []scimGroupMember `json:"members,omitempty"`
-	Meta        scimMeta         `json:"meta"`
+	Meta        scimMeta          `json:"meta"`
 }
 
 type scimGroupMember struct {
@@ -102,8 +114,8 @@ type scimGroupMember struct {
 }
 
 type scimGroupCreateRequest struct {
-	Schemas     []string         `json:"schemas"`
-	DisplayName string           `json:"displayName"`
+	Schemas     []string          `json:"schemas"`
+	DisplayName string            `json:"displayName"`
 	Members     []scimGroupMember `json:"members,omitempty"`
 }
 
@@ -212,12 +224,8 @@ func handleSCIMListUsers(store scimcore.UserStore) http.HandlerFunc {
 
 		startIndex := 1
 		count := 100
-		if v := r.URL.Query().Get("startIndex"); v != "" {
-			fmt.Sscanf(v, "%d", &startIndex)
-		}
-		if v := r.URL.Query().Get("count"); v != "" {
-			fmt.Sscanf(v, "%d", &count)
-		}
+		startIndex = parseSCIMPagination(r.URL.Query().Get("startIndex"), startIndex)
+		count = parseSCIMPagination(r.URL.Query().Get("count"), count)
 		if startIndex < 1 {
 			startIndex = 1
 		}
@@ -400,12 +408,8 @@ func handleSCIMListGroups(admin controlplane.AdminStore) http.HandlerFunc {
 
 		startIndex := 1
 		count := 100
-		if v := r.URL.Query().Get("startIndex"); v != "" {
-			fmt.Sscanf(v, "%d", &startIndex)
-		}
-		if v := r.URL.Query().Get("count"); v != "" {
-			fmt.Sscanf(v, "%d", &count)
-		}
+		startIndex = parseSCIMPagination(r.URL.Query().Get("startIndex"), startIndex)
+		count = parseSCIMPagination(r.URL.Query().Get("count"), count)
 		if startIndex < 1 {
 			startIndex = 1
 		}

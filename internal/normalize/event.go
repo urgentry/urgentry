@@ -347,6 +347,21 @@ func normalizeTags(raw json.RawMessage) map[string]string {
 		return result
 	}
 
+	var objectTags []struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(raw, &objectTags); err == nil {
+		result := make(map[string]string, len(objectTags))
+		for _, item := range objectTags {
+			if item.Key == "" {
+				continue
+			}
+			result[item.Key] = item.Value
+		}
+		return result
+	}
+
 	return nil
 }
 

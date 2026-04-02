@@ -399,11 +399,6 @@ func truncate(s string, n int) string {
 	return s[:n] + "..."
 }
 
-func errorJSON(msg string) []byte {
-	out, _ := json.Marshal(map[string]any{"ok": false, "error": msg})
-	return out
-}
-
 func verifyGitHubWebhookSignature(headers http.Header, secret, payload []byte) error {
 	if value := strings.TrimSpace(headers.Get("X-Hub-Signature-256")); value != "" {
 		return matchGitHubSignature(value, "sha256", secret, payload)

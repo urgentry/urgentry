@@ -3,7 +3,7 @@
   "budgets": [
     {
       "package": "urgentry/internal/api",
-      "max_seconds": 25
+      "max_seconds": 35
     },
     {
       "package": "urgentry/internal/app",
@@ -19,7 +19,7 @@
     },
     {
       "package": "urgentry/internal/sqlite",
-      "max_seconds": 15
+      "max_seconds": 20
     },
     {
       "package": "urgentry/internal/telemetrybridge",

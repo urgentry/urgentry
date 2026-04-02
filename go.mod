@@ -6,7 +6,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/felixge/fgprof v0.9.5
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/minio/minio-go/v7 v7.0.99
+	github.com/minio/minio-go/v7 v7.0.100
 	github.com/nats-io/nats-server/v2 v2.12.6
 	github.com/nats-io/nats.go v1.50.0
 	github.com/redis/go-redis/v9 v9.18.0

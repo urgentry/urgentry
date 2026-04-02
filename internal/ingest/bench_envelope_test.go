@@ -22,8 +22,12 @@ func buildEnvelope(headerLine string, items ...string) []byte {
 func gzipBytes(b []byte) []byte {
 	var buf bytes.Buffer
 	w := gzip.NewWriter(&buf)
-	w.Write(b)
-	w.Close()
+	if _, err := w.Write(b); err != nil {
+		panic(err)
+	}
+	if err := w.Close(); err != nil {
+		panic(err)
+	}
 	return buf.Bytes()
 }
 

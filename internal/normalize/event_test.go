@@ -145,6 +145,26 @@ func TestNormalizeTagsArrayFormat(t *testing.T) {
 	}
 }
 
+func TestNormalizeTagsObjectListFormat(t *testing.T) {
+	raw := []byte(`{
+		"event_id":"deadbeefdeadbeefdeadbeefdeadbeef",
+		"tags":[
+			{"key":"service.name","value":"order-api"},
+			{"key":"environment","value":"production"}
+		]
+	}`)
+	evt, err := Normalize(raw)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if evt.Tags["service.name"] != "order-api" {
+		t.Fatalf("tags[service.name] = %q, want order-api", evt.Tags["service.name"])
+	}
+	if evt.Tags["environment"] != "production" {
+		t.Fatalf("tags[environment] = %q, want production", evt.Tags["environment"])
+	}
+}
+
 func TestNormalizeMissingEventID(t *testing.T) {
 	data := loadFixture(t, "negative", "missing_event_id.json")
 	evt, err := Normalize(data)

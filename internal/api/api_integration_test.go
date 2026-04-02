@@ -289,7 +289,7 @@ func TestGetProject(t *testing.T) {
 	}
 
 	// Verify enriched fields.
-	if proj.Features == nil || len(proj.Features) == 0 {
+	if len(proj.Features) == 0 {
 		t.Fatal("expected non-empty features")
 	}
 	if !proj.HasAccess {

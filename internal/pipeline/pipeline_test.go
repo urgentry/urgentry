@@ -305,8 +305,6 @@ func TestPipeline_DurableWorkerSkipsDuplicateCompletedRedelivery(t *testing.T) {
 }
 
 func TestPipeline_JetStreamBacklogRecovery(t *testing.T) {
-	t.Parallel()
-
 	srv := startPipelineJetStreamTestServer(t)
 	queue, err := runtimeasync.NewJetStreamQueue(srv.ClientURL(), "pipeline-backlog", sqlite.JobKindEvent)
 	if err != nil {

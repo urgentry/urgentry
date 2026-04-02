@@ -223,7 +223,7 @@ func (s *ReleaseStore) DeleteRelease(ctx context.Context, orgSlug, version strin
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, `DELETE FROM release_deploys WHERE release_id = ?`, releaseID); err != nil {
 		return err
 	}
