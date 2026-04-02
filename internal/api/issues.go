@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"urgentry/internal/auth"
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
 	"urgentry/internal/normalize"
 	"urgentry/internal/sqlite"
 	"urgentry/internal/store"
-	"github.com/rs/zerolog/log"
 )
 
 // handleListProjectIssues handles GET /api/0/projects/{org_slug}/{proj_slug}/issues/.
@@ -316,14 +317,14 @@ type bulkMutateRequest struct {
 	IsSubscribed  *bool  `json:"isSubscribed"`
 	Merge         *bool  `json:"merge"`
 	StatusDetails struct {
-		InRelease         string `json:"inRelease"`
-		InNextRelease     bool   `json:"inNextRelease"`
-		InCommit          string `json:"inCommit"`
-		IgnoreCount       int    `json:"ignoreCount"`
-		IgnoreDuration    int    `json:"ignoreDuration"`
-		IgnoreUserCount   int    `json:"ignoreUserCount"`
-		IgnoreWindow      int    `json:"ignoreWindow"`
-		IgnoreUserWindow  int    `json:"ignoreUserWindow"`
+		InRelease        string `json:"inRelease"`
+		InNextRelease    bool   `json:"inNextRelease"`
+		InCommit         string `json:"inCommit"`
+		IgnoreCount      int    `json:"ignoreCount"`
+		IgnoreDuration   int    `json:"ignoreDuration"`
+		IgnoreUserCount  int    `json:"ignoreUserCount"`
+		IgnoreWindow     int    `json:"ignoreWindow"`
+		IgnoreUserWindow int    `json:"ignoreUserWindow"`
 	} `json:"statusDetails"`
 }
 
@@ -503,6 +504,22 @@ func apiEventsFromWebEvents(rows []store.WebEvent) []*Event {
 	return events
 }
 
+func apiEventTags(tags map[string]string) []EventTag {
+	if len(tags) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(tags))
+	for key := range tags {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	items := make([]EventTag, 0, len(keys))
+	for _, key := range keys {
+		items = append(items, EventTag{Key: key, Value: tags[key]})
+	}
+	return items
+}
+
 func apiEventFromWebEvent(row store.WebEvent) *Event {
 	resolvedFrames, unresolvedFrames := normalize.CountNativeFrames(row.NormalizedJSON)
 	return &Event{
@@ -519,7 +536,7 @@ func apiEventFromWebEvent(row store.WebEvent) *Event {
 		ResolvedFrames:   resolvedFrames,
 		UnresolvedFrames: unresolvedFrames,
 		DateCreated:      row.Timestamp,
-		Tags:             row.Tags,
+		Tags:             apiEventTags(row.Tags),
 	}
 }
 

@@ -82,21 +82,27 @@ type ProjectRef struct {
 
 // Event represents a single error event.
 type Event struct {
-	ID               string            `json:"id"`
-	EventID          string            `json:"eventID"`
-	ProjectID        string            `json:"projectID,omitempty"`
-	IssueID          string            `json:"groupID"`
-	Title            string            `json:"title"`
-	Message          string            `json:"message"`
-	Level            string            `json:"level"`
-	Platform         string            `json:"platform"`
-	Culprit          string            `json:"culprit"`
-	ProcessingStatus string            `json:"processingStatus,omitempty"`
-	IngestError      string            `json:"ingestError,omitempty"`
-	ResolvedFrames   int               `json:"resolvedFrames,omitempty"`
-	UnresolvedFrames int               `json:"unresolvedFrames,omitempty"`
-	DateCreated      time.Time         `json:"dateCreated"`
-	Tags             map[string]string `json:"tags,omitempty"`
+	ID               string     `json:"id"`
+	EventID          string     `json:"eventID"`
+	ProjectID        string     `json:"projectID,omitempty"`
+	IssueID          string     `json:"groupID"`
+	Title            string     `json:"title"`
+	Message          string     `json:"message"`
+	Level            string     `json:"level"`
+	Platform         string     `json:"platform"`
+	Culprit          string     `json:"culprit"`
+	ProcessingStatus string     `json:"processingStatus,omitempty"`
+	IngestError      string     `json:"ingestError,omitempty"`
+	ResolvedFrames   int        `json:"resolvedFrames,omitempty"`
+	UnresolvedFrames int        `json:"unresolvedFrames,omitempty"`
+	DateCreated      time.Time  `json:"dateCreated"`
+	Tags             []EventTag `json:"tags,omitempty"`
+}
+
+// EventTag is the Sentry-compatible event tag shape used in API responses.
+type EventTag struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // IssueComment represents a stored comment on an issue.
@@ -169,15 +175,15 @@ type Release struct {
 
 // OrgEventRow is an event with project context for org-level event listing.
 type OrgEventRow struct {
-	ID          string            `json:"id"`
-	Title       string            `json:"title"`
-	Message     string            `json:"message,omitempty"`
-	Level       string            `json:"level,omitempty"`
-	Platform    string            `json:"platform,omitempty"`
-	Culprit     string            `json:"culprit,omitempty"`
-	ProjectName string            `json:"project.name"`
-	Timestamp   time.Time         `json:"timestamp"`
-	Tags        map[string]string `json:"tags,omitempty"`
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Message     string     `json:"message,omitempty"`
+	Level       string     `json:"level,omitempty"`
+	Platform    string     `json:"platform,omitempty"`
+	Culprit     string     `json:"culprit,omitempty"`
+	ProjectName string     `json:"project.name"`
+	Timestamp   time.Time  `json:"timestamp"`
+	Tags        []EventTag `json:"tags,omitempty"`
 }
 
 // SourceMapDebugResponse describes source map resolution debug info for an event.

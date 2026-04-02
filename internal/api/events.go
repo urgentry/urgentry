@@ -49,7 +49,7 @@ func handleListOrgEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 				Culprit:     row.Culprit,
 				ProjectName: row.ProjectName,
 				Timestamp:   row.Timestamp,
-				Tags:        row.Tags,
+				Tags:        apiEventTags(row.Tags),
 			})
 		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"data": data})

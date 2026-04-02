@@ -15,6 +15,16 @@ import (
 	"urgentry/internal/store"
 )
 
+func assertHasEventTag(t *testing.T, tags []EventTag, key, value string) {
+	t.Helper()
+	for _, tag := range tags {
+		if tag.Key == key && tag.Value == value {
+			return
+		}
+	}
+	t.Fatalf("tags = %+v, want {%q %q}", tags, key, value)
+}
+
 func TestAPIListEvents_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 
@@ -42,6 +52,7 @@ func TestAPIListEvents_SQLite(t *testing.T) {
 	found := false
 	for _, evt := range events {
 		if evt.Title == "EventListErr" {
+			assertHasEventTag(t, evt.Tags, "environment", "production")
 			found = true
 			break
 		}
@@ -70,6 +81,66 @@ func TestAPIGetProjectEvent_SQLite(t *testing.T) {
 	if evt.EventID != "evt-api-single" {
 		t.Errorf("EventID = %q, want 'evt-api-single'", evt.EventID)
 	}
+	assertHasEventTag(t, evt.Tags, "environment", "production")
+}
+
+func TestAPIListOrgEvents_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+
+	insertSQLiteGroup(t, db, "grp-api-org-evt", "OrgEventListErr", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-org", "grp-api-org-evt", "OrgEventListErr", "error")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/organizations/test-org/events/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Data []OrgEventRow `json:"data"`
+	}
+	decodeBody(t, resp, &body)
+	if len(body.Data) == 0 {
+		t.Fatal("expected at least one org event")
+	}
+	found := false
+	for _, evt := range body.Data {
+		if evt.ID == "evt-api-org" {
+			assertHasEventTag(t, evt.Tags, "environment", "production")
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected to find org event %q", "evt-api-org")
+	}
+}
+
+func TestAPIResolveEventID_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+
+	insertSQLiteGroup(t, db, "grp-api-resolve-evt", "ResolveEvent", "main.go", "error", "unresolved")
+	insertSQLiteEvent(t, db, "evt-api-resolve", "grp-api-resolve-evt", "ResolveEvent", "error")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/organizations/test-org/eventids/evt-api-resolve/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		EventID string `json:"eventId"`
+		Event   Event  `json:"event"`
+	}
+	decodeBody(t, resp, &body)
+	if body.EventID != "evt-api-resolve" {
+		t.Fatalf("eventId = %q, want %q", body.EventID, "evt-api-resolve")
+	}
+	assertHasEventTag(t, body.Event.Tags, "environment", "production")
 }
 
 func TestAPIEventAttachments_SQLite(t *testing.T) {

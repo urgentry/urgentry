@@ -483,6 +483,7 @@ func TestGetLatestIssueEvent(t *testing.T) {
 	if evt.EventID == "" {
 		t.Fatal("expected event ID to be set")
 	}
+	assertHasEventTag(t, evt.Tags, "environment", "production")
 }
 
 // ---------------------------------------------------------------------------

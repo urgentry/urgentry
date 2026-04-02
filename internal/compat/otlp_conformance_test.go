@@ -327,9 +327,20 @@ func TestOTLPTraceSpanStructure(t *testing.T) {
 	}
 
 	// Verify tags include service.name.
-	tags, _ := event["tags"].(map[string]any)
-	if got, _ := tags["service.name"].(string); got != "order-api" {
-		t.Fatalf("tags[service.name] = %q, want order-api", got)
+	tags, _ := event["tags"].([]any)
+	foundTag := false
+	for _, raw := range tags {
+		item, _ := raw.(map[string]any)
+		if gotKey, _ := item["key"].(string); gotKey == "service.name" {
+			if gotValue, _ := item["value"].(string); gotValue != "order-api" {
+				t.Fatalf("service.name tag value = %q, want order-api", gotValue)
+			}
+			foundTag = true
+			break
+		}
+	}
+	if !foundTag {
+		t.Fatalf("tags = %#v, want service.name tag", tags)
 	}
 }
 
@@ -436,10 +447,10 @@ func otlpLogsPayload(serviceName, loggerName, message, severity string) []byte {
 						},
 						"logRecords": []map[string]any{
 							{
-								"timeUnixNano":  formatNano(now),
-								"severityText":  severity,
-								"body":          map[string]any{"stringValue": message},
-								"attributes":    []map[string]any{},
+								"timeUnixNano": formatNano(now),
+								"severityText": severity,
+								"body":         map[string]any{"stringValue": message},
+								"attributes":   []map[string]any{},
 							},
 						},
 					},
