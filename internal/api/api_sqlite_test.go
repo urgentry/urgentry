@@ -291,6 +291,20 @@ func TestAPIOwnershipAndReleaseWorkflow_SQLite(t *testing.T) {
 		t.Fatalf("unexpected ownership rules: %+v", rules)
 	}
 
+	resp = authPut(t, ts, "/api/0/projects/test-org/test-project/ownership/", ownershipRuleRequest{
+		Name:     "Checkout",
+		Pattern:  "path:internal/checkout/service.go",
+		Assignee: "checkout@team",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("ownership put status = %d, want 201", resp.StatusCode)
+	}
+	var putRule OwnershipRule
+	decodeBody(t, resp, &putRule)
+	if putRule.Assignee != "checkout@team" {
+		t.Fatalf("unexpected ownership rule from put: %+v", putRule)
+	}
+
 	resp = authPost(t, ts, "/api/0/organizations/test-org/releases/backend@1.2.3/deploys/", releaseDeployRequest{
 		Environment: "production",
 		Name:        "deploy-123",
