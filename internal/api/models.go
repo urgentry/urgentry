@@ -35,8 +35,19 @@ type KeyRateLimit struct {
 
 // DSNURLs holds the public and secret DSN strings.
 type DSNURLs struct {
-	Public string `json:"public"`
-	Secret string `json:"secret"`
+	Public      string `json:"public"`
+	Secret      string `json:"secret"`
+	CDN         string `json:"cdn"`
+	Crons       string `json:"crons"`
+	CSP         string `json:"csp"`
+	Integration string `json:"integration"`
+	Minidump    string `json:"minidump"`
+	NEL         string `json:"nel"`
+	OTLPLogs    string `json:"otlp_logs"`
+	OTLPTraces  string `json:"otlp_traces"`
+	PlayStation string `json:"playstation"`
+	Security    string `json:"security"`
+	Unreal      string `json:"unreal"`
 }
 
 // Issue represents a grouped set of events.

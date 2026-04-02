@@ -340,6 +340,9 @@ func TestListKeys(t *testing.T) {
 	if keys[0].DSN.Public == "" {
 		t.Fatal("expected DSN public to be set")
 	}
+	if keys[0].DSN.Minidump == "" || keys[0].DSN.Security == "" || keys[0].DSN.OTLPLogs == "" {
+		t.Fatalf("expected expanded DSN URLs, got %+v", keys[0].DSN)
+	}
 }
 
 func TestCreateKey(t *testing.T) {
@@ -363,6 +366,9 @@ func TestCreateKey(t *testing.T) {
 	}
 	if key.DSN.Secret == "" {
 		t.Fatal("expected DSN secret to be set")
+	}
+	if key.DSN.CSP == "" || key.DSN.Crons == "" || key.DSN.Unreal == "" {
+		t.Fatalf("expected Sentry-style DSN sub-endpoints, got %+v", key.DSN)
 	}
 }
 

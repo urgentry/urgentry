@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
@@ -182,20 +183,41 @@ func apiProjectKeyFromMeta(r *http.Request, rec store.ProjectKeyMeta) *ProjectKe
 	if rec.RateLimit > 0 {
 		rl = &KeyRateLimit{Window: 60, Count: rec.RateLimit}
 	}
+	dsnURLs := apiProjectKeyDSNURLs(r, rec)
 	return &ProjectKey{
-		ID:        rec.ID,
-		Name:      rec.Label,
-		Label:     rec.Label,
-		ProjectID: rec.ProjectID,
-		Public:    rec.PublicKey,
-		Secret:    rec.SecretKey,
-		IsActive:  rec.Status == "" || rec.Status == "active",
-		RateLimit: rl,
-		DSN: DSNURLs{
-			Public: fmt.Sprintf("%s://%s@%s/%s", dsnScheme(baseURLFromRequest(r)), rec.PublicKey, dsnHost(baseURLFromRequest(r)), rec.ProjectID),
-			Secret: fmt.Sprintf("%s://%s:%s@%s/%s", dsnScheme(baseURLFromRequest(r)), rec.PublicKey, rec.SecretKey, dsnHost(baseURLFromRequest(r)), rec.ProjectID),
-		},
+		ID:          rec.ID,
+		Name:        rec.Label,
+		Label:       rec.Label,
+		ProjectID:   rec.ProjectID,
+		Public:      rec.PublicKey,
+		Secret:      rec.SecretKey,
+		IsActive:    rec.Status == "" || rec.Status == "active",
+		RateLimit:   rl,
+		DSN:         dsnURLs,
 		DateCreated: rec.DateCreated,
+	}
+}
+
+func apiProjectKeyDSNURLs(r *http.Request, rec store.ProjectKeyMeta) DSNURLs {
+	baseURL := strings.TrimSuffix(baseURLFromRequest(r), "/")
+	publicDSN := fmt.Sprintf("%s://%s@%s/%s", dsnScheme(baseURL), rec.PublicKey, dsnHost(baseURL), rec.ProjectID)
+	secretDSN := fmt.Sprintf("%s://%s:%s@%s/%s", dsnScheme(baseURL), rec.PublicKey, rec.SecretKey, dsnHost(baseURL), rec.ProjectID)
+	apiPath := fmt.Sprintf("%s/api/%s", baseURL, rec.ProjectID)
+	integrationPath := apiPath + "/integration/"
+	return DSNURLs{
+		Public:      publicDSN,
+		Secret:      secretDSN,
+		CDN:         fmt.Sprintf("%s/js-sdk-loader/%s.min.js", baseURL, rec.PublicKey),
+		Crons:       fmt.Sprintf("%s/cron/___MONITOR_SLUG___/%s/", apiPath, rec.PublicKey),
+		CSP:         fmt.Sprintf("%s/csp-report/?sentry_key=%s", apiPath, rec.PublicKey),
+		Integration: integrationPath,
+		Minidump:    fmt.Sprintf("%s/minidump/?sentry_key=%s", apiPath, rec.PublicKey),
+		NEL:         fmt.Sprintf("%s/nel/?sentry_key=%s", apiPath, rec.PublicKey),
+		OTLPLogs:    integrationPath + "otlp/v1/logs",
+		OTLPTraces:  integrationPath + "otlp/v1/traces",
+		PlayStation: fmt.Sprintf("%s/playstation/?sentry_key=%s", apiPath, rec.PublicKey),
+		Security:    fmt.Sprintf("%s/security/?sentry_key=%s", apiPath, rec.PublicKey),
+		Unreal:      fmt.Sprintf("%s/unreal/%s/", apiPath, rec.PublicKey),
 	}
 }
 

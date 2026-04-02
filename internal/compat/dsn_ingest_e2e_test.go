@@ -25,8 +25,19 @@ type dsnKeyResponse struct {
 	Secret    string `json:"secret"`
 	IsActive  bool   `json:"isActive"`
 	DSN       struct {
-		Public string `json:"public"`
-		Secret string `json:"secret"`
+		Public      string `json:"public"`
+		Secret      string `json:"secret"`
+		CDN         string `json:"cdn"`
+		Crons       string `json:"crons"`
+		CSP         string `json:"csp"`
+		Integration string `json:"integration"`
+		Minidump    string `json:"minidump"`
+		NEL         string `json:"nel"`
+		OTLPLogs    string `json:"otlp_logs"`
+		OTLPTraces  string `json:"otlp_traces"`
+		PlayStation string `json:"playstation"`
+		Security    string `json:"security"`
+		Unreal      string `json:"unreal"`
 	} `json:"dsn"`
 }
 
@@ -93,6 +104,9 @@ func TestE2EDSNRetrieval(t *testing.T) {
 	}
 	if key.DSN.Public == "" {
 		t.Fatal("public DSN is empty")
+	}
+	if key.DSN.Minidump == "" || key.DSN.Security == "" || key.DSN.Crons == "" || key.DSN.OTLPTraces == "" {
+		t.Fatalf("expected expanded DSN object, got %+v", key.DSN)
 	}
 
 	// Parse the returned DSN to verify its structure.
