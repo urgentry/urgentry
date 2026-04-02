@@ -23,6 +23,18 @@ type teamMemberRequest struct {
 	Role   string `json:"role"`
 }
 
+var validOrgRoles = map[string]bool{
+	"owner":   true,
+	"admin":   true,
+	"manager": true,
+	"member":  true,
+}
+
+var validTeamRoles = map[string]bool{
+	"member":     true,
+	"maintainer": true,
+}
+
 type inviteRequest struct {
 	Email       string `json:"email"`
 	Role        string `json:"role"`
@@ -234,12 +246,6 @@ func handleGetOrgMember(admin controlplane.AdminStore, auth authFunc) http.Handl
 
 // handleUpdateOrgMember handles PUT /api/0/organizations/{org_slug}/members/{member_id}/.
 func handleUpdateOrgMember(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
-	validOrgRoles := map[string]bool{
-		"owner":   true,
-		"admin":   true,
-		"manager": true,
-		"member":  true,
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -322,7 +328,12 @@ func handleAddTeamMember(admin controlplane.AdminStore, auth authFunc) http.Hand
 			httputil.WriteError(w, http.StatusBadRequest, "User ID is required.")
 			return
 		}
-		rec, err := admin.AddTeamMember(r.Context(), PathParam(r, "org_slug"), PathParam(r, "team_slug"), body.UserID, strings.TrimSpace(body.Role))
+		role := strings.TrimSpace(body.Role)
+		if role != "" && !validTeamRoles[role] {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid role. Must be one of: member, maintainer.")
+			return
+		}
+		rec, err := admin.AddTeamMember(r.Context(), PathParam(r, "org_slug"), PathParam(r, "team_slug"), body.UserID, role)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to add team member.")
 			return
@@ -401,8 +412,13 @@ func handleCreateInvite(admin controlplane.AdminStore, auth authFunc) http.Handl
 			httputil.WriteError(w, http.StatusBadRequest, "Email is required.")
 			return
 		}
+		role := strings.TrimSpace(body.Role)
+		if role != "" && !validOrgRoles[role] {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid role. Must be one of: owner, admin, manager, member.")
+			return
+		}
 		principal := authPrincipalFromRequest(r)
-		invite, token, err := admin.CreateInvite(r.Context(), PathParam(r, "org_slug"), body.Email, strings.TrimSpace(body.Role), strings.TrimSpace(body.TeamSlug), principalUserID(principal))
+		invite, token, err := admin.CreateInvite(r.Context(), PathParam(r, "org_slug"), body.Email, role, strings.TrimSpace(body.TeamSlug), principalUserID(principal))
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to create invite.")
 			return

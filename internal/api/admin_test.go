@@ -325,3 +325,66 @@ func TestOrganizationMembershipListShowsExpiredPendingInvite(t *testing.T) {
 
 	t.Fatalf("expected expired invite in org members: %+v", members)
 }
+
+func TestCreateInviteRejectsInvalidOrgRole(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	resp := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/members/", pat, map[string]any{
+		"email": "bad-role@example.com",
+		"role":  "superadmin",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("create invite with invalid role status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestAddTeamMemberRejectsInvalidTeamRole(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	createTeam := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/teams/", pat, map[string]any{
+		"slug": "platform",
+		"name": "Platform",
+	})
+	if createTeam.StatusCode != http.StatusCreated {
+		t.Fatalf("create team status = %d, want 201", createTeam.StatusCode)
+	}
+	createTeam.Body.Close()
+
+	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/members/", pat, map[string]any{
+		"email": "team-user@example.com",
+		"role":  "member",
+	})
+	if createInvite.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite status = %d, want 201", createInvite.StatusCode)
+	}
+	var invite CreatedInvite
+	decodeBody(t, createInvite, &invite)
+
+	acceptInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/invites/"+invite.Token+"/accept/", "", map[string]any{
+		"displayName": "Team User",
+		"password":    "temporary-pass-123",
+	})
+	if acceptInvite.StatusCode != http.StatusCreated {
+		t.Fatalf("accept invite status = %d, want 201", acceptInvite.StatusCode)
+	}
+	var accepted struct {
+		User struct {
+			ID string `json:"id"`
+		} `json:"user"`
+	}
+	decodeBody(t, acceptInvite, &accepted)
+
+	resp := authzJSONRequest(t, ts, http.MethodPost, "/api/0/teams/test-org/platform/members/", pat, map[string]any{
+		"userId": accepted.User.ID,
+		"role":   "superadmin",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("add team member with invalid role status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
