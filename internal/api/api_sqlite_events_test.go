@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,36 @@ func assertHasEventTag(t *testing.T, tags []EventTag, key, value string) {
 		}
 	}
 	t.Fatalf("tags = %+v, want {%q %q}", tags, key, value)
+}
+
+func assertEventIDs(t *testing.T, events []Event, want []string) {
+	t.Helper()
+	if len(events) != len(want) {
+		t.Fatalf("len(events) = %d, want %d", len(events), len(want))
+	}
+	for i, event := range events {
+		if event.EventID != want[i] {
+			t.Fatalf("events[%d].EventID = %q, want %q", i, event.EventID, want[i])
+		}
+	}
+}
+
+func testLinkTarget(t *testing.T, header, rel string) string {
+	t.Helper()
+	for _, part := range strings.Split(header, ",") {
+		part = strings.TrimSpace(part)
+		if !strings.Contains(part, `rel="`+rel+`"`) {
+			continue
+		}
+		start := strings.Index(part, "<")
+		end := strings.Index(part, ">")
+		if start < 0 || end <= start {
+			t.Fatalf("invalid %s link part %q", rel, part)
+		}
+		return part[start+1 : end]
+	}
+	t.Fatalf("missing %s link in %q", rel, header)
+	return ""
 }
 
 const normalizedEventInterfacesPayload = `{
@@ -80,6 +112,83 @@ func TestAPIListEvents_SQLite(t *testing.T) {
 	if !found {
 		t.Error("expected to find event with title 'EventListErr'")
 	}
+}
+
+func TestAPIListProjectEvents_SQLite_PaginationContinuity(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-page", "PagedEventErr", "main.go", "error", "unresolved")
+
+	timestamp := time.Date(2026, 4, 2, 9, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	for i := 0; i < 105; i++ {
+		eventID := fmt.Sprintf("evt-api-page-%03d", i)
+		insertSQLiteEvent(t, db, eventID, "grp-api-page", "PagedEventErr", "error")
+		if _, err := db.Exec(
+			`UPDATE events SET ingested_at = ?, occurred_at = ? WHERE event_id = ?`,
+			timestamp, timestamp, eventID,
+		); err != nil {
+			t.Fatalf("update %s timestamps: %v", eventID, err)
+		}
+	}
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	firstResp := authGet(t, ts, "/api/0/projects/test-org/test-project/events/?per_page=10")
+	if firstResp.StatusCode != http.StatusOK {
+		t.Fatalf("first page status = %d, want 200", firstResp.StatusCode)
+	}
+	firstLink := firstResp.Header.Get("Link")
+	if !containsStr(firstLink, `rel="next"; results="true"; cursor="0:10:0"`) {
+		t.Fatalf("unexpected first page Link header %q", firstLink)
+	}
+	if !containsStr(firstLink, `per_page=10`) {
+		t.Fatalf("first page Link header missing per_page: %q", firstLink)
+	}
+	var firstPage []Event
+	decodeBody(t, firstResp, &firstPage)
+	assertEventIDs(t, firstPage, []string{
+		"evt-api-page-104",
+		"evt-api-page-103",
+		"evt-api-page-102",
+		"evt-api-page-101",
+		"evt-api-page-100",
+		"evt-api-page-099",
+		"evt-api-page-098",
+		"evt-api-page-097",
+		"evt-api-page-096",
+		"evt-api-page-095",
+	})
+
+	secondPath := testLinkTarget(t, firstLink, "next")
+	if !strings.Contains(secondPath, "per_page=10") {
+		t.Fatalf("next page path = %q, want per_page preserved", secondPath)
+	}
+
+	secondResp := authGet(t, ts, secondPath)
+	if secondResp.StatusCode != http.StatusOK {
+		t.Fatalf("second page status = %d, want 200", secondResp.StatusCode)
+	}
+	secondLink := secondResp.Header.Get("Link")
+	if !containsStr(secondLink, `rel="previous"; results="true"; cursor="0:0:1"`) {
+		t.Fatalf("unexpected second page previous link %q", secondLink)
+	}
+	if !containsStr(secondLink, `rel="next"; results="true"; cursor="0:20:0"`) {
+		t.Fatalf("unexpected second page next link %q", secondLink)
+	}
+	var secondPage []Event
+	decodeBody(t, secondResp, &secondPage)
+	assertEventIDs(t, secondPage, []string{
+		"evt-api-page-094",
+		"evt-api-page-093",
+		"evt-api-page-092",
+		"evt-api-page-091",
+		"evt-api-page-090",
+		"evt-api-page-089",
+		"evt-api-page-088",
+		"evt-api-page-087",
+		"evt-api-page-086",
+		"evt-api-page-085",
+	})
 }
 
 func TestAPIGetProjectEvent_SQLite(t *testing.T) {

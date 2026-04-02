@@ -45,9 +45,15 @@ func parseCompoundCursor(raw string) int {
 // the next page.
 func Paginate[T any](w http.ResponseWriter, r *http.Request, items []T) []T {
 	offset := parseCompoundCursor(r.URL.Query().Get("cursor"))
+	prevOffset := offset - defaultPageSize
+	if prevOffset < 0 {
+		prevOffset = 0
+	}
+	prevCursor := formatPaginationCursor(prevOffset, true)
+	hasPrev := offset > 0
 
 	if offset >= len(items) {
-		setLinkHeader(w, r, "", false)
+		setLinkHeader(w, r, prevCursor, hasPrev, "", false)
 		return nil
 	}
 
@@ -61,30 +67,48 @@ func Paginate[T any](w http.ResponseWriter, r *http.Request, items []T) []T {
 
 	nextCursor := ""
 	if hasNext {
-		nextCursor = strconv.Itoa(end)
+		nextCursor = formatPaginationCursor(end, false)
 	}
-	setLinkHeader(w, r, nextCursor, hasNext)
+	setLinkHeader(w, r, prevCursor, hasPrev, nextCursor, hasNext)
 	return items[offset:end]
 }
 
 // setLinkHeader sets a RFC 5988 Link header for pagination.
-func setLinkHeader(w http.ResponseWriter, r *http.Request, nextCursor string, hasNext bool) {
-	base := r.URL.Path
+func setLinkHeader(w http.ResponseWriter, r *http.Request, prevCursor string, hasPrev bool, nextCursor string, hasNext bool) {
+	if prevCursor == "" {
+		prevCursor = formatPaginationCursor(0, true)
+	}
+	if nextCursor == "" {
+		nextCursor = formatPaginationCursor(0, false)
+	}
 	parts := []string{
-		fmt.Sprintf(`<%s?cursor=0:0:1>; rel="previous"; results="false"; cursor="0:0:1"`, base),
+		fmt.Sprintf(
+			`<%s>; rel="previous"; results="%t"; cursor="%s"`,
+			paginationLinkPath(r, prevCursor), hasPrev, prevCursor,
+		),
 	}
-	if hasNext && nextCursor != "" {
-		parts = append(parts, fmt.Sprintf(
-			`<%s?cursor=%s:0:0>; rel="next"; results="true"; cursor="%s:0:0"`,
-			base, nextCursor, nextCursor,
-		))
-	} else {
-		parts = append(parts, fmt.Sprintf(
-			`<%s?cursor=0:0:0>; rel="next"; results="false"; cursor="0:0:0"`,
-			base,
-		))
-	}
+	parts = append(parts, fmt.Sprintf(
+		`<%s>; rel="next"; results="%t"; cursor="%s"`,
+		paginationLinkPath(r, nextCursor), hasNext, nextCursor,
+	))
 	w.Header().Set("Link", strings.Join(parts, ", "))
+}
+
+func formatPaginationCursor(offset int, previous bool) string {
+	if offset < 0 {
+		offset = 0
+	}
+	flag := 0
+	if previous {
+		flag = 1
+	}
+	return fmt.Sprintf("0:%d:%d", offset, flag)
+}
+
+func paginationLinkPath(r *http.Request, cursor string) string {
+	query := r.URL.Query()
+	query.Set("cursor", cursor)
+	return r.URL.Path + "?" + query.Encode()
 }
 
 // PaginationOpts holds the parsed offset and limit for DB-level pagination.
@@ -111,14 +135,19 @@ func ParsePagination(r *http.Request) PaginationOpts {
 // count is the number of rows returned (may be limit+1 to detect next page).
 func SetPaginationHeaders[T any](w http.ResponseWriter, r *http.Request, items []T, opts PaginationOpts) []T {
 	hasNext := len(items) > opts.Limit
+	hasPrev := opts.Offset > 0
 	if hasNext {
 		items = items[:opts.Limit]
 	}
+	prevOffset := opts.Offset - opts.Limit
+	if prevOffset < 0 {
+		prevOffset = 0
+	}
 	nextCursor := ""
 	if hasNext {
-		nextCursor = strconv.Itoa(opts.Offset + opts.Limit)
+		nextCursor = formatPaginationCursor(opts.Offset+opts.Limit, false)
 	}
-	setLinkHeader(w, r, nextCursor, hasNext)
+	setLinkHeader(w, r, formatPaginationCursor(prevOffset, true), hasPrev, nextCursor, hasNext)
 	return items
 }
 

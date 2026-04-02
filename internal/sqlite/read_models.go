@@ -37,7 +37,7 @@ func ListGroupEvents(ctx context.Context, db *sql.DB, groupID string, limit int)
 func ListGroupEventsPaged(ctx context.Context, db *sql.DB, groupID string, limit, offset int) ([]store.WebEvent, error) {
 	q := `SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
 	             payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
-	      FROM events WHERE group_id = ? ORDER BY ingested_at DESC`
+	      FROM events WHERE group_id = ? ORDER BY ingested_at DESC, event_id DESC`
 	args := []any{groupID}
 	if limit > 0 {
 		q += ` LIMIT ?`
@@ -59,7 +59,7 @@ func GetLatestGroupEvent(ctx context.Context, db *sql.DB, groupID string) (*stor
 	row := db.QueryRowContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json, payload_json,
 		        COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
-		 FROM events WHERE group_id = ? ORDER BY ingested_at DESC LIMIT 1`,
+		 FROM events WHERE group_id = ? ORDER BY ingested_at DESC, event_id DESC LIMIT 1`,
 		groupID,
 	)
 	return scanWebEventRow(row)
@@ -80,7 +80,7 @@ func ListProjectEventsPaged(ctx context.Context, db *sql.DB, projectID string, l
 	rows, err := db.QueryContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
 		        payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
-		 FROM events WHERE project_id = ? ORDER BY ingested_at DESC LIMIT ? OFFSET ?`, projectID, limit, offset)
+		 FROM events WHERE project_id = ? ORDER BY ingested_at DESC, event_id DESC LIMIT ? OFFSET ?`, projectID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func ListRecentEvents(ctx context.Context, db *sql.DB, limit int) ([]store.WebEv
 	rows, err := db.QueryContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
 		        payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
-		 FROM events ORDER BY ingested_at DESC LIMIT ?`, limit)
+		 FROM events ORDER BY ingested_at DESC, event_id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}

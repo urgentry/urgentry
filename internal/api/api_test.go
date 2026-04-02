@@ -43,9 +43,11 @@ func TestPaginate(t *testing.T) {
 			t.Fatalf("expected 50 items, got %d", len(page))
 		}
 		link := w.Header().Get("Link")
-		// No more pages.
-		if containsStr(link, `results="true"`) {
-			t.Fatalf("expected no more results in: %q", link)
+		if !containsStr(link, `rel="previous"; results="true"`) {
+			t.Fatalf("expected previous results in: %q", link)
+		}
+		if !containsStr(link, `rel="next"; results="false"`) {
+			t.Fatalf("expected next results to be exhausted in: %q", link)
 		}
 	})
 
@@ -57,6 +59,35 @@ func TestPaginate(t *testing.T) {
 			t.Fatalf("expected 0 items, got %d", len(page))
 		}
 	})
+}
+
+func TestSetPaginationHeadersPreservesQueryParams(t *testing.T) {
+	items := make([]int, 11)
+	for i := range items {
+		items[i] = i
+	}
+
+	r := httptest.NewRequest("GET", "/test?per_page=10&query=is%3Aunresolved", nil)
+	w := httptest.NewRecorder()
+
+	page := SetPaginationHeaders(w, r, items, PaginationOpts{Offset: 20, Limit: 10})
+	if len(page) != 10 {
+		t.Fatalf("expected 10 items, got %d", len(page))
+	}
+
+	link := w.Header().Get("Link")
+	if link == "" {
+		t.Fatal("expected Link header")
+	}
+	if !containsStr(link, `rel="previous"; results="true"; cursor="0:10:1"`) {
+		t.Fatalf("expected previous cursor in %q", link)
+	}
+	if !containsStr(link, `rel="next"; results="true"; cursor="0:30:0"`) {
+		t.Fatalf("expected next cursor in %q", link)
+	}
+	if !containsStr(link, `per_page=10`) || !containsStr(link, `query=is%3Aunresolved`) {
+		t.Fatalf("expected query params in %q", link)
+	}
 }
 
 func TestNewRouterRequiresAuthorizer(t *testing.T) {
