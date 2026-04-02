@@ -111,6 +111,50 @@ func handleGetOrgReplay(db *sql.DB, queries telemetryquery.Service, guard sqlite
 	}
 }
 
+// handleDeleteOrgReplay deletes a replay by ID across an organization.
+func handleDeleteOrgReplay(db *sql.DB, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+		if err != nil || org == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+			return
+		}
+		replayID := PathParam(r, "replay_id")
+		tx, err := db.BeginTx(r.Context(), nil)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
+			return
+		}
+		var manifestID string
+		err = tx.QueryRowContext(r.Context(),
+			`SELECT rm.id FROM replay_manifests rm
+			 JOIN projects p ON p.id = rm.project_id
+			 WHERE p.organization_id = ? AND rm.replay_id = ?`,
+			org.ID, replayID,
+		).Scan(&manifestID)
+		if err != nil {
+			_ = tx.Rollback()
+			if err == sql.ErrNoRows {
+				httputil.WriteError(w, http.StatusNotFound, "Replay not found.")
+				return
+			}
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
+			return
+		}
+		tx.ExecContext(r.Context(), `DELETE FROM replay_timeline_items WHERE manifest_id = ?`, manifestID)
+		tx.ExecContext(r.Context(), `DELETE FROM replay_assets WHERE manifest_id = ?`, manifestID)
+		tx.ExecContext(r.Context(), `DELETE FROM replay_manifests WHERE id = ?`, manifestID)
+		if err := tx.Commit(); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete replay.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // handleGetReplayCount returns replay counts per project for an organization.
 func handleGetReplayCount(db *sql.DB, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
