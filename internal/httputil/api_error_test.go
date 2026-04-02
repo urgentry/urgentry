@@ -48,8 +48,8 @@ func TestWriteError(t *testing.T) {
 	if body.Detail != "something broke" {
 		t.Fatalf("expected detail=something broke, got %q", body.Detail)
 	}
-	if body.Code != "" {
-		t.Fatalf("expected empty code, got %q", body.Code)
+	if body.Code != "bad_request" {
+		t.Fatalf("expected code=bad_request, got %q", body.Code)
 	}
 }
 

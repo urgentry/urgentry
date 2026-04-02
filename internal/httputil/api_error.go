@@ -32,6 +32,9 @@ func WriteAPIError(w http.ResponseWriter, err APIError) {
 		detail = http.StatusText(status)
 	}
 	code := strings.TrimSpace(err.Code)
+	if code == "" {
+		code = defaultErrorCode(status)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Sentry-Error", detail)
@@ -42,5 +45,28 @@ func WriteAPIError(w http.ResponseWriter, err APIError) {
 	}); err != nil {
 		log.Error().Err(err).Msg("httputil: failed to encode API error response")
 		http.Error(w, detail, http.StatusInternalServerError)
+	}
+}
+
+func defaultErrorCode(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "bad_request"
+	case http.StatusUnauthorized:
+		return "unauthorized"
+	case http.StatusForbidden:
+		return "forbidden"
+	case http.StatusNotFound:
+		return "not_found"
+	case http.StatusMethodNotAllowed:
+		return "method_not_allowed"
+	case http.StatusConflict:
+		return "conflict"
+	case http.StatusTooManyRequests:
+		return "rate_limit"
+	case http.StatusInternalServerError:
+		return "internal"
+	default:
+		return ""
 	}
 }
