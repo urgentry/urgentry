@@ -76,6 +76,36 @@ func authzJSONRequest(t *testing.T, ts *httptest.Server, method, path, token str
 	return resp
 }
 
+func orgMemberUserIDByEmail(t *testing.T, db *sql.DB, email string) string {
+	t.Helper()
+
+	var userID string
+	if err := db.QueryRow(`SELECT id FROM users WHERE email = ?`, email).Scan(&userID); err != nil {
+		t.Fatalf("lookup user %q: %v", email, err)
+	}
+	return userID
+}
+
+func addOrgOwner(t *testing.T, db *sql.DB, userID, email, displayName string) {
+	t.Helper()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(
+		`INSERT INTO users (id, email, display_name, is_active, created_at, updated_at)
+		 VALUES (?, ?, ?, 1, ?, ?)`,
+		userID, email, displayName, now, now,
+	); err != nil {
+		t.Fatalf("insert user %q: %v", email, err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO organization_members (id, organization_id, user_id, role, created_at)
+		 VALUES (?, 'test-org-id', ?, 'owner', ?)`,
+		userID+"-membership", userID, now,
+	); err != nil {
+		t.Fatalf("insert owner membership %q: %v", email, err)
+	}
+}
+
 func TestOrganizationMembershipLifecycle(t *testing.T) {
 	db := openTestSQLite(t)
 	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
@@ -198,6 +228,57 @@ func TestOrganizationMembershipLifecycle(t *testing.T) {
 		t.Fatalf("remove org member status = %d, want 204", removeOrgMember.StatusCode)
 	}
 	removeOrgMember.Body.Close()
+}
+
+func TestOrganizationMemberDeleteLastOwnerReturnsBadRequest(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	ownerID := orgMemberUserIDByEmail(t, db, "owner@example.com")
+	resp := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/organizations/test-org/members/"+ownerID+"/", pat, nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("delete last owner status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestOrganizationMemberDeleteSecondOwnerReturnsNoContent(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	ownerID := orgMemberUserIDByEmail(t, db, "owner@example.com")
+	addOrgOwner(t, db, "second-owner-id", "second-owner@example.com", "Second Owner")
+
+	resp := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/organizations/test-org/members/"+ownerID+"/", pat, nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete owner with second owner present status = %d, want 204", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestOrganizationMemberDeleteMeAliasUsesAuthenticatedUser(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	ownerID := orgMemberUserIDByEmail(t, db, "owner@example.com")
+	addOrgOwner(t, db, "second-owner-id", "second-owner@example.com", "Second Owner")
+
+	resp := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/organizations/test-org/members/me/", pat, nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete me alias status = %d, want 204", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM organization_members WHERE organization_id = 'test-org-id' AND user_id = ?`, ownerID).Scan(&count); err != nil {
+		t.Fatalf("verify owner removal: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("owner membership count = %d, want 0", count)
+	}
 }
 
 func TestOrganizationMembershipListShowsExpiredPendingInvite(t *testing.T) {
