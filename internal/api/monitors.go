@@ -28,13 +28,28 @@ func handleListOrgMonitors(db *sql.DB, catalog controlplane.CatalogStore, monito
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list projects.")
 			return
 		}
+		projectRefs := make(map[string]ProjectRef, len(projects))
+		if catalog != nil {
+			projectItems, err := catalog.ListProjects(r.Context(), org.Slug)
+			if err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to list projects.")
+				return
+			}
+			for i := range projectItems {
+				project := projectItems[i]
+				projectRefs[project.ID] = apiProjectRefFromProject(&project)
+			}
+		}
 		resp := make([]Monitor, 0)
 		for _, pid := range projects {
 			items, err := monitors.ListMonitors(r.Context(), pid, 100)
 			if err != nil {
 				continue
 			}
-			ref := ProjectRef{ID: pid}
+			ref := projectRefs[pid]
+			if ref.ID == "" {
+				ref = ProjectRef{ID: pid}
+			}
 			for _, item := range items {
 				resp = append(resp, mapMonitor(item, ref))
 			}

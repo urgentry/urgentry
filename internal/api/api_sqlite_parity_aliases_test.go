@@ -163,6 +163,69 @@ func TestAPIOrgMonitorCRUD_SQLite(t *testing.T) {
 	del.Body.Close()
 }
 
+func TestAPIListOrgMonitors_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(
+		`INSERT INTO projects (id, organization_id, slug, name, platform, status, created_at)
+		 VALUES ('test-proj-id-2', 'test-org-id', 'other-project', 'Other Project', 'go', 'active', ?)`,
+		now,
+	); err != nil {
+		t.Fatalf("insert second project: %v", err)
+	}
+
+	createFirst := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/monitors/", pat, map[string]any{
+		"name":    "Nightly Import",
+		"project": "test-project",
+		"config": map[string]any{
+			"schedule": map[string]any{"type": "interval", "value": 5, "unit": "minute"},
+			"timezone": "UTC",
+		},
+	})
+	if createFirst.StatusCode != http.StatusCreated {
+		t.Fatalf("first create status = %d, want 201", createFirst.StatusCode)
+	}
+	createFirst.Body.Close()
+
+	createSecond := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/monitors/", pat, map[string]any{
+		"name":    "Weekly Cleanup",
+		"project": "other-project",
+		"config": map[string]any{
+			"schedule": map[string]any{"type": "interval", "value": 60, "unit": "minute"},
+			"timezone": "UTC",
+		},
+	})
+	if createSecond.StatusCode != http.StatusCreated {
+		t.Fatalf("second create status = %d, want 201", createSecond.StatusCode)
+	}
+	createSecond.Body.Close()
+
+	list := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/monitors/", pat, nil)
+	if list.StatusCode != http.StatusOK {
+		t.Fatalf("list status = %d, want 200", list.StatusCode)
+	}
+
+	var monitors []Monitor
+	decodeBody(t, list, &monitors)
+	if len(monitors) != 2 {
+		t.Fatalf("len(monitors) = %d, want 2", len(monitors))
+	}
+
+	projectsBySlug := map[string]string{}
+	for _, monitor := range monitors {
+		projectsBySlug[monitor.Slug] = monitor.Project.Slug
+	}
+	if projectsBySlug["nightly-import"] != "test-project" {
+		t.Fatalf("nightly-import project = %q, want test-project", projectsBySlug["nightly-import"])
+	}
+	if projectsBySlug["weekly-cleanup"] != "other-project" {
+		t.Fatalf("weekly-cleanup project = %q, want other-project", projectsBySlug["weekly-cleanup"])
+	}
+}
+
 func TestAPITeamExternalTeamAlias_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{
