@@ -1,9 +1,14 @@
 package middleware
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func TestRequestLogging_SetsRequestID(t *testing.T) {
@@ -47,6 +52,29 @@ func TestRequestLogging_CapturesStatus(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", rec.Code)
+	}
+}
+
+func TestRequestLogging_RedactsInviteAcceptTokenPath(t *testing.T) {
+	var output bytes.Buffer
+	previous := log.Logger
+	log.Logger = zerolog.New(&output)
+	t.Cleanup(func() { log.Logger = previous })
+
+	handler := RequestLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/api/0/invites/ginvite_secret-token-value/accept/", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	logged := output.String()
+	if strings.Contains(logged, "ginvite_secret-token-value") {
+		t.Fatalf("expected invite token to be redacted from logs: %s", logged)
+	}
+	if !strings.Contains(logged, `"/api/0/invites/[redacted]/accept/"`) {
+		t.Fatalf("expected redacted invite accept path in logs: %s", logged)
 	}
 }
 
@@ -107,5 +135,22 @@ func TestClientIP_RemoteAddr(t *testing.T) {
 	ip := clientIP(req)
 	if ip != "192.168.1.1:12345" {
 		t.Errorf("clientIP = %q, want %q", ip, "192.168.1.1:12345")
+	}
+}
+
+func TestLoggedPath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "invite accept", path: "/api/0/invites/ginvite_secret-token-value/accept/", want: "/api/0/invites/[redacted]/accept/"},
+		{name: "invite accept no trailing slash", path: "/api/0/invites/ginvite_secret-token-value/accept", want: "/api/0/invites/[redacted]/accept"},
+		{name: "other path", path: "/api/0/issues/grp-1/", want: "/api/0/issues/grp-1/"},
+	}
+	for _, tt := range tests {
+		if got := loggedPath(tt.path); got != tt.want {
+			t.Fatalf("%s: loggedPath(%q) = %q, want %q", tt.name, tt.path, got, tt.want)
+		}
 	}
 }

@@ -54,7 +54,7 @@ func RequestLogging(next http.Handler) http.Handler {
 		evt := log.Info().
 			Str("request_id", requestID).
 			Str("method", r.Method).
-			Str("path", r.URL.Path).
+			Str("path", loggedPath(r.URL.Path)).
 			Int("status", rw.statusCode).
 			Int("bytes", rw.bytesWritten).
 			Dur("latency", time.Since(start)).
@@ -101,6 +101,20 @@ func clientIP(r *http.Request) string {
 		return strings.TrimSpace(xff)
 	}
 	return r.RemoteAddr
+}
+
+func loggedPath(path string) string {
+	trimmed := strings.TrimSuffix(path, "/")
+	parts := strings.Split(trimmed, "/")
+	if len(parts) == 6 && parts[1] == "api" && parts[2] == "0" && parts[3] == "invites" && parts[5] == "accept" && strings.TrimSpace(parts[4]) != "" {
+		parts[4] = "[redacted]"
+		redacted := strings.Join(parts, "/")
+		if strings.HasSuffix(path, "/") {
+			return redacted + "/"
+		}
+		return redacted
+	}
+	return path
 }
 
 // extractSentryKey pulls the sentry_key from the query string or X-Sentry-Auth header.
