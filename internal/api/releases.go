@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"database/sql"
 	"net/http"
 	"strings"
 	"time"
@@ -44,9 +46,39 @@ func handleListReleases(catalog controlplane.CatalogStore, releases controlplane
 	}
 }
 
+// createReleaseCommitRequest maps the commit object sent inline by sentry-cli
+// inside the create-release payload. The SHA may arrive as "id" (sentry-cli)
+// or "commitSha" (our own API), so we accept both.
+type createReleaseCommitRequest struct {
+	ID          string `json:"id"`          // sentry-cli sends SHA as "id"
+	CommitSHA   string `json:"commitSha"`   // also accepted
+	Repository  string `json:"repository"`
+	AuthorName  string `json:"authorName"`
+	AuthorEmail string `json:"authorEmail"`
+	Message     string `json:"message"`
+}
+
+// sha returns whichever field carries the commit hash.
+func (c createReleaseCommitRequest) sha() string {
+	if c.ID != "" {
+		return c.ID
+	}
+	return c.CommitSHA
+}
+
+// createReleaseRefRequest maps the refs array from sentry-cli.
+type createReleaseRefRequest struct {
+	Repository     string `json:"repository"`
+	Commit         string `json:"commit"`
+	PreviousCommit string `json:"previousCommit"`
+}
+
 // createReleaseRequest is the JSON body for creating a release.
 type createReleaseRequest struct {
-	Version string `json:"version"`
+	Version  string                       `json:"version"`
+	Projects []string                     `json:"projects"`
+	Commits  []createReleaseCommitRequest `json:"commits"`
+	Refs     []createReleaseRefRequest    `json:"refs"`
 }
 
 type releaseDeployRequest struct {
@@ -93,17 +125,53 @@ func handleCreateRelease(releases controlplane.ReleaseStore, auth authFunc) http
 			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusCreated, &Release{
+
+		// Store inline commits sent by sentry-cli.
+		for _, c := range body.Commits {
+			sha := c.sha()
+			if sha == "" {
+				continue
+			}
+			_, _ = releases.AddCommit(r.Context(), org, body.Version, sharedstore.ReleaseCommit{
+				CommitSHA:   sha,
+				Repository:  c.Repository,
+				AuthorName:  c.AuthorName,
+				AuthorEmail: c.AuthorEmail,
+				Message:     c.Message,
+			})
+		}
+
+		// Store refs as lightweight commit markers so they appear in the
+		// commit list for this release (the ref's commit becomes a commit
+		// record with the repository association).
+		for _, ref := range body.Refs {
+			if ref.Commit == "" {
+				continue
+			}
+			msg := ""
+			if ref.PreviousCommit != "" {
+				msg = "ref range " + ref.PreviousCommit + ".." + ref.Commit
+			}
+			_, _ = releases.AddCommit(r.Context(), org, body.Version, sharedstore.ReleaseCommit{
+				CommitSHA:  ref.Commit,
+				Repository: ref.Repository,
+				Message:    msg,
+			})
+		}
+
+		resp := &Release{
 			ID:           release.ID,
 			OrgSlug:      org,
 			Version:      release.Version,
 			ShortVersion: release.Version,
 			DateCreated:  release.CreatedAt,
-		})
+			Projects:     body.Projects,
+		}
+		httputil.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
 
-func handleGetRelease(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, native *sqlite.NativeControlStore, auth authFunc) http.HandlerFunc {
+func handleGetRelease(db *sql.DB, catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, native *sqlite.NativeControlStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -127,7 +195,9 @@ func handleGetRelease(catalog controlplane.CatalogStore, releases controlplane.R
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to summarize release.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, mapRelease(*row, org, summary))
+		rel := mapRelease(*row, org, summary)
+		rel.Projects = loadReleaseProjects(r.Context(), db, org, row.Version)
+		httputil.WriteJSON(w, http.StatusOK, rel)
 	}
 }
 
@@ -176,6 +246,29 @@ func mapRelease(row sqlite.Release, orgSlug string, summary sqlite.NativeRelease
 		NativeReprocessLastError: summary.LastRunLastError,
 		NativeReprocessUpdatedAt: nativeReprocessUpdatedAt,
 	}
+}
+
+// loadReleaseProjects finds project slugs that have events for a given release version.
+func loadReleaseProjects(ctx context.Context, db *sql.DB, orgSlug, version string) []string {
+	rows, err := db.QueryContext(ctx, `
+		SELECT DISTINCT p.slug
+		FROM events e
+		JOIN projects p ON p.id = e.project_id
+		JOIN organizations o ON o.id = p.organization_id
+		WHERE o.slug = ? AND e.release = ?
+		LIMIT 50`, orgSlug, version)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var slugs []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err == nil {
+			slugs = append(slugs, s)
+		}
+	}
+	return slugs
 }
 
 // handleDeleteRelease handles DELETE /api/0/organizations/{org_slug}/releases/{version}/.

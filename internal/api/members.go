@@ -129,7 +129,38 @@ func handleRemoveOrgMember(admin controlplane.AdminStore, auth authFunc) http.Ha
 		if !auth(w, r) {
 			return
 		}
-		ok, err := admin.RemoveOrgMember(r.Context(), PathParam(r, "org_slug"), PathParam(r, "member_id"))
+		orgSlug := PathParam(r, "org_slug")
+		memberID := PathParam(r, "member_id")
+
+		// Resolve "me" to actual user ID.
+		principal := authPrincipalFromContext(r.Context())
+		if principal != nil && principal.User != nil && memberID == "me" {
+			memberID = principal.User.ID
+		}
+
+		// Check last owner protection.
+		member, err := admin.GetOrgMember(r.Context(), orgSlug, memberID)
+		if err != nil || member == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Organization member not found.")
+			return
+		}
+		if member.Role == "owner" {
+			owners, err := admin.ListOrgMembers(r.Context(), orgSlug)
+			if err == nil {
+				ownerCount := 0
+				for _, m := range owners {
+					if m.Role == "owner" {
+						ownerCount++
+					}
+				}
+				if ownerCount <= 1 {
+					httputil.WriteError(w, http.StatusBadRequest, "Cannot remove the last owner of an organization.")
+					return
+				}
+			}
+		}
+
+		ok, err := admin.RemoveOrgMember(r.Context(), orgSlug, memberID)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to remove organization member.")
 			return
