@@ -646,77 +646,82 @@ func validateBulkIssueIDs(w http.ResponseWriter, ids []string) bool {
 	return true
 }
 
+func applyBulkIssueMutation(w http.ResponseWriter, r *http.Request, db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, hooks *sqlite.HookStore, hookProjectID string) {
+	ids := r.URL.Query()["id"]
+	if !validateBulkIssueIDs(w, ids) {
+		return
+	}
+
+	var body bulkMutateRequest
+	if err := decodeJSON(r, &body); err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+
+	validStatuses := map[string]bool{
+		"resolved":   true,
+		"unresolved": true,
+		"ignored":    true,
+	}
+	if body.Status != "" && !validStatuses[body.Status] {
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
+		return
+	}
+
+	patch := store.IssuePatch{}
+	if body.Status != "" {
+		patch.Status = &body.Status
+	}
+	if body.AssignedTo != "" {
+		assign := strings.TrimSpace(body.AssignedTo)
+		patch.Assignee = &assign
+	}
+	if body.Status == "resolved" || body.Status == "unresolved" || body.Status == "ignored" {
+		empty := ""
+		substatus := strings.TrimSpace(body.StatusDetails.InRelease)
+		if body.StatusDetails.InNextRelease {
+			substatus = "next_release"
+		}
+		patch.ResolutionSubstatus = &substatus
+		patch.ResolvedInRelease = &empty
+		if body.Status == "unresolved" || body.Status == "ignored" {
+			patch.ResolutionSubstatus = &empty
+		}
+	}
+
+	if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil {
+		httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
+		return
+	}
+
+	resolveTransitions := []string(nil)
+	if body.Status == "resolved" {
+		resolveTransitions = issueIDsNeedingResolvedHook(r.Context(), reads, ids)
+	}
+
+	if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
+		return
+	}
+	if len(resolveTransitions) > 0 {
+		fireResolvedIssueHooks(r.Context(), hooks, reads, db, hookProjectID, resolveTransitions)
+	}
+
+	resp := map[string]any{}
+	if body.Status != "" {
+		resp["status"] = body.Status
+		resp["statusDetails"] = body.StatusDetails
+	}
+	httputil.WriteJSON(w, http.StatusOK, resp)
+}
+
 // handleBulkMutateOrgIssues handles PUT /api/0/organizations/{org_slug}/issues/.
 func handleBulkMutateOrgIssues(db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, hooks *sqlite.HookStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		ids := r.URL.Query()["id"]
-		if !validateBulkIssueIDs(w, ids) {
-			return
-		}
-
-		var body bulkMutateRequest
-		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
-			return
-		}
-
-		validStatuses := map[string]bool{
-			"resolved":   true,
-			"unresolved": true,
-			"ignored":    true,
-		}
-		if body.Status != "" && !validStatuses[body.Status] {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
-			return
-		}
-
-		patch := store.IssuePatch{}
-		if body.Status != "" {
-			patch.Status = &body.Status
-		}
-		if body.AssignedTo != "" {
-			assign := strings.TrimSpace(body.AssignedTo)
-			patch.Assignee = &assign
-		}
-		if body.Status == "resolved" || body.Status == "unresolved" || body.Status == "ignored" {
-			empty := ""
-			substatus := strings.TrimSpace(body.StatusDetails.InRelease)
-			if body.StatusDetails.InNextRelease {
-				substatus = "next_release"
-			}
-			patch.ResolutionSubstatus = &substatus
-			patch.ResolvedInRelease = &empty
-			if body.Status == "unresolved" || body.Status == "ignored" {
-				patch.ResolutionSubstatus = &empty
-			}
-		}
-
-		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil {
-			httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
-			return
-		}
-		resolveTransitions := []string(nil)
-		if body.Status == "resolved" {
-			resolveTransitions = issueIDsNeedingResolvedHook(r.Context(), reads, ids)
-		}
-
-		if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
-			return
-		}
-		if len(resolveTransitions) > 0 {
-			fireResolvedIssueHooks(r.Context(), hooks, reads, db, "", resolveTransitions)
-		}
-
-		resp := map[string]any{}
-		if body.Status != "" {
-			resp["status"] = body.Status
-			resp["statusDetails"] = body.StatusDetails
-		}
-		httputil.WriteJSON(w, http.StatusOK, resp)
+		applyBulkIssueMutation(w, r, db, reads, issues, hooks, "")
 	}
 }
 
@@ -1312,72 +1317,7 @@ func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, db *sql.DB
 			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
 			return
 		}
-
-		ids := r.URL.Query()["id"]
-		if !validateBulkIssueIDs(w, ids) {
-			return
-		}
-
-		var body bulkMutateRequest
-		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
-			return
-		}
-
-		validStatuses := map[string]bool{
-			"resolved":   true,
-			"unresolved": true,
-			"ignored":    true,
-		}
-		if body.Status != "" && !validStatuses[body.Status] {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
-			return
-		}
-
-		patch := store.IssuePatch{}
-		if body.Status != "" {
-			patch.Status = &body.Status
-		}
-		if body.AssignedTo != "" {
-			assign := strings.TrimSpace(body.AssignedTo)
-			patch.Assignee = &assign
-		}
-		if body.Status == "resolved" || body.Status == "unresolved" || body.Status == "ignored" {
-			empty := ""
-			substatus := strings.TrimSpace(body.StatusDetails.InRelease)
-			if body.StatusDetails.InNextRelease {
-				substatus = "next_release"
-			}
-			patch.ResolutionSubstatus = &substatus
-			patch.ResolvedInRelease = &empty
-			if body.Status == "unresolved" || body.Status == "ignored" {
-				patch.ResolutionSubstatus = &empty
-			}
-		}
-
-		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil {
-			httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
-			return
-		}
-		resolveTransitions := []string(nil)
-		if body.Status == "resolved" {
-			resolveTransitions = issueIDsNeedingResolvedHook(r.Context(), reads, ids)
-		}
-
-		if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
-			return
-		}
-		if len(resolveTransitions) > 0 {
-			fireResolvedIssueHooks(r.Context(), hooks, reads, db, project.ID, resolveTransitions)
-		}
-
-		resp := map[string]any{}
-		if body.Status != "" {
-			resp["status"] = body.Status
-			resp["statusDetails"] = body.StatusDetails
-		}
-		httputil.WriteJSON(w, http.StatusOK, resp)
+		applyBulkIssueMutation(w, r, db, reads, issues, hooks, project.ID)
 	}
 }
 

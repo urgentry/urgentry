@@ -431,6 +431,71 @@ func TestAPIProjectBulkIssueOperationsCapIDs_SQLite(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestAPIBulkIssueMutateRoutesShareBehavior_SQLite(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+	}{
+		{name: "organization", path: "/api/0/organizations/test-org/issues/"},
+		{name: "project", path: "/api/0/projects/test-org/test-project/issues/"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := openTestSQLite(t)
+			issueID := "grp-bulk-shared-" + tc.name
+			insertSQLiteGroup(t, db, issueID, "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+			ts := newSQLiteTestServer(t, db)
+			defer ts.Close()
+
+			resp := authPut(t, ts, tc.path+"?id="+issueID, map[string]any{
+				"status":     "resolved",
+				"assignedTo": "backend",
+				"statusDetails": map[string]any{
+					"inNextRelease": true,
+				},
+			})
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want 200", resp.StatusCode)
+			}
+
+			var payload map[string]any
+			decodeBody(t, resp, &payload)
+			if payload["status"] != "resolved" {
+				t.Fatalf("response status = %#v, want resolved", payload["status"])
+			}
+			statusDetails, ok := payload["statusDetails"].(map[string]any)
+			if !ok {
+				t.Fatalf("statusDetails = %#v, want object", payload["statusDetails"])
+			}
+			if statusDetails["inNextRelease"] != true {
+				t.Fatalf("statusDetails = %#v, want inNextRelease=true", statusDetails)
+			}
+
+			var status, assignee, substatus, release string
+			if err := db.QueryRow(
+				`SELECT status, COALESCE(assignee, ''), COALESCE(resolution_substatus, ''), COALESCE(resolved_in_release, '') FROM groups WHERE id = ?`,
+				issueID,
+			).Scan(&status, &assignee, &substatus, &release); err != nil {
+				t.Fatalf("load mutated issue: %v", err)
+			}
+			if status != "resolved" {
+				t.Fatalf("stored status = %q, want resolved", status)
+			}
+			if assignee != "backend" {
+				t.Fatalf("stored assignee = %q, want backend", assignee)
+			}
+			if substatus != "next_release" {
+				t.Fatalf("stored substatus = %q, want next_release", substatus)
+			}
+			if release != "" {
+				t.Fatalf("stored release = %q, want empty", release)
+			}
+		})
+	}
+}
+
 func TestAPIUpdateIssue_SQLite_RejectsHasSeenMutation(t *testing.T) {
 	db := openTestSQLite(t)
 	insertSQLiteGroup(t, db, "grp-api-update", "ValueError: bad input", "main.go in handler", "error", "unresolved")
