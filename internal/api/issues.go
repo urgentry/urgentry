@@ -128,8 +128,101 @@ func handleGetIssue(db *sql.DB, reads controlplane.IssueReadStore, issues contro
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load issue project.")
 			return
 		}
+		enrichIssueDetail(r.Context(), db, issues, &issue, id)
 		httputil.WriteJSON(w, http.StatusOK, issue)
 	}
+}
+
+// enrichIssueDetail loads activity, tags, releases, and participant info for issue detail.
+func enrichIssueDetail(ctx context.Context, db *sql.DB, issues controlplane.IssueWorkflowStore, issue *Issue, groupID string) {
+	// Activity
+	if activities, err := issues.ListIssueActivity(ctx, groupID, 100); err == nil {
+		issue.Activity = make([]IssueActivitySummary, 0, len(activities))
+		for _, a := range activities {
+			issue.Activity = append(issue.Activity, IssueActivitySummary{
+				ID:          a.ID,
+				Type:        a.Kind,
+				DateCreated: a.DateCreated,
+				Data:        map[string]string{"summary": a.Summary},
+			})
+		}
+	}
+
+	// Tags (top tag facets from events)
+	issue.Tags = loadIssueTagFacets(ctx, db, groupID)
+
+	// First/last release
+	issue.FirstRelease = loadIssueRelease(ctx, db, groupID, true)
+	issue.LastRelease = loadIssueRelease(ctx, db, groupID, false)
+
+	// User report count
+	var reportCount int
+	_ = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_feedback WHERE group_id = ?`, groupID).Scan(&reportCount)
+	issue.UserReportCount = reportCount
+}
+
+func loadIssueTagFacets(ctx context.Context, db *sql.DB, groupID string) []IssueTagFacet {
+	rows, err := db.QueryContext(ctx, `
+		SELECT tags_json FROM events WHERE group_id = ? LIMIT 200`, groupID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	// Aggregate tag key → value → count across events.
+	type valCount struct{ count int }
+	facetCounts := map[string]map[string]*valCount{}
+	for rows.Next() {
+		var tagsJSON sql.NullString
+		if err := rows.Scan(&tagsJSON); err != nil || !tagsJSON.Valid {
+			continue
+		}
+		var tags map[string]string
+		if err := json.Unmarshal([]byte(tagsJSON.String), &tags); err != nil {
+			continue
+		}
+		for k, v := range tags {
+			if facetCounts[k] == nil {
+				facetCounts[k] = map[string]*valCount{}
+			}
+			vc, ok := facetCounts[k][v]
+			if !ok {
+				vc = &valCount{}
+				facetCounts[k][v] = vc
+			}
+			vc.count++
+		}
+	}
+	result := make([]IssueTagFacet, 0, len(facetCounts))
+	for key, vals := range facetCounts {
+		f := IssueTagFacet{Key: key, Name: key, TotalValues: len(vals)}
+		for v, vc := range vals {
+			if len(f.TopValues) < 5 {
+				f.TopValues = append(f.TopValues, IssueTagVal{Value: v, Name: v, Count: vc.count})
+			}
+		}
+		result = append(result, f)
+	}
+	return result
+}
+
+func loadIssueRelease(ctx context.Context, db *sql.DB, groupID string, first bool) *IssueRelease {
+	order := "ASC"
+	if !first {
+		order = "DESC"
+	}
+	var version string
+	var dateCreated time.Time
+	err := db.QueryRowContext(ctx, `
+		SELECT DISTINCT e.release, e.occurred_at
+		FROM events e
+		WHERE e.group_id = ? AND e.release != ''
+		ORDER BY e.occurred_at `+order+`
+		LIMIT 1`, groupID).Scan(&version, &dateCreated)
+	if err != nil || version == "" {
+		return nil
+	}
+	return &IssueRelease{Version: version, DateCreated: dateCreated}
 }
 
 // updateIssueRequest is the JSON body for updating an issue.

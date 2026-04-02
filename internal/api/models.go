@@ -52,30 +52,67 @@ type DSNURLs struct {
 
 // Issue represents a grouped set of events.
 type Issue struct {
-	ID                string     `json:"id"`
-	ShortID           string     `json:"shortId"`
-	Title             string     `json:"title"`
-	Culprit           string     `json:"culprit"`
-	Level             string     `json:"level"`
-	Status            string     `json:"status"`
-	Type              string     `json:"type"`
-	AssignedTo        *IssueUser `json:"assignedTo"`
-	HasSeen           bool       `json:"hasSeen"`
-	IsBookmarked      bool       `json:"isBookmarked"`
-	IsPublic          bool       `json:"isPublic"`
-	IsSubscribed      bool       `json:"isSubscribed"`
-	Priority          int        `json:"priority"`
-	Substatus         string     `json:"substatus"`
-	Metadata          Metadata   `json:"metadata"`
-	NumComments       int        `json:"numComments"`
-	UserCount         int        `json:"userCount"`
-	Stats             IssueStats `json:"stats"`
-	ResolvedInRelease string     `json:"resolvedInRelease,omitempty"`
-	MergedIntoIssueID string     `json:"mergedIntoIssueId,omitempty"`
-	FirstSeen         time.Time  `json:"firstSeen"`
-	LastSeen          time.Time  `json:"lastSeen"`
-	Count             string     `json:"count"`
-	ProjectRef        ProjectRef `json:"project"`
+	ID                string           `json:"id"`
+	ShortID           string           `json:"shortId"`
+	Title             string           `json:"title"`
+	Culprit           string           `json:"culprit"`
+	Level             string           `json:"level"`
+	Status            string           `json:"status"`
+	Type              string           `json:"type"`
+	AssignedTo        *IssueUser       `json:"assignedTo"`
+	HasSeen           bool             `json:"hasSeen"`
+	IsBookmarked      bool             `json:"isBookmarked"`
+	IsPublic          bool             `json:"isPublic"`
+	IsSubscribed      bool             `json:"isSubscribed"`
+	Priority          int              `json:"priority"`
+	Substatus         string           `json:"substatus"`
+	Metadata          Metadata         `json:"metadata"`
+	NumComments       int              `json:"numComments"`
+	UserCount         int              `json:"userCount"`
+	UserReportCount   int              `json:"userReportCount"`
+	Stats             IssueStats       `json:"stats"`
+	ResolvedInRelease string           `json:"resolvedInRelease,omitempty"`
+	MergedIntoIssueID string           `json:"mergedIntoIssueId,omitempty"`
+	FirstSeen         time.Time        `json:"firstSeen"`
+	LastSeen          time.Time        `json:"lastSeen"`
+	Count             string           `json:"count"`
+	ProjectRef        ProjectRef       `json:"project"`
+	Activity          []IssueActivitySummary `json:"activity,omitempty"`
+	Tags              []IssueTagFacet  `json:"tags,omitempty"`
+	FirstRelease      *IssueRelease    `json:"firstRelease,omitempty"`
+	LastRelease       *IssueRelease    `json:"lastRelease,omitempty"`
+	SeenBy            []IssueUser      `json:"seenBy,omitempty"`
+	Participants      []IssueUser      `json:"participants,omitempty"`
+}
+
+// IssueActivitySummary is a compact activity entry for issue detail enrichment.
+type IssueActivitySummary struct {
+	ID          string    `json:"id"`
+	Type        string    `json:"type"`
+	User        *IssueUser `json:"user,omitempty"`
+	Data        any       `json:"data,omitempty"`
+	DateCreated time.Time `json:"dateCreated"`
+}
+
+// IssueTagFacet is a top tag key with value counts for issue detail.
+type IssueTagFacet struct {
+	Key        string         `json:"key"`
+	Name       string         `json:"name"`
+	TotalValues int           `json:"totalValues"`
+	TopValues  []IssueTagVal  `json:"topValues"`
+}
+
+// IssueTagVal is one value in a tag facet.
+type IssueTagVal struct {
+	Value string `json:"value"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// IssueRelease is a lightweight release reference for issue detail.
+type IssueRelease struct {
+	Version     string    `json:"version"`
+	DateCreated time.Time `json:"dateCreated,omitempty"`
 }
 
 // IssueUser is the Sentry-compatible assignee object embedded in issue responses.
