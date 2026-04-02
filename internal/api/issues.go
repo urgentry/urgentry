@@ -138,6 +138,12 @@ type updateIssueRequest struct {
 	AssignTo            string `json:"assignedTo"`
 	ResolutionSubstatus string `json:"resolutionSubstatus"`
 	ResolvedInRelease   string `json:"resolvedInRelease"`
+	HasSeen             *bool  `json:"hasSeen"`
+	IsBookmarked        *bool  `json:"isBookmarked"`
+	IsPublic            *bool  `json:"isPublic"`
+	IsSubscribed        *bool  `json:"isSubscribed"`
+	Priority            *int   `json:"priority"`
+	Substatus           string `json:"substatus"`
 }
 
 // handleUpdateIssue handles PUT /api/0/issues/{issue_id}/.
@@ -183,9 +189,35 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 				patch.ResolvedInRelease = &empty
 			}
 		}
-		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil && patch.ResolvedInRelease == nil {
+		if body.Substatus != "" {
+			sub := strings.TrimSpace(body.Substatus)
+			patch.ResolutionSubstatus = &sub
+		}
+		if body.Priority != nil {
+			patch.Priority = body.Priority
+		}
+
+		// Process bookmark/subscription/seen toggles.
+		principal := authPrincipalFromContext(r.Context())
+		userID := principalUserID(principal)
+
+		hasSideEffects := body.HasSeen != nil || body.IsBookmarked != nil || body.IsSubscribed != nil
+		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil && patch.ResolvedInRelease == nil && patch.Priority == nil && !hasSideEffects {
 			httputil.WriteError(w, http.StatusBadRequest, "No issue changes requested.")
 			return
+		}
+
+		if body.IsBookmarked != nil && userID != "" {
+			if err := issues.ToggleIssueBookmark(r.Context(), id, userID, *body.IsBookmarked); err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to toggle bookmark.")
+				return
+			}
+		}
+		if body.IsSubscribed != nil && userID != "" {
+			if err := issues.ToggleIssueSubscription(r.Context(), id, userID, *body.IsSubscribed); err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to toggle subscription.")
+				return
+			}
 		}
 		var resolveTransitions []string
 		if body.Status == "resolved" {
@@ -195,7 +227,7 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issue.")
 			return
 		}
-		if principal := authPrincipalFromContext(r.Context()); principal != nil && principal.User != nil && body.Status != "" {
+		if principal != nil && principal.User != nil && body.Status != "" {
 			summary := map[string]string{
 				"resolved":   "Marked as resolved",
 				"unresolved": "Reopened issue",
@@ -205,6 +237,16 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 				summary = "Marked to resolve in the next release"
 			}
 			if err := issues.RecordIssueActivity(r.Context(), id, principal.User.ID, "status", summary, ""); err != nil {
+				log.Warn().
+					Err(err).
+					Str("group_id", id).
+					Str("user_id", principal.User.ID).
+					Msg("failed to record issue activity")
+			}
+		}
+		if principal != nil && principal.User != nil && body.Priority != nil {
+			summary := "Changed priority"
+			if err := issues.RecordIssueActivity(r.Context(), id, principal.User.ID, "priority", summary, ""); err != nil {
 				log.Warn().
 					Err(err).
 					Str("group_id", id).
@@ -224,7 +266,7 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 		if len(resolveTransitions) > 0 {
 			fireResolvedIssueHooks(r.Context(), hooks, reads, db, "", resolveTransitions)
 		}
-		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), []store.WebIssue{*iss})
+		extras := loadIssueResponseExtras(r.Context(), db, issues, userID, []store.WebIssue{*iss})
 		issue := apiIssueFromWebIssueWithExtras(*iss, extras[iss.ID])
 		issue.ProjectRef, err = projectRefForIssue(r.Context(), db, iss.ID)
 		if err != nil {
