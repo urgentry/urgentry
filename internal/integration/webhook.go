@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"urgentry/internal/outboundhttp"
 )
 
 // WebhookIntegration is the built-in generic outgoing webhook connector.
@@ -15,9 +17,11 @@ type WebhookIntegration struct{}
 
 var _ Integration = (*WebhookIntegration)(nil)
 
-func (w *WebhookIntegration) ID() string          { return "webhook" }
-func (w *WebhookIntegration) Name() string         { return "Webhook" }
-func (w *WebhookIntegration) Description() string  { return "Send JSON payloads to an external URL on events and alerts." }
+func (w *WebhookIntegration) ID() string   { return "webhook" }
+func (w *WebhookIntegration) Name() string { return "Webhook" }
+func (w *WebhookIntegration) Description() string {
+	return "Send JSON payloads to an external URL on events and alerts."
+}
 
 func (w *WebhookIntegration) ConfigSchema() []ConfigField {
 	return []ConfigField{
@@ -58,13 +62,16 @@ func postJSON(ctx context.Context, url string, payload any) error {
 	if err != nil {
 		return fmt.Errorf("webhook: marshal payload: %w", err)
 	}
+	if _, err := outboundhttp.ValidateTargetURL(url); err != nil {
+		return fmt.Errorf("webhook: invalid target: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("webhook: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := outboundhttp.NewClient(10*time.Second, nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("webhook: post: %w", err)

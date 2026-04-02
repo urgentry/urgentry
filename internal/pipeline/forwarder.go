@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"urgentry/internal/outboundhttp"
 
 	"urgentry/internal/store"
 )
@@ -38,7 +39,7 @@ type WebhookForwarder struct {
 func NewWebhookForwarder(url string) *WebhookForwarder {
 	return &WebhookForwarder{
 		URL:        url,
-		HTTPClient: &http.Client{Timeout: 10 * time.Second},
+		HTTPClient: outboundhttp.NewClient(10*time.Second, nil),
 	}
 }
 
@@ -47,6 +48,9 @@ func (w *WebhookForwarder) ForwardEvent(ctx context.Context, event ForwardEvent)
 	body, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("forwarder: marshal event: %w", err)
+	}
+	if _, err := outboundhttp.ValidateTargetURL(w.URL); err != nil {
+		return fmt.Errorf("forwarder: invalid target: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.URL, bytes.NewReader(body))

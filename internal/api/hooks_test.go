@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -18,6 +20,21 @@ func TestAPICreateHook_RejectsInvalidEvents(t *testing.T) {
 	resp := authPost(t, ts, "/api/0/projects/test-org/test-project/hooks/", createHookRequest{
 		URL:    "https://example.com/hook",
 		Events: []string{"not-real"},
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestAPICreateHook_RejectsPrivateURL(t *testing.T) {
+	db := openTestSQLite(t)
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authPost(t, ts, "/api/0/projects/test-org/test-project/hooks/", createHookRequest{
+		URL:    "http://127.0.0.1/hook",
+		Events: []string{"event.created"},
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", resp.StatusCode)
@@ -57,14 +74,13 @@ func TestAPIUpdateIssue_FiresResolvedHook(t *testing.T) {
 	seedSQLiteAuth(t, db)
 	insertSQLiteGroup(t, db, "grp-hook-issue", "Hooked Issue", "main.go", "error", "unresolved")
 
-	server, payloads := newAPIHookCaptureServer(t)
-	defer server.Close()
+	client, payloads := newAPIHookCaptureClient(t)
 
 	hooks := sqlite.NewHookStore(db)
-	hooks.HTTPClient = server.Client()
+	hooks.HTTPClient = client
 	if err := hooks.Create(t.Context(), &sqlite.ServiceHook{
 		ProjectID: "test-proj-id",
-		URL:       server.URL,
+		URL:       "https://hooks.example.test/issues",
 		Events:    []string{"issue.resolved"},
 	}); err != nil {
 		t.Fatalf("Create hook: %v", err)
@@ -120,17 +136,27 @@ func (h *apiHookPayloads) action(name string) map[string]any {
 	return nil
 }
 
-func newAPIHookCaptureServer(t *testing.T) (*httptest.Server, *apiHookPayloads) {
+type apiHookRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn apiHookRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
+}
+
+func newAPIHookCaptureClient(t *testing.T) (*http.Client, *apiHookPayloads) {
 	t.Helper()
 	payloads := &apiHookPayloads{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: apiHookRoundTripFunc(func(r *http.Request) (*http.Response, error) {
 		defer r.Body.Close()
 		var payload map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode hook payload: %v", err)
 		}
 		payloads.add(payload)
-		w.WriteHeader(http.StatusOK)
-	}))
-	return server, payloads
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Header:     make(http.Header),
+		}, nil
+	})}
+	return client, payloads
 }

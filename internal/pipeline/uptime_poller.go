@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"urgentry/internal/alert"
+	"urgentry/internal/outboundhttp"
 	"urgentry/internal/sqlite"
 )
 
@@ -24,16 +25,16 @@ func NewUptimePoller(store *sqlite.UptimeMonitorStore, alerts *AlertDeps) *Uptim
 	return &UptimePoller{
 		store:  store,
 		alerts: alerts,
-		client: &http.Client{
-			// Default timeout; per-monitor timeout is applied per request.
-			Timeout: 30 * time.Second,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		client: func() *http.Client {
+			client := outboundhttp.NewClient(30*time.Second, nil)
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 				if len(via) >= 5 {
 					return fmt.Errorf("too many redirects")
 				}
 				return nil
-			},
-		},
+			}
+			return client
+		}(),
 	}
 }
 
@@ -60,6 +61,11 @@ func (p *UptimePoller) pollOne(ctx context.Context, monitor *sqlite.UptimeMonito
 
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	if _, err := outboundhttp.ValidateTargetURL(monitor.URL); err != nil {
+		p.recordError(ctx, monitor, 0, 0, fmt.Sprintf("disallowed target: %v", err))
+		return
+	}
 
 	req, err := http.NewRequestWithContext(pollCtx, http.MethodGet, monitor.URL, nil)
 	if err != nil {

@@ -3,9 +3,11 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/outboundhttp"
 	"urgentry/internal/store"
 )
 
@@ -93,6 +95,11 @@ func handleCreateOrgForwarding(
 			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: url")
 			return
 		}
+		body.URL = strings.TrimSpace(body.URL)
+		if _, err := outboundhttp.ValidateTargetURL(body.URL); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		if body.Type == "" {
 			body.Type = "webhook"
 		}
@@ -141,6 +148,15 @@ func handleUpdateOrgForwarding(
 		var body updateOrgForwarderRequest
 		if err := decodeJSON(r, &body); err != nil {
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+		body.URL = strings.TrimSpace(body.URL)
+		if body.URL == "" {
+			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: url")
+			return
+		}
+		if _, err := outboundhttp.ValidateTargetURL(body.URL); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		f := &store.OrgDataForwarder{

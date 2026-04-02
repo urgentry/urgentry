@@ -6,6 +6,7 @@ import (
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/outboundhttp"
 	"urgentry/internal/sqlite"
 )
 
@@ -114,6 +115,11 @@ func handleCreateHook(
 			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: url")
 			return
 		}
+		body.URL = strings.TrimSpace(body.URL)
+		if _, err := outboundhttp.ValidateTargetURL(body.URL); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		events, ok := normalizeHookEvents(body.Events)
 		if !ok {
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid hook events.")
@@ -204,6 +210,11 @@ func handleUpdateHook(
 			return
 		}
 		if body.URL != "" {
+			body.URL = strings.TrimSpace(body.URL)
+			if _, err := outboundhttp.ValidateTargetURL(body.URL); err != nil {
+				httputil.WriteError(w, http.StatusBadRequest, err.Error())
+				return
+			}
 			h.URL = body.URL
 		}
 		if body.Events != nil {

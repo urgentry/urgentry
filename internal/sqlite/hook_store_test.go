@@ -3,8 +3,9 @@ package sqlite
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -20,26 +21,32 @@ func TestHookStore_FireHooksFiltersAndWildcard(t *testing.T) {
 	}
 
 	payloads := &capturedHookBodies{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: hookRoundTripFunc(func(r *http.Request) (*http.Response, error) {
 		defer r.Body.Close()
 		var payload map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Errorf("decode hook payload: %v", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
+			return &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body:       io.NopCloser(strings.NewReader("bad request")),
+				Header:     make(http.Header),
+			}, nil
 		}
 		payloads.add(payload)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Header:     make(http.Header),
+		}, nil
+	})}
 
 	hooks := NewHookStore(db)
-	hooks.HTTPClient = server.Client()
+	hooks.HTTPClient = client
 	for _, hook := range []*ServiceHook{
-		{ProjectID: "proj-1", URL: server.URL, Events: []string{"event.created"}},
-		{ProjectID: "proj-1", URL: server.URL, Events: nil},
-		{ProjectID: "proj-1", URL: server.URL, Events: []string{"event.alert"}},
-		{ProjectID: "proj-1", URL: server.URL, Events: []string{"event.created"}, Status: "disabled"},
+		{ProjectID: "proj-1", URL: "https://hooks.example.test/event-created", Events: []string{"event.created"}},
+		{ProjectID: "proj-1", URL: "https://hooks.example.test/all", Events: nil},
+		{ProjectID: "proj-1", URL: "https://hooks.example.test/event-alert", Events: []string{"event.alert"}},
+		{ProjectID: "proj-1", URL: "https://hooks.example.test/disabled", Events: []string{"event.created"}, Status: "disabled"},
 	} {
 		if err := hooks.Create(ctx, hook); err != nil {
 			t.Fatalf("Create hook: %v", err)
@@ -79,4 +86,10 @@ func (c *capturedHookBodies) snapshot() []map[string]any {
 	out := make([]map[string]any, len(c.items))
 	copy(out, c.items)
 	return out
+}
+
+type hookRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn hookRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
 }

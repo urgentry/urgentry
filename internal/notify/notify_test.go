@@ -168,6 +168,27 @@ func TestNotifyWebhookSucceedsWhenDeliveryRecorderFails(t *testing.T) {
 	}
 }
 
+func TestNotifyWebhookRejectsPrivateTarget(t *testing.T) {
+	deliveries := &memoryDeliveries{}
+	n := NewNotifier(nil, deliveries)
+	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request to %s", r.URL.String())
+		return nil, nil
+	})}
+
+	err := n.NotifyWebhook(context.Background(), "proj-1", "http://127.0.0.1/hook", alert.TriggerEvent{
+		RuleID:    "rule-1",
+		EventID:   "evt-1",
+		Timestamp: time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC),
+	})
+	if err == nil || !strings.Contains(err.Error(), "refusing private or local target") {
+		t.Fatalf("NotifyWebhook error = %v, want private-target rejection", err)
+	}
+	if len(deliveries.records) != 1 || deliveries.records[0].Status != DeliveryStatusFailed {
+		t.Fatalf("unexpected delivery records: %+v", deliveries.records)
+	}
+}
+
 func TestNotifyEmailSucceedsWhenDeliveryRecorderFails(t *testing.T) {
 	outbox := &memoryOutbox{}
 	deliveries := &memoryDeliveries{err: errors.New("delivery sink offline")}

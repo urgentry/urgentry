@@ -14,8 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"urgentry/internal/alert"
 	"github.com/rs/zerolog/log"
+	"urgentry/internal/alert"
+	"urgentry/internal/outboundhttp"
 )
 
 const (
@@ -123,15 +124,12 @@ func NewNotifier(outbox EmailOutbox, deliveries DeliveryRecorder) *Notifier {
 	return &Notifier{
 		EmailOutbox:      outbox,
 		DeliveryRecorder: deliveries,
-		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second,
-			Transport: &http.Transport{
-				MaxIdleConns:        10,
-				MaxIdleConnsPerHost: 5,
-				MaxConnsPerHost:     10,
-				IdleConnTimeout:     30 * time.Second,
-			},
-		},
+		HTTPClient: outboundhttp.NewClient(10*time.Second, &http.Transport{
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 5,
+			MaxConnsPerHost:     10,
+			IdleConnTimeout:     30 * time.Second,
+		}),
 		RetryDelays: []time.Duration{0, 250 * time.Millisecond, 750 * time.Millisecond},
 	}
 }
@@ -213,6 +211,24 @@ func (n *Notifier) postJSON(ctx context.Context, delivery *DeliveryRecord, paylo
 	target := strings.TrimSpace(delivery.Target)
 	if target == "" {
 		return fmt.Errorf("empty webhook target")
+	}
+	if _, err := outboundhttp.ValidateTargetURL(target); err != nil {
+		delivery.Attempts = 1
+		now := time.Now().UTC()
+		delivery.LastAttemptAt = &now
+		delivery.Status = DeliveryStatusFailed
+		delivery.Error = err.Error()
+		if n.DeliveryRecorder != nil {
+			if recordErr := n.DeliveryRecorder.RecordDelivery(ctx, delivery); recordErr != nil {
+				log.Warn().
+					Err(recordErr).
+					Str("project_id", delivery.ProjectID).
+					Str("kind", delivery.Kind).
+					Str("target", delivery.Target).
+					Msg("failed to record notification delivery")
+			}
+		}
+		return err
 	}
 
 	var lastErr error

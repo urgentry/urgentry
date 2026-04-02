@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"urgentry/internal/outboundhttp"
 	"urgentry/pkg/id"
 )
 
@@ -196,6 +197,9 @@ func scanHookRow(rows *sql.Rows) (ServiceHook, error) {
 }
 
 func (s *HookStore) postHook(ctx context.Context, url string, body []byte) error {
+	if _, err := outboundhttp.ValidateTargetURL(url); err != nil {
+		return fmt.Errorf("invalid hook target: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
@@ -217,7 +221,7 @@ func (s *HookStore) httpClient() *http.Client {
 	if s != nil && s.HTTPClient != nil {
 		return s.HTTPClient
 	}
-	return &http.Client{Timeout: 10 * time.Second}
+	return outboundhttp.NewClient(10*time.Second, nil)
 }
 
 func hookWantsEvent(hook ServiceHook, action string) bool {

@@ -2,9 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/outboundhttp"
 	"urgentry/internal/store"
 )
 
@@ -88,11 +90,16 @@ func handleCreateDataForwarding(
 			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: url")
 			return
 		}
+		body.URL = strings.TrimSpace(body.URL)
 		if body.Type == "" {
 			body.Type = "webhook"
 		}
 		if body.Type != "webhook" {
 			httputil.WriteError(w, http.StatusBadRequest, "Unsupported forwarding type. Supported: webhook")
+			return
+		}
+		if _, err := outboundhttp.ValidateTargetURL(body.URL); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 

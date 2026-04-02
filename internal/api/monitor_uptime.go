@@ -7,6 +7,7 @@ import (
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/outboundhttp"
 	"urgentry/internal/sqlite"
 )
 
@@ -96,10 +97,15 @@ func handleCreateUptimeMonitor(catalog controlplane.CatalogStore, uptime *sqlite
 			httputil.WriteError(w, http.StatusBadRequest, "url is required.")
 			return
 		}
+		url := strings.TrimSpace(body.URL)
+		if _, err := outboundhttp.ValidateTargetURL(url); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		monitor := &sqlite.UptimeMonitor{
 			ProjectID:       projectID,
 			Name:            strings.TrimSpace(body.Name),
-			URL:             strings.TrimSpace(body.URL),
+			URL:             url,
 			IntervalSeconds: body.IntervalSeconds,
 			TimeoutSeconds:  body.TimeoutSeconds,
 			ExpectedStatus:  body.ExpectedStatus,

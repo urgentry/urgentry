@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -154,15 +153,14 @@ func TestNewAlertCallback_FiresServiceHooksForEventAndIssueCreation(t *testing.T
 	db := openStoreTestDB(t)
 	ctx := context.Background()
 
-	server, payloads := newHookCaptureServer(t)
-	defer server.Close()
+	client, payloads := newHookCaptureClient(t)
 
 	hooks := sqlite.NewHookStore(db)
-	hooks.HTTPClient = server.Client()
+	hooks.HTTPClient = client
 	for _, item := range [][]string{{"event.created"}, {"issue.created"}} {
 		if err := hooks.Create(ctx, &sqlite.ServiceHook{
 			ProjectID: "proj-1",
-			URL:       server.URL,
+			URL:       "https://hooks.example.test/events",
 			Events:    item,
 		}); err != nil {
 			t.Fatalf("Create hook %v: %v", item, err)
@@ -194,14 +192,13 @@ func TestNewAlertCallback_FiresEventAlertServiceHook(t *testing.T) {
 	db := openStoreTestDB(t)
 	ctx := context.Background()
 
-	server, payloads := newHookCaptureServer(t)
-	defer server.Close()
+	client, payloads := newHookCaptureClient(t)
 
 	hooks := sqlite.NewHookStore(db)
-	hooks.HTTPClient = server.Client()
+	hooks.HTTPClient = client
 	if err := hooks.Create(ctx, &sqlite.ServiceHook{
 		ProjectID: "proj-1",
-		URL:       server.URL,
+		URL:       "https://hooks.example.test/alerts",
 		Events:    []string{"event.alert"},
 	}); err != nil {
 		t.Fatalf("Create hook: %v", err)
@@ -287,19 +284,23 @@ func (h *hookPayloads) snapshot() []map[string]any {
 	return out
 }
 
-func newHookCaptureServer(t *testing.T) (*httptest.Server, *hookPayloads) {
+func newHookCaptureClient(t *testing.T) (*http.Client, *hookPayloads) {
 	t.Helper()
 	payloads := &hookPayloads{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		defer r.Body.Close()
 		var payload map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode hook payload: %v", err)
 		}
 		payloads.add(payload)
-		w.WriteHeader(http.StatusOK)
-	}))
-	return server, payloads
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Header:     make(http.Header),
+		}, nil
+	})}
+	return client, payloads
 }
 
 func collectedHookActions(items []map[string]any) map[string]map[string]any {
