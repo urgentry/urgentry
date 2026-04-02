@@ -338,3 +338,73 @@ func TestAPIIssueAssignee_Team(t *testing.T) {
 		t.Fatalf("id = %q, want backend", assignee.ID)
 	}
 }
+
+func TestAPIUpdateIssue_SQLite_MutatesSeenBookmarkAndPriority(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-update", "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authPut(t, ts, "/api/0/issues/grp-api-update/", map[string]any{
+		"hasSeen":      true,
+		"isBookmarked": true,
+		"priority":     2,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("update issue status = %d, want 200", resp.StatusCode)
+	}
+
+	var updated Issue
+	decodeBody(t, resp, &updated)
+	if !updated.HasSeen {
+		t.Fatal("updated issue hasSeen = false, want true")
+	}
+	if !updated.IsBookmarked {
+		t.Fatal("updated issue isBookmarked = false, want true")
+	}
+	if updated.Priority != 2 {
+		t.Fatalf("updated issue priority = %d, want 2", updated.Priority)
+	}
+
+	authStore := sqlite.NewAuthStore(db)
+	principal, err := authStore.AuthenticatePAT(context.Background(), "gpat_test_admin_token")
+	if err != nil {
+		t.Fatalf("AuthenticatePAT: %v", err)
+	}
+
+	var bookmarkCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM issue_bookmarks WHERE group_id = 'grp-api-update' AND user_id = ?`, principal.User.ID).Scan(&bookmarkCount); err != nil {
+		t.Fatalf("query bookmarks: %v", err)
+	}
+	if bookmarkCount != 1 {
+		t.Fatalf("bookmark count = %d, want 1", bookmarkCount)
+	}
+
+	var priority int
+	if err := db.QueryRow(`SELECT COALESCE(priority, 0) FROM groups WHERE id = 'grp-api-update'`).Scan(&priority); err != nil {
+		t.Fatalf("query priority: %v", err)
+	}
+	if priority != 2 {
+		t.Fatalf("stored priority = %d, want 2", priority)
+	}
+
+	getResp := authGet(t, ts, "/api/0/issues/grp-api-update/")
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("get updated issue status = %d, want 200", getResp.StatusCode)
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(getResp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode get payload: %v", err)
+	}
+	if payload["hasSeen"] != true {
+		t.Fatalf("get hasSeen = %#v, want true", payload["hasSeen"])
+	}
+	if payload["isBookmarked"] != true {
+		t.Fatalf("get isBookmarked = %#v, want true", payload["isBookmarked"])
+	}
+	if got, ok := payload["priority"].(float64); !ok || int(got) != 2 {
+		t.Fatalf("get priority = %#v, want 2", payload["priority"])
+	}
+}
