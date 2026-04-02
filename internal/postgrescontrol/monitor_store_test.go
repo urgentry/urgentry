@@ -144,6 +144,45 @@ func TestMonitorStoreSaveCheckInAndMarkMissed(t *testing.T) {
 	}
 }
 
+func TestMonitorStoreListOrgMonitors(t *testing.T) {
+	t.Parallel()
+
+	db := openMigratedControlDB(t)
+	ctx := context.Background()
+
+	seedOrganization(t, db, "org-1", "acme", "Acme")
+	seedOrganization(t, db, "org-2", "other", "Other")
+	seedProject(t, db, "proj-1", "org-1", "checkout", "Checkout")
+	seedProject(t, db, "proj-2", "org-1", "payments", "Payments")
+	seedProject(t, db, "proj-3", "org-2", "mobile", "Mobile")
+
+	store := NewMonitorStore(db)
+	for _, monitor := range []Monitor{
+		{ProjectID: "proj-1", Slug: "nightly-import", Status: "active"},
+		{ProjectID: "proj-2", Slug: "hourly-cleanup", Status: "active"},
+		{ProjectID: "proj-3", Slug: "foreign-monitor", Status: "active"},
+	} {
+		if _, err := store.UpsertMonitor(ctx, &monitor); err != nil {
+			t.Fatalf("UpsertMonitor(%s): %v", monitor.Slug, err)
+		}
+	}
+
+	monitors, err := store.ListOrgMonitors(ctx, "org-1", 10)
+	if err != nil {
+		t.Fatalf("ListOrgMonitors: %v", err)
+	}
+	if len(monitors) != 2 {
+		t.Fatalf("len(monitors) = %d, want 2", len(monitors))
+	}
+	projectBySlug := map[string]string{}
+	for _, monitor := range monitors {
+		projectBySlug[monitor.Slug] = monitor.ProjectID
+	}
+	if projectBySlug["nightly-import"] != "proj-1" || projectBySlug["hourly-cleanup"] != "proj-2" {
+		t.Fatalf("unexpected org monitors: %+v", monitors)
+	}
+}
+
 func TestNextCronOccurrence(t *testing.T) {
 	t.Parallel()
 

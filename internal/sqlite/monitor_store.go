@@ -357,6 +357,37 @@ func (s *MonitorStore) ListAllMonitors(ctx context.Context, limit int) ([]Monito
 	return monitors, rows.Err()
 }
 
+// ListOrgMonitors returns monitors across all projects in an organization.
+func (s *MonitorStore) ListOrgMonitors(ctx context.Context, orgID string, limit int) ([]Monitor, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, slug, status, COALESCE(environment, ''), COALESCE(config_json, '{}'),
+		        COALESCE(last_checkin_id, ''), COALESCE(last_status, ''), COALESCE(last_checkin_at, ''),
+		        COALESCE(next_checkin_at, ''), created_at, updated_at
+		 FROM monitors
+		 WHERE project_id IN (SELECT id FROM projects WHERE organization_id = ?)
+		 ORDER BY updated_at DESC, slug ASC
+		 LIMIT ?`,
+		strings.TrimSpace(orgID), limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list organization monitors: %w", err)
+	}
+	defer rows.Close()
+
+	var monitors []Monitor
+	for rows.Next() {
+		item, err := scanMonitor(rows)
+		if err != nil {
+			return nil, err
+		}
+		monitors = append(monitors, item)
+	}
+	return monitors, rows.Err()
+}
+
 // ListCheckIns returns recent check-ins for one project monitor slug.
 func (s *MonitorStore) ListCheckIns(ctx context.Context, projectID, slug string, limit int) ([]MonitorCheckIn, error) {
 	if limit <= 0 {

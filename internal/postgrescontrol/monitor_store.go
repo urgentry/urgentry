@@ -173,6 +173,31 @@ func (s *MonitorStore) ListAllMonitors(ctx context.Context, limit int) ([]Monito
 	return items, rows.Err()
 }
 
+// ListOrgMonitors returns monitors across one organization ordered by recent activity.
+func (s *MonitorStore) ListOrgMonitors(ctx context.Context, orgID string, limit int) ([]Monitor, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx,
+		selectMonitorSQL+` JOIN projects p ON p.id = m.project_id WHERE p.organization_id = $1 ORDER BY COALESCE(latest.occurred_at, m.updated_at) DESC, m.slug ASC LIMIT $2`,
+		strings.TrimSpace(orgID), limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list organization monitors: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]Monitor, 0, limit)
+	for rows.Next() {
+		item, err := scanMonitor(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	return items, rows.Err()
+}
+
 // ListMonitors returns project monitors ordered by recent activity.
 func (s *MonitorStore) ListMonitors(ctx context.Context, projectID string, limit int) ([]Monitor, error) {
 	if limit <= 0 {
@@ -679,4 +704,3 @@ func cronDayMatches(day, weekday cronField, dayMatch, weekdayMatch bool) bool {
 	}
 	return dayMatch || weekdayMatch
 }
-

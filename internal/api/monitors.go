@@ -23,36 +23,28 @@ func handleListOrgMonitors(db *sql.DB, catalog controlplane.CatalogStore, monito
 			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
 			return
 		}
-		projects, err := listProjectIDsForOrg(db, org.ID)
+		projectItems, err := catalog.ListProjects(r.Context(), org.Slug)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list projects.")
 			return
 		}
-		projectRefs := make(map[string]ProjectRef, len(projects))
-		if catalog != nil {
-			projectItems, err := catalog.ListProjects(r.Context(), org.Slug)
-			if err != nil {
-				httputil.WriteError(w, http.StatusInternalServerError, "Failed to list projects.")
-				return
-			}
-			for i := range projectItems {
-				project := projectItems[i]
-				projectRefs[project.ID] = apiProjectRefFromProject(&project)
-			}
+		projectRefs := make(map[string]ProjectRef, len(projectItems))
+		for i := range projectItems {
+			project := projectItems[i]
+			projectRefs[project.ID] = apiProjectRefFromProject(&project)
 		}
-		resp := make([]Monitor, 0)
-		for _, pid := range projects {
-			items, err := monitors.ListMonitors(r.Context(), pid, 100)
-			if err != nil {
-				continue
-			}
-			ref := projectRefs[pid]
+		items, err := monitors.ListOrgMonitors(r.Context(), org.ID, 100)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list monitors.")
+			return
+		}
+		resp := make([]Monitor, 0, len(items))
+		for _, item := range items {
+			ref := projectRefs[item.ProjectID]
 			if ref.ID == "" {
-				ref = ProjectRef{ID: pid}
+				ref = ProjectRef{ID: item.ProjectID}
 			}
-			for _, item := range items {
-				resp = append(resp, mapMonitor(item, ref))
-			}
+			resp = append(resp, mapMonitor(item, ref))
 		}
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}

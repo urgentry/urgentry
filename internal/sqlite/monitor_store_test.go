@@ -171,6 +171,42 @@ func TestMonitorStoreUpsertGetDelete(t *testing.T) {
 	}
 }
 
+func TestMonitorStoreListOrgMonitors(t *testing.T) {
+	db := openStoreTestDB(t)
+	seedReleaseHealthProject(t, db, "org-1", "acme", "proj-1", "backend")
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('proj-2', 'org-1', 'payments', 'Payments', 'go', 'active')`); err != nil {
+		t.Fatalf("insert second org project: %v", err)
+	}
+	seedReleaseHealthProject(t, db, "org-2", "other", "proj-3", "mobile")
+
+	store := NewMonitorStore(db)
+	ctx := context.Background()
+	for _, monitor := range []Monitor{
+		{ProjectID: "proj-1", Slug: "nightly-import", Status: "active"},
+		{ProjectID: "proj-2", Slug: "hourly-cleanup", Status: "active"},
+		{ProjectID: "proj-3", Slug: "foreign-monitor", Status: "active"},
+	} {
+		if _, err := store.UpsertMonitor(ctx, &monitor); err != nil {
+			t.Fatalf("UpsertMonitor(%s): %v", monitor.Slug, err)
+		}
+	}
+
+	monitors, err := store.ListOrgMonitors(ctx, "org-1", 10)
+	if err != nil {
+		t.Fatalf("ListOrgMonitors: %v", err)
+	}
+	if len(monitors) != 2 {
+		t.Fatalf("len(monitors) = %d, want 2", len(monitors))
+	}
+	projectBySlug := map[string]string{}
+	for _, monitor := range monitors {
+		projectBySlug[monitor.Slug] = monitor.ProjectID
+	}
+	if projectBySlug["nightly-import"] != "proj-1" || projectBySlug["hourly-cleanup"] != "proj-2" {
+		t.Fatalf("unexpected org monitors: %+v", monitors)
+	}
+}
+
 func TestNextCronOccurrence(t *testing.T) {
 	start := time.Date(2026, 3, 27, 10, 5, 0, 0, time.UTC)
 

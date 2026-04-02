@@ -7,6 +7,7 @@ import (
 
 type MonitorStore interface {
 	ListAllMonitors(ctx context.Context, limit int) ([]Monitor, error)
+	ListOrgMonitors(ctx context.Context, orgID string, limit int) ([]Monitor, error)
 	ListMonitors(ctx context.Context, projectID string, limit int) ([]Monitor, error)
 	UpsertMonitor(ctx context.Context, monitor *Monitor) (*Monitor, error)
 	GetMonitor(ctx context.Context, projectID, slug string) (*Monitor, error)
