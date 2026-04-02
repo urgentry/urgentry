@@ -1,13 +1,17 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
+	"urgentry/internal/auth"
+	"urgentry/internal/controlplane"
 	"urgentry/internal/sqlite"
 )
 
@@ -506,5 +510,64 @@ func TestAPIUpdateIssue_SQLite_MutatesBookmarkAndPriority(t *testing.T) {
 	}
 	if got, ok := payload["priority"].(float64); !ok || int(got) != 2 {
 		t.Fatalf("get priority = %#v, want 2", payload["priority"])
+	}
+}
+
+func TestHandleUpdateIssue_NoPrincipalSkipsBookmarkToggle(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-update-no-principal", "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+	body := bytes.NewBufferString(`{"isBookmarked":true}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/0/issues/grp-api-update-no-principal/", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("issue_id", "grp-api-update-no-principal")
+	rec := httptest.NewRecorder()
+
+	services := controlplane.SQLiteServices(db)
+	handler := handleUpdateIssue(db, services.IssueReads, services.Issues, sqlite.NewHookStore(db), func(http.ResponseWriter, *http.Request) bool {
+		return true
+	})
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var bookmarkCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM issue_bookmarks WHERE group_id = 'grp-api-update-no-principal'`).Scan(&bookmarkCount); err != nil {
+		t.Fatalf("query bookmarks: %v", err)
+	}
+	if bookmarkCount != 0 {
+		t.Fatalf("bookmark count = %d, want 0", bookmarkCount)
+	}
+}
+
+func TestHandleUpdateIssue_NilUserPrincipalSkipsSubscriptionToggle(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-update-nil-user", "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+	body := bytes.NewBufferString(`{"isSubscribed":true}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/0/issues/grp-api-update-nil-user/", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("issue_id", "grp-api-update-nil-user")
+	req = req.WithContext(auth.WithPrincipal(req.Context(), &auth.Principal{}))
+	rec := httptest.NewRecorder()
+
+	services := controlplane.SQLiteServices(db)
+	handler := handleUpdateIssue(db, services.IssueReads, services.Issues, sqlite.NewHookStore(db), func(http.ResponseWriter, *http.Request) bool {
+		return true
+	})
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var subscriptionCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM issue_subscriptions WHERE group_id = 'grp-api-update-nil-user'`).Scan(&subscriptionCount); err != nil {
+		t.Fatalf("query subscriptions: %v", err)
+	}
+	if subscriptionCount != 0 {
+		t.Fatalf("subscription count = %d, want 0", subscriptionCount)
 	}
 }
