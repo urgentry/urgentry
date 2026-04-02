@@ -96,6 +96,9 @@ func TestAPIGetIssue_SQLite(t *testing.T) {
 	if iss.Title != "KeyError: missing key" {
 		t.Errorf("Title = %q, want 'KeyError: missing key'", iss.Title)
 	}
+	if iss.Permalink != "/organizations/test-org/issues/grp-api-get/" {
+		t.Fatalf("Permalink = %q, want org-scoped issue URL", iss.Permalink)
+	}
 }
 
 func TestAPIGetIssue_SQLite_NotFound(t *testing.T) {
@@ -251,9 +254,75 @@ func TestAPIGetIssue_SQLite_ParityFields(t *testing.T) {
 	if !ok {
 		t.Fatalf("stats = %#v, want object", payload["stats"])
 	}
-	points, ok := stats["24h"].([]any)
-	if !ok || len(points) != 24 {
+	points24, ok := stats["24h"].([]any)
+	if !ok || len(points24) != 24 {
 		t.Fatalf("stats[24h] = %#v, want 24 buckets", stats["24h"])
+	}
+	for i, point := range points24 {
+		bucket, ok := point.([]any)
+		if !ok || len(bucket) != 2 {
+			t.Fatalf("stats[24h][%d] = %#v, want [timestamp, count]", i, point)
+		}
+	}
+	points30, ok := stats["30d"].([]any)
+	if !ok || len(points30) != 30 {
+		t.Fatalf("stats[30d] = %#v, want 30 buckets", stats["30d"])
+	}
+	for i, point := range points30 {
+		bucket, ok := point.([]any)
+		if !ok || len(bucket) != 2 {
+			t.Fatalf("stats[30d][%d] = %#v, want [timestamp, count]", i, point)
+		}
+	}
+	if payload["permalink"] != "/organizations/test-org/issues/grp-api-parity/" {
+		t.Fatalf("permalink = %#v, want org-scoped issue URL", payload["permalink"])
+	}
+	if _, ok := payload["logger"]; !ok {
+		t.Fatalf("logger missing from issue detail: %+v", payload)
+	}
+	for _, key := range []string{"annotations", "pluginActions", "pluginContexts", "pluginIssues", "tags", "seenBy", "participants"} {
+		items, ok := payload[key].([]any)
+		if !ok {
+			t.Fatalf("%s = %#v, want array", key, payload[key])
+		}
+		if len(items) != 0 {
+			t.Fatalf("%s = %#v, want empty array for seeded fixture", key, payload[key])
+		}
+	}
+	activity, ok := payload["activity"].([]any)
+	if !ok {
+		t.Fatalf("activity = %#v, want array", payload["activity"])
+	}
+	if len(activity) != 1 {
+		t.Fatalf("activity = %#v, want 1 comment activity entry", activity)
+	}
+	statusDetails, ok := payload["statusDetails"].(map[string]any)
+	if !ok {
+		t.Fatalf("statusDetails = %#v, want object", payload["statusDetails"])
+	}
+	if statusDetails["inNextRelease"] != true {
+		t.Fatalf("statusDetails = %#v, want inNextRelease=true", statusDetails)
+	}
+	subscriptionDetails, ok := payload["subscriptionDetails"].(map[string]any)
+	if !ok {
+		t.Fatalf("subscriptionDetails = %#v, want object", payload["subscriptionDetails"])
+	}
+	if len(subscriptionDetails) != 0 {
+		t.Fatalf("subscriptionDetails = %#v, want empty object", subscriptionDetails)
+	}
+	if payload["shareId"] != nil {
+		t.Fatalf("shareId = %#v, want null", payload["shareId"])
+	}
+	resp = authGet(t, ts, "/api/0/organizations/test-org/issues/grp-api-parity/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("org-scoped issue status = %d, want 200", resp.StatusCode)
+	}
+	var orgPayload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&orgPayload); err != nil {
+		t.Fatalf("decode org-scoped payload: %v", err)
+	}
+	if orgPayload["id"] != "grp-api-parity" || orgPayload["permalink"] != "/organizations/test-org/issues/grp-api-parity/" {
+		t.Fatalf("unexpected org-scoped issue payload: %+v", orgPayload)
 	}
 }
 

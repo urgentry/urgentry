@@ -253,6 +253,14 @@ func (s *shadowingAdminStore) PatchUser(ctx context.Context, orgID, userID strin
 	return store.PatchUser(ctx, orgID, userID, ops)
 }
 
+func (s *shadowingAdminStore) DeleteUser(ctx context.Context, orgID, userID string) (bool, error) {
+	store, ok := s.base.(scimcore.UserStore)
+	if !ok {
+		return false, fmt.Errorf("scim user store unavailable")
+	}
+	return store.DeleteUser(ctx, orgID, userID)
+}
+
 func (s *shadowingAdminStore) ListTeamProjects(ctx context.Context, orgSlug, teamSlug string) ([]controlplane.TeamProjectRecord, error) {
 	return s.base.ListTeamProjects(ctx, orgSlug, teamSlug)
 }

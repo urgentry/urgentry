@@ -223,7 +223,7 @@ func apiIssueFromDiscoverIssue(row DiscoverIssue) Issue {
 		Type:         "error",
 		NumComments:  0,
 		UserCount:    0,
-		Stats:        IssueStats{Last24Hours: []int{}},
+		Stats:        issueEmptyStats(),
 	}
 	return Issue{
 		ID:           row.ID,

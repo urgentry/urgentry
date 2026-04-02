@@ -243,6 +243,15 @@ func TestAPIListMonitorsAndCheckIns_SQLite(t *testing.T) {
 	if len(checkIns) != 1 || checkIns[0].CheckInID != "check-in-1" {
 		t.Fatalf("unexpected check-ins: %+v", checkIns)
 	}
+
+	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/monitors/nightly-import/checkins/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("checkins alias status = %d, want 200", resp.StatusCode)
+	}
+	decodeBody(t, resp, &checkIns)
+	if len(checkIns) != 1 || checkIns[0].CheckInID != "check-in-1" {
+		t.Fatalf("unexpected checkins alias payload: %+v", checkIns)
+	}
 }
 
 func TestAPIOwnershipAndReleaseWorkflow_SQLite(t *testing.T) {

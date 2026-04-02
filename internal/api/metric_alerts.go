@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -22,6 +23,25 @@ type metricAlertRuleRequest struct {
 	Environment      string   `json:"environment"`
 	Status           string   `json:"status"`
 	TriggerActions   []string `json:"triggerActions"`
+}
+
+type orgMetricAlertRuleRequest struct {
+	Name             string                  `json:"name"`
+	Projects         []string                `json:"projects"`
+	Aggregate        string                  `json:"aggregate"`
+	Query            string                  `json:"query"`
+	ThresholdType    int                     `json:"thresholdType"`
+	TimeWindow       int                     `json:"timeWindow"`
+	ResolveThreshold float64                 `json:"resolveThreshold"`
+	Environment      string                  `json:"environment"`
+	Status           string                  `json:"status"`
+	Triggers         []orgMetricAlertTrigger `json:"triggers"`
+}
+
+type orgMetricAlertTrigger struct {
+	Label          string `json:"label"`
+	AlertThreshold float64 `json:"alertThreshold"`
+	Actions        []any  `json:"actions"`
 }
 
 var validMetrics = map[string]bool{
@@ -247,6 +267,117 @@ func handleDeleteMetricAlertRule(catalog controlplane.CatalogStore, store contro
 	}
 }
 
+func handleListOrgMetricAlertRules(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		projects, ok := orgProjectsByID(w, r, catalog)
+		if !ok {
+			return
+		}
+		rules := make([]*alert.MetricAlertRule, 0)
+		for projectID := range projects {
+			items, err := store.ListMetricAlertRules(r.Context(), projectID)
+			if err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to list metric alert rules.")
+				return
+			}
+			rules = append(rules, items...)
+		}
+		if rules == nil {
+			rules = []*alert.MetricAlertRule{}
+		}
+		httputil.WriteJSON(w, http.StatusOK, rules)
+	}
+}
+
+func handleCreateOrgMetricAlertRule(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		var body orgMetricAlertRuleRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+		project, ok := orgMetricAlertProjectFromBody(w, r, catalog, body.Projects)
+		if !ok {
+			return
+		}
+		rule, ok := newOrgMetricAlertRule(w, project.ID, body)
+		if !ok {
+			return
+		}
+		if err := store.CreateMetricAlertRule(r.Context(), rule); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to create metric alert rule.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusCreated, rule)
+	}
+}
+
+func handleGetOrgMetricAlertRule(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		rule, ok := findOrgMetricAlertRule(w, r, catalog, store)
+		if !ok {
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, rule)
+	}
+}
+
+func handleUpdateOrgMetricAlertRule(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		existing, ok := findOrgMetricAlertRule(w, r, catalog, store)
+		if !ok {
+			return
+		}
+		var body orgMetricAlertRuleRequest
+		if err := decodeJSON(r, &body); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			return
+		}
+		updated, ok := newOrgMetricAlertRule(w, existing.ProjectID, body)
+		if !ok {
+			return
+		}
+		updated.ID = existing.ID
+		updated.State = existing.State
+		updated.LastTriggeredAt = existing.LastTriggeredAt
+		updated.CreatedAt = existing.CreatedAt
+		if err := store.UpdateMetricAlertRule(r.Context(), updated); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update metric alert rule.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, updated)
+	}
+}
+
+func handleDeleteOrgMetricAlertRule(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		existing, ok := findOrgMetricAlertRule(w, r, catalog, store)
+		if !ok {
+			return
+		}
+		if err := store.DeleteMetricAlertRule(r.Context(), existing.ID); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete metric alert rule.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func normalizeThresholdType(t string) string {
 	switch strings.ToLower(strings.TrimSpace(t)) {
 	case "below":
@@ -254,4 +385,119 @@ func normalizeThresholdType(t string) string {
 	default:
 		return "above"
 	}
+}
+
+func orgMetricAlertProjectFromBody(w http.ResponseWriter, r *http.Request, catalog controlplane.CatalogStore, projects []string) (*Project, bool) {
+	if len(projects) == 0 || strings.TrimSpace(projects[0]) == "" {
+		httputil.WriteError(w, http.StatusBadRequest, "projects must contain one project slug.")
+		return nil, false
+	}
+	project, err := catalog.GetProject(r.Context(), PathParam(r, "org_slug"), strings.TrimSpace(projects[0]))
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "Failed to load project.")
+		return nil, false
+	}
+	if project == nil {
+		httputil.WriteError(w, http.StatusNotFound, "Project not found.")
+		return nil, false
+	}
+	return project, true
+}
+
+func newOrgMetricAlertRule(w http.ResponseWriter, projectID string, body orgMetricAlertRuleRequest) (*alert.MetricAlertRule, bool) {
+	if strings.TrimSpace(body.Name) == "" {
+		httputil.WriteError(w, http.StatusBadRequest, "Name is required.")
+		return nil, false
+	}
+	metric := metricFromAggregate(body.Aggregate)
+	if !validMetrics[metric] {
+		httputil.WriteError(w, http.StatusBadRequest, "Aggregate is not supported by this compatibility layer.")
+		return nil, false
+	}
+	threshold, actions := orgMetricAlertTriggerPayload(body.Triggers)
+	if threshold == 0 && len(body.Triggers) == 0 {
+		httputil.WriteError(w, http.StatusBadRequest, "At least one trigger is required.")
+		return nil, false
+	}
+	window := body.TimeWindow * 60
+	if !validTimeWindows[window] {
+		window = 300
+	}
+	thresholdType := "above"
+	if body.ThresholdType == 1 {
+		thresholdType = "below"
+	}
+	now := time.Now().UTC()
+	rule := &alert.MetricAlertRule{
+		ID:               id.New(),
+		ProjectID:        projectID,
+		Name:             strings.TrimSpace(body.Name),
+		Metric:           metric,
+		Threshold:        threshold,
+		ThresholdType:    thresholdType,
+		TimeWindowSecs:   window,
+		ResolveThreshold: body.ResolveThreshold,
+		Environment:      strings.TrimSpace(body.Environment),
+		Status:           normalizeAlertStatus(body.Status),
+		TriggerActions:   actions,
+		State:            "ok",
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	return rule, true
+}
+
+func findOrgMetricAlertRule(w http.ResponseWriter, r *http.Request, catalog controlplane.CatalogStore, store controlplane.MetricAlertStore) (*alert.MetricAlertRule, bool) {
+	projects, ok := orgProjectsByID(w, r, catalog)
+	if !ok {
+		return nil, false
+	}
+	rule, err := store.GetMetricAlertRule(r.Context(), PathParam(r, "rule_id"))
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "Failed to load metric alert rule.")
+		return nil, false
+	}
+	if rule == nil {
+		httputil.WriteError(w, http.StatusNotFound, "Metric alert rule not found.")
+		return nil, false
+	}
+	if _, ok := projects[rule.ProjectID]; !ok {
+		httputil.WriteError(w, http.StatusNotFound, "Metric alert rule not found.")
+		return nil, false
+	}
+	return rule, true
+}
+
+func metricFromAggregate(aggregate string) string {
+	value := strings.ToLower(strings.TrimSpace(aggregate))
+	switch {
+	case strings.Contains(value, "p95"):
+		return "p95_latency"
+	case strings.Contains(value, "failure_rate"):
+		return "failure_rate"
+	case strings.Contains(value, "apdex"):
+		return "apdex"
+	case strings.Contains(value, "transaction"):
+		return "transaction_count"
+	default:
+		return "error_count"
+	}
+}
+
+func orgMetricAlertTriggerPayload(triggers []orgMetricAlertTrigger) (float64, []string) {
+	if len(triggers) == 0 {
+		return 0, []string{}
+	}
+	threshold := triggers[0].AlertThreshold
+	actions := make([]string, 0)
+	for _, trigger := range triggers {
+		for _, action := range trigger.Actions {
+			data, err := json.Marshal(action)
+			if err != nil {
+				continue
+			}
+			actions = append(actions, string(data))
+		}
+	}
+	return threshold, actions
 }

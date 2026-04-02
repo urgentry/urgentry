@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
@@ -100,21 +99,44 @@ func buildOrganizationDetail(org *store.Organization, teams []store.Team, projec
 	}
 
 	return &OrganizationDetail{
-		ID:          org.ID,
-		Slug:        org.Slug,
-		Name:        org.Name,
-		DateCreated: org.DateCreated,
-		Features:    defaultOrgFeatures,
-		Access:      accessForRole("owner"),
-		Teams:       orgTeams,
-		Projects:    orgProjects,
-		Avatar:      OrgAvatar{Type: "letter_avatar"},
+		ID:                    org.ID,
+		Slug:                  org.Slug,
+		Name:                  org.Name,
+		DateCreated:           org.DateCreated,
+		Features:              defaultOrgFeatures,
+		Access:                accessForRole("owner"),
+		AllowMemberInvite:     true,
+		AllowMemberProjectCreation: true,
+		AllowSuperuserAccess:  false,
+		Teams:                 orgTeams,
+		Projects:              orgProjects,
+		Avatar:                OrgAvatar{Type: "letter_avatar"},
+		HasAuthProvider:       false,
+		Links: OrgLinks{
+			OrganizationURL: "/organizations/" + org.Slug + "/",
+			RegionURL:       "/",
+		},
+		Require2FA:            false,
+		ExtraOptions:          map[string]any{},
 		Status: OrgStatus{
 			ID:   "active",
 			Name: "active",
 		},
-		IsEarlyAdopter:  false,
-		OnboardingTasks: []any{},
+		IsEarlyAdopter:        false,
+		AllowJoinRequests:     false,
+		OpenMembership:        false,
+		DefaultRole:           "member",
+		EnhancedPrivacy:       false,
+		DataScrubber:          false,
+		DataScrubberDefaults:  false,
+		SensitiveFields:       []string{},
+		SafeFields:            []string{},
+		ScrubIPAddresses:      false,
+		StoreCrashReports:     0,
+		RelayPiiConfig:        "",
+		AllowSharedIssues:     true,
+		TrustedRelays:         []string{},
+		OnboardingTasks:       []any{},
 	}
 }
 
@@ -185,10 +207,8 @@ func handleUpdateOrg(catalog controlplane.CatalogStore, auth authFunc) http.Hand
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid JSON body.")
 			return
 		}
-		if strings.TrimSpace(body.Name) == "" && strings.TrimSpace(body.Slug) == "" {
-			httputil.WriteError(w, http.StatusBadRequest, "At least one of name or slug is required.")
-			return
-		}
+		// Accept the update as long as the JSON body was valid.
+		// The catalog layer preserves existing values for empty fields.
 
 		updated, err := catalog.UpdateOrganization(r.Context(), slug, body)
 		if err != nil {

@@ -426,7 +426,7 @@ func handleSCIMListGroups(admin controlplane.AdminStore) http.HandlerFunc {
 
 		resources := make([]scimGroupRepr, 0, len(page))
 		for _, t := range page {
-			resources = append(resources, teamRecordToSCIMGroup(t))
+			resources = append(resources, teamRecordToSCIMGroup(t, nil))
 		}
 		writeSCIMJSON(w, http.StatusOK, scimGroupListResponse{
 			Schemas:      []string{scimListSchema},
@@ -478,8 +478,37 @@ func handleSCIMCreateGroup(admin controlplane.AdminStore) http.HandlerFunc {
 			}
 		}
 
-		group := teamRecordToSCIMGroup(rec)
+		group := teamRecordToSCIMGroup(rec, nil)
 		writeSCIMJSON(w, http.StatusCreated, group)
+	}
+}
+
+// handleSCIMGetGroup handles GET /api/0/organizations/{org_slug}/scim/v2/Groups/{id}.
+func handleSCIMGetGroup(admin controlplane.AdminStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
+			return
+		}
+
+		orgSlug := PathParam(r, "org_slug")
+		teamSlug := PathParam(r, "id")
+		rec, _, _, err := admin.GetTeam(r.Context(), orgSlug, teamSlug)
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to load group.")
+			return
+		}
+		if rec == nil {
+			writeSCIMError(w, http.StatusNotFound, "Group not found.")
+			return
+		}
+		members, err := admin.ListTeamMembers(r.Context(), orgSlug, teamSlug)
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to load group members.")
+			return
+		}
+		writeSCIMJSON(w, http.StatusOK, teamRecordToSCIMGroup(rec, members))
 	}
 }
 
@@ -543,19 +572,52 @@ func handleSCIMPatchGroup(admin controlplane.AdminStore) http.HandlerFunc {
 			writeSCIMError(w, http.StatusNotFound, "Group not found.")
 			return
 		}
-		writeSCIMJSON(w, http.StatusOK, teamRecordToSCIMGroup(rec))
+		writeSCIMJSON(w, http.StatusOK, teamRecordToSCIMGroup(rec, nil))
 	}
 }
 
-func teamRecordToSCIMGroup(rec *controlplane.TeamRecord) scimGroupRepr {
+// handleSCIMDeleteGroup handles DELETE /api/0/organizations/{org_slug}/scim/v2/Groups/{id}.
+func handleSCIMDeleteGroup(admin controlplane.AdminStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := scimOrganizationID(r.Context())
+		if orgID == "" {
+			writeSCIMError(w, http.StatusUnauthorized, "Bearer token required.")
+			return
+		}
+
+		ok, err := admin.DeleteTeam(r.Context(), PathParam(r, "org_slug"), PathParam(r, "id"))
+		if err != nil {
+			writeSCIMError(w, http.StatusInternalServerError, "Failed to delete group.")
+			return
+		}
+		if !ok {
+			writeSCIMError(w, http.StatusNotFound, "Group not found.")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func teamRecordToSCIMGroup(rec *controlplane.TeamRecord, members []*controlplane.TeamMemberRecord) scimGroupRepr {
 	createdAt := ""
 	if !rec.CreatedAt.IsZero() {
 		createdAt = rec.CreatedAt.Format(time.RFC3339)
+	}
+	groupMembers := make([]scimGroupMember, 0, len(members))
+	for _, member := range members {
+		if member == nil {
+			continue
+		}
+		groupMembers = append(groupMembers, scimGroupMember{
+			Value:   member.UserID,
+			Display: strings.TrimSpace(firstNonEmptyString(member.Name, member.Email, member.UserID)),
+		})
 	}
 	return scimGroupRepr{
 		Schemas:     []string{scimGroupSchema},
 		ID:          rec.Slug,
 		DisplayName: rec.Name,
+		Members:     groupMembers,
 		Meta: scimMeta{
 			ResourceType: "Group",
 			Created:      createdAt,
@@ -627,5 +689,7 @@ func RegisterSCIMGroupRoutes(mux *http.ServeMux, catalog controlplane.CatalogSto
 	}
 	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Groups", scimOrgAdminGuard(catalog, authorize, handleSCIMListGroups(admin)))
 	mux.Handle("POST /api/0/organizations/{org_slug}/scim/v2/Groups", scimOrgAdminGuard(catalog, authorize, handleSCIMCreateGroup(admin)))
+	mux.Handle("GET /api/0/organizations/{org_slug}/scim/v2/Groups/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMGetGroup(admin)))
 	mux.Handle("PATCH /api/0/organizations/{org_slug}/scim/v2/Groups/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMPatchGroup(admin)))
+	mux.Handle("DELETE /api/0/organizations/{org_slug}/scim/v2/Groups/{id}", scimOrgAdminGuard(catalog, authorize, handleSCIMDeleteGroup(admin)))
 }

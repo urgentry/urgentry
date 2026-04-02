@@ -94,6 +94,7 @@ func handleListProjectIssues(db *sql.DB, catalog controlplane.CatalogStore, read
 		for _, row := range rows {
 			issue := apiIssueFromWebIssueWithExtras(row, extras[row.ID])
 			issue.ProjectRef = apiProjectRefFromProject(project)
+			finalizeIssueResponse(&issue, org)
 			issues = append(issues, issue)
 		}
 		page := Paginate(w, r, issues)
@@ -128,6 +129,9 @@ func handleGetIssue(db *sql.DB, reads controlplane.IssueReadStore, issues contro
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load issue project.")
 			return
 		}
+		if _, orgSlug, scopeErr := projectScopeForGroup(r.Context(), db, row.ID); scopeErr == nil {
+			finalizeIssueResponse(&issue, orgSlug)
+		}
 		enrichIssueDetail(r.Context(), db, issues, &issue, id)
 		httputil.WriteJSON(w, http.StatusOK, issue)
 	}
@@ -159,6 +163,18 @@ func enrichIssueDetail(ctx context.Context, db *sql.DB, issues controlplane.Issu
 	var reportCount int
 	_ = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_feedback WHERE group_id = ?`, groupID).Scan(&reportCount)
 	issue.UserReportCount = reportCount
+	if issue.Activity == nil {
+		issue.Activity = []IssueActivitySummary{}
+	}
+	if issue.Tags == nil {
+		issue.Tags = []IssueTagFacet{}
+	}
+	if issue.Participants == nil {
+		issue.Participants = []IssueUser{}
+	}
+	if issue.SeenBy == nil {
+		issue.SeenBy = []IssueUser{}
+	}
 }
 
 func loadIssueTagFacets(ctx context.Context, db *sql.DB, groupID string) []IssueTagFacet {
@@ -395,6 +411,9 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load issue project.")
 			return
 		}
+		if _, orgSlug, scopeErr := projectScopeForGroup(r.Context(), db, iss.ID); scopeErr == nil {
+			finalizeIssueResponse(&issue, orgSlug)
+		}
 		httputil.WriteJSON(w, http.StatusOK, issue)
 	}
 }
@@ -540,6 +559,48 @@ func handleDeleteIssue(issues controlplane.IssueWorkflowStore, auth authFunc) ht
 		}
 		w.WriteHeader(http.StatusAccepted)
 	}
+}
+
+func withOrgIssueScope(db *sql.DB, auth authFunc, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		ok, err := issueBelongsToOrganization(r.Context(), db, PathParam(r, "org_slug"), PathParam(r, "issue_id"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load issue.")
+			return
+		}
+		if !ok {
+			httputil.WriteError(w, http.StatusNotFound, "Issue not found.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+func allowAllAuth(http.ResponseWriter, *http.Request) bool { return true }
+
+func issueBelongsToOrganization(ctx context.Context, db *sql.DB, orgSlug, issueID string) (bool, error) {
+	if db == nil {
+		return false, nil
+	}
+	var exists int
+	err := db.QueryRowContext(ctx, `
+		SELECT 1
+		FROM groups g
+		JOIN projects p ON p.id = g.project_id
+		JOIN organizations o ON o.id = p.organization_id
+		WHERE g.id = ? AND o.slug = ?`,
+		issueID, orgSlug,
+	).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // bulkMutateRequest is the JSON body for bulk-mutating org issues.
@@ -745,15 +806,28 @@ func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtr
 		IsSubscribed:      extras.IsSubscribed,
 		Priority:          extras.Priority,
 		Substatus:         extras.Substatus,
+		Logger:            nil,
 		Metadata:          extras.Metadata,
+		Annotations:       []IssueAnnotation{},
 		NumComments:       extras.NumComments,
 		UserCount:         extras.UserCount,
 		Stats:             extras.Stats,
+		Permalink:         "",
+		PluginActions:     [][]string{},
+		PluginContexts:    []string{},
+		PluginIssues:      []Metadata{},
+		ShareID:           nil,
+		StatusDetails:     issueStatusDetails(row),
+		SubscriptionDetails: Metadata{},
 		ResolvedInRelease: row.ResolvedInRelease,
 		MergedIntoIssueID: row.MergedIntoGroupID,
 		FirstSeen:         row.FirstSeen,
 		LastSeen:          row.LastSeen,
 		Count:             apiIssueCount(row.Count),
+		Activity:          []IssueActivitySummary{},
+		Tags:              []IssueTagFacet{},
+		SeenBy:            []IssueUser{},
+		Participants:      []IssueUser{},
 	}
 }
 
@@ -808,7 +882,7 @@ func defaultIssueResponseExtras(row store.WebIssue) issueResponseExtras {
 		Type:         "error",
 		NumComments:  0,
 		UserCount:    0,
-		Stats:        IssueStats{Last24Hours: []int{}},
+		Stats:        issueEmptyStats(),
 	}
 }
 
@@ -832,10 +906,14 @@ func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplan
 		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 24, 24*time.Hour); err == nil {
 			for _, groupID := range groupIDs {
 				item := extras[groupID]
-				item.Stats = IssueStats{Last24Hours: append([]int(nil), sparklines[groupID]...)}
-				if item.Stats.Last24Hours == nil {
-					item.Stats.Last24Hours = []int{}
-				}
+				item.Stats.Last24Hours = issueSparklinePoints(sparklines[groupID], time.Hour, time.Now().UTC())
+				extras[groupID] = item
+			}
+		}
+		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 30, 30*24*time.Hour); err == nil {
+			for _, groupID := range groupIDs {
+				item := extras[groupID]
+				item.Stats.Last30Days = issueSparklinePoints(sparklines[groupID], 24*time.Hour, time.Now().UTC())
 				extras[groupID] = item
 			}
 		}
@@ -898,6 +976,75 @@ func apiIssueAssignee(value string) *IssueUser {
 	}
 	user.Username = value
 	return user
+}
+
+func issueEmptyStats() IssueStats {
+	return IssueStats{
+		Last24Hours: []IssueSeriesPoint{},
+		Last30Days:  []IssueSeriesPoint{},
+	}
+}
+
+func issueSparklinePoints(counts []int, step time.Duration, end time.Time) []IssueSeriesPoint {
+	if len(counts) == 0 {
+		return []IssueSeriesPoint{}
+	}
+	points := make([]IssueSeriesPoint, 0, len(counts))
+	start := end.Add(-time.Duration(len(counts)) * step)
+	for i, count := range counts {
+		ts := start.Add(time.Duration(i) * step).Unix()
+		points = append(points, IssueSeriesPoint{ts, int64(count)})
+	}
+	return points
+}
+
+func issueStatusDetails(row store.WebIssue) Metadata {
+	status := Metadata{}
+	if row.ResolutionSubstatus == "next_release" {
+		status["inNextRelease"] = true
+	}
+	if strings.TrimSpace(row.ResolvedInRelease) != "" {
+		status["inRelease"] = row.ResolvedInRelease
+	}
+	return status
+}
+
+func finalizeIssueResponse(issue *Issue, orgSlug string) {
+	if issue == nil {
+		return
+	}
+	issue.Permalink = issuePermalink(orgSlug, issue.ID)
+	if issue.Activity == nil {
+		issue.Activity = []IssueActivitySummary{}
+	}
+	if issue.Annotations == nil {
+		issue.Annotations = []IssueAnnotation{}
+	}
+	if issue.Tags == nil {
+		issue.Tags = []IssueTagFacet{}
+	}
+	if issue.SeenBy == nil {
+		issue.SeenBy = []IssueUser{}
+	}
+	if issue.Participants == nil {
+		issue.Participants = []IssueUser{}
+	}
+	if issue.PluginActions == nil {
+		issue.PluginActions = [][]string{}
+	}
+	if issue.PluginContexts == nil {
+		issue.PluginContexts = []string{}
+	}
+	if issue.PluginIssues == nil {
+		issue.PluginIssues = []Metadata{}
+	}
+}
+
+func issuePermalink(orgSlug, issueID string) string {
+	if strings.TrimSpace(orgSlug) == "" || strings.TrimSpace(issueID) == "" {
+		return ""
+	}
+	return "/organizations/" + orgSlug + "/issues/" + issueID + "/"
 }
 
 func issueMetadata(row store.WebIssue) Metadata {

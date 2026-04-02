@@ -205,6 +205,36 @@ func TestAPIReplayPlaybackEndpoints_SQLite(t *testing.T) {
 		t.Fatalf("unexpected errors pane: %+v", timeline)
 	}
 
+	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/replays/replay-playback/recording-segments/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("recording segments status = %d, want 200", resp.StatusCode)
+	}
+	var segments []ReplayRecordingSegment
+	decodeBody(t, resp, &segments)
+	if len(segments) != 1 || segments[0].ReplayID != "replay-playback" {
+		t.Fatalf("unexpected recording segments: %+v", segments)
+	}
+
+	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/replays/replay-playback/recording-segments/"+segments[0].ID+"/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("recording segment detail status = %d, want 200", resp.StatusCode)
+	}
+	var segment ReplayRecordingSegment
+	decodeBody(t, resp, &segment)
+	if segment.ID != segments[0].ID || segment.ReplayID != "replay-playback" {
+		t.Fatalf("unexpected recording segment detail: %+v", segment)
+	}
+
+	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/replays/replay-playback/viewed-by/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("viewed-by status = %d, want 200", resp.StatusCode)
+	}
+	var viewers []ReplayViewer
+	decodeBody(t, resp, &viewers)
+	if len(viewers) != 0 {
+		t.Fatalf("unexpected replay viewers: %+v", viewers)
+	}
+
 	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/replays/replay-playback/assets/att-api-replay-playback/")
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("asset status = %d, want 200", resp.StatusCode)

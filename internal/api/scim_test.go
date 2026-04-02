@@ -76,6 +76,61 @@ func TestSCIMUserRoutesMountedAndCRUD(t *testing.T) {
 	}
 }
 
+func TestSCIMGroupRoutesMountedAndCRUD(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	create := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/scim/v2/Groups", pat, map[string]any{
+		"displayName": "SCIM Group",
+	})
+	if create.StatusCode != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201", create.StatusCode)
+	}
+	var created scimGroupRepr
+	decodeBody(t, create, &created)
+	if created.ID == "" || created.DisplayName != "SCIM Group" {
+		t.Fatalf("unexpected create response: %+v", created)
+	}
+
+	get := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Groups/"+created.ID, pat, nil)
+	if get.StatusCode != http.StatusOK {
+		t.Fatalf("get status = %d, want 200", get.StatusCode)
+	}
+	var fetched scimGroupRepr
+	decodeBody(t, get, &fetched)
+	if fetched.ID != created.ID || fetched.DisplayName != "SCIM Group" {
+		t.Fatalf("unexpected get response: %+v", fetched)
+	}
+
+	patch := authzJSONRequest(t, ts, http.MethodPatch, "/api/0/organizations/test-org/scim/v2/Groups/"+created.ID, pat, map[string]any{
+		"schemas": []string{scimPatchSchema},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "displayName", "value": "SCIM Group Patched"},
+		},
+	})
+	if patch.StatusCode != http.StatusOK {
+		t.Fatalf("patch status = %d, want 200", patch.StatusCode)
+	}
+	var updated scimGroupRepr
+	decodeBody(t, patch, &updated)
+	if updated.DisplayName != "SCIM Group Patched" {
+		t.Fatalf("unexpected patch response: %+v", updated)
+	}
+
+	del := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/organizations/test-org/scim/v2/Groups/"+created.ID, pat, nil)
+	if del.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete status = %d, want 204", del.StatusCode)
+	}
+	del.Body.Close()
+
+	missing := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Groups/"+created.ID, pat, nil)
+	if missing.StatusCode != http.StatusNotFound {
+		t.Fatalf("get after delete status = %d, want 404", missing.StatusCode)
+	}
+	missing.Body.Close()
+}
+
 func TestSCIMRoutesRequireBearerToken(t *testing.T) {
 	db := openTestSQLite(t)
 	ts, _ := newSQLiteAuthorizedServer(t, db, Dependencies{})

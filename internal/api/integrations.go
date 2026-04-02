@@ -18,6 +18,23 @@ type integrationSummary struct {
 	Installed   []*integration.IntegrationConfig `json:"installed,omitempty"`
 }
 
+type integrationDetailResponse struct {
+	ID                            string         `json:"id"`
+	Name                          string         `json:"name"`
+	Icon                          *string        `json:"icon"`
+	DomainName                    *string        `json:"domainName"`
+	AccountType                   *string        `json:"accountType"`
+	Scopes                        []string       `json:"scopes"`
+	Status                        string         `json:"status"`
+	Provider                      map[string]any `json:"provider"`
+	ConfigOrganization            []any          `json:"configOrganization"`
+	ConfigData                    map[string]string `json:"configData"`
+	ExternalID                    string         `json:"externalId"`
+	OrganizationID                int            `json:"organizationId"`
+	OrganizationIntegrationStatus string         `json:"organizationIntegrationStatus"`
+	GracePeriodEnd                *string        `json:"gracePeriodEnd"`
+}
+
 // handleListIntegrations handles GET /api/0/organizations/{org_slug}/integrations/.
 // It returns every registered integration together with any installed configs
 // for the requesting organization.
@@ -58,6 +75,65 @@ func handleListIntegrations(
 			})
 		}
 		httputil.WriteJSON(w, http.StatusOK, out)
+	}
+}
+
+// handleGetIntegration handles GET /api/0/organizations/{org_slug}/integrations/{integration_id}/.
+func handleGetIntegration(
+	catalog controlplane.CatalogStore,
+	registry *integration.Registry,
+	store integration.Store,
+	auth authFunc,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org, ok := getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
+		if !ok {
+			return
+		}
+
+		config, err := store.Get(r.Context(), PathParam(r, "integration_id"))
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load integration config.")
+			return
+		}
+		if config == nil || config.OrganizationID != org.ID {
+			httputil.WriteError(w, http.StatusNotFound, "Integration not found.")
+			return
+		}
+		impl := registry.Get(config.IntegrationID)
+		if impl == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Integration not found.")
+			return
+		}
+
+		provider := map[string]any{
+			"key":      impl.ID(),
+			"slug":     impl.ID(),
+			"name":     impl.Name(),
+			"canAdd":   true,
+			"canDisable": true,
+			"features": []string{},
+		}
+		resp := integrationDetailResponse{
+			ID:                            config.ID,
+			Name:                          impl.Name(),
+			Icon:                          nil,
+			DomainName:                    nil,
+			AccountType:                   nil,
+			Scopes:                        []string{},
+			Status:                        config.Status,
+			Provider:                      provider,
+			ConfigOrganization:            []any{},
+			ConfigData:                    config.Config,
+			ExternalID:                    config.IntegrationID,
+			OrganizationID:                0,
+			OrganizationIntegrationStatus: config.Status,
+			GracePeriodEnd:                nil,
+		}
+		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 

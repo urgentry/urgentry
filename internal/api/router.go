@@ -153,6 +153,10 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("PUT /api/0/organizations/{org_slug}/issues/", handleBulkMutateOrgIssues(deps.DB, control.IssueReads, control.Issues, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/issues/", handleBulkDeleteOrgIssues(control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/events/{event_id}/", handleGetIssueEvent(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath}), handleGetIssue(deps.DB, control.IssueReads, control.Issues, allowAllAuth)))
+	mux.Handle("PUT /api/0/organizations/{org_slug}/issues/{issue_id}/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath}), handleUpdateIssue(deps.DB, control.IssueReads, control.Issues, deps.Hooks, allowAllAuth)))
+	mux.Handle("DELETE /api/0/organizations/{org_slug}/issues/{issue_id}/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath}), handleDeleteIssue(control.Issues, allowAllAuth)))
+	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/events/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath}), handleListIssueEvents(deps.DB, allowAllAuth)))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/hashes/", handleListIssueHashes(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/tags/{key}/", handleGetIssueTagDetail(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/tags/{key}/values/", handleListIssueTagValues(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
@@ -182,6 +186,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	RegisterSCIMRoutes(mux, control.Catalog, scimUsers, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath}))
 	RegisterSCIMGroupRoutes(mux, control.Catalog, control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath}))
 	mux.Handle("POST /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleAddMemberToTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("PUT /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleAddMemberToTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/members/{member_id}/teams/{team_slug}/", handleRemoveMemberFromTeam(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/user-teams/", handleListUserTeams(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/events-timeseries/", handleListEventTimeSeries(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
@@ -267,6 +272,11 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/{rule_id}/", handleGetMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 		mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/{rule_id}/", handleUpdateMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 		mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/{rule_id}/", handleDeleteMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
+		mux.Handle("GET /api/0/organizations/{org_slug}/alert-rules/", handleListOrgMetricAlertRules(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("POST /api/0/organizations/{org_slug}/alert-rules/", handleCreateOrgMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("GET /api/0/organizations/{org_slug}/alert-rules/{rule_id}/", handleGetOrgMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("PUT /api/0/organizations/{org_slug}/alert-rules/{rule_id}/", handleUpdateOrgMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("DELETE /api/0/organizations/{org_slug}/alert-rules/{rule_id}/", handleDeleteOrgMetricAlertRule(control.Catalog, control.MetricAlerts, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	}
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/alerts/outbox/", handleListAlertOutbox(control.Catalog, control.Outbox, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/alerts/deliveries/", handleListAlertDeliveries(control.Catalog, control.Deliveries, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
@@ -287,6 +297,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/monitors/{monitor_slug}/", handleUpdateMonitor(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/monitors/{monitor_slug}/", handleDeleteMonitor(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/monitors/{monitor_slug}/check-ins/", handleListMonitorCheckIns(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/monitors/{monitor_slug}/checkins/", handleListMonitorCheckIns(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 	if deps.BlobStore != nil {
 		mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/", handleListDebugFiles(deps.DB, deps.NativeControl, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 		mux.Handle("POST /api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/", handleUploadDebugFile(deps.DB, deps.DebugFiles, withAuth(auth.Policy{Scope: auth.ScopeProjectArtifactsWrite, Resource: auth.ResourceProjectPath, AllowAutomation: true})))
@@ -370,10 +381,14 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	// Integrations
 	if deps.IntegrationRegistry != nil && deps.IntegrationStore != nil {
 		mux.Handle("GET /api/0/organizations/{org_slug}/integrations/", handleListIntegrations(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("GET /api/0/organizations/{org_slug}/integrations/{integration_id}/", handleGetIntegration(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/integrations/{integration_id}/install", handleInstallIntegration(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/integrations/{integration_id}/", handleUninstallIntegration(control.Catalog, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/integrations/{integration_id}/webhook", handleIntegrationWebhook(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore))
 		mux.Handle("GET /api/0/organizations/{org_slug}/config/integrations/", handleListIntegrationConfigs(deps.IntegrationRegistry, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("GET /api/0/organizations/{org_slug}/sentry-apps/", handleListSentryApps(control.Catalog, deps.IntegrationRegistry, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("GET /api/0/organizations/{org_slug}/sentry-app-installations/", handleListSentryAppInstallations(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("GET /api/0/sentry-apps/{sentry_app_id_or_slug}/", handleGetSentryApp(deps.IntegrationRegistry, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceAnyMembership})))
 	}
 
 	// Source map uploads + project-level release files
@@ -445,6 +460,11 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 
 	// Org-level replays
 	mux.Handle("GET /api/0/organizations/{org_slug}/monitors/", handleListOrgMonitors(deps.DB, control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("POST /api/0/organizations/{org_slug}/monitors/", handleCreateOrgMonitor(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/monitors/{monitor_slug}/", handleGetOrgMonitor(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("PUT /api/0/organizations/{org_slug}/monitors/{monitor_slug}/", handleUpdateOrgMonitor(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("DELETE /api/0/organizations/{org_slug}/monitors/{monitor_slug}/", handleDeleteOrgMonitor(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/monitors/{monitor_slug}/checkins/", handleListOrgMonitorCheckIns(control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/replays/", handleListOrgReplays(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/replays/{replay_id}/", handleGetOrgReplay(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/replays/{replay_id}/", handleDeleteOrgReplay(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
@@ -458,6 +478,8 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/replays/jobs/delete/{job_id}/", handleGetReplayDeletionJob(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/clicks/", handleListReplayClicks(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/recording-segments/", handleListReplayRecordingSegments(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/recording-segments/{segment_id}/", handleGetReplayRecordingSegment(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/viewed-by/", handleListReplayViewedBy(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 
 	// Notification actions
 	if deps.NotificationActions != nil {
@@ -540,6 +562,9 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("POST /api/0/organizations/{org_slug}/external-teams/", handleCreateExternalTeam(control.Catalog, deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("PUT /api/0/organizations/{org_slug}/external-teams/{id}/", handleUpdateExternalTeam(deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/external-teams/{id}/", handleDeleteExternalTeam(deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("POST /api/0/teams/{org_slug}/{team_slug}/external-teams/", handleCreateTeamExternalTeam(control.Catalog, deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("PUT /api/0/teams/{org_slug}/{team_slug}/external-teams/{external_team_id}/", handleUpdateTeamExternalTeam(deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("DELETE /api/0/teams/{org_slug}/{team_slug}/external-teams/{external_team_id}/", handleDeleteTeamExternalTeam(deps.ExternalTeams, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	}
 
 	// Org-level data forwarding

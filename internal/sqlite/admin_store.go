@@ -164,6 +164,7 @@ func (s *AdminStore) ListOrgMembers(ctx context.Context, orgSlug string) ([]*Org
 
 // GetOrgMember returns a single organization member by membership record ID.
 func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string) (*OrgMemberRecord, error) {
+	// Try lookup by membership record ID first, then fall back to user_id.
 	var rec OrgMemberRecord
 	var createdAt sql.NullString
 	err := s.db.QueryRowContext(ctx,
@@ -171,8 +172,8 @@ func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string)
 		 FROM organization_members m
 		 JOIN organizations o ON o.id = m.organization_id
 		 JOIN users u ON u.id = m.user_id
-		 WHERE o.slug = ? AND m.id = ?`,
-		orgSlug, memberID,
+		 WHERE o.slug = ? AND (m.id = ? OR m.user_id = ?)`,
+		orgSlug, memberID, memberID,
 	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &createdAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -184,7 +185,7 @@ func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string)
 	return &rec, nil
 }
 
-// UpdateOrgMemberRole updates the role of an organization member by membership record ID.
+// UpdateOrgMemberRole updates the role of an organization member by membership record ID or user ID.
 func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID, role string) (*OrgMemberRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -199,8 +200,8 @@ func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID,
 		 FROM organization_members m
 		 JOIN organizations o ON o.id = m.organization_id
 		 JOIN users u ON u.id = m.user_id
-		 WHERE o.slug = ? AND m.id = ?`,
-		orgSlug, memberID,
+		 WHERE o.slug = ? AND (m.id = ? OR m.user_id = ?)`,
+		orgSlug, memberID, memberID,
 	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &createdAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -211,7 +212,7 @@ func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID,
 
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE organization_members SET role = ? WHERE id = ?`,
-		role, memberID,
+		role, rec.ID,
 	); err != nil {
 		return nil, err
 	}

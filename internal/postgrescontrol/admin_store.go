@@ -98,16 +98,18 @@ func (s *AdminStore) ListOrgMembers(ctx context.Context, orgSlug string) ([]*Org
 	return members, rows.Err()
 }
 
-// GetOrgMember returns a single organization member by membership record ID.
+// GetOrgMember returns a single organization member by membership record ID or user ID.
 func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string) (*OrgMemberRecord, error) {
 	rec := &OrgMemberRecord{}
+	trimmedSlug := strings.TrimSpace(orgSlug)
+	trimmedID := strings.TrimSpace(memberID)
 	err := s.db.QueryRowContext(ctx,
 		`SELECT m.id, m.organization_id, o.slug, m.user_id, u.email, u.display_name, m.role, m.created_at
 		   FROM organization_members m
 		   JOIN organizations o ON o.id = m.organization_id
 		   JOIN users u ON u.id = m.user_id
-		  WHERE o.slug = $1 AND m.id = $2`,
-		strings.TrimSpace(orgSlug), strings.TrimSpace(memberID),
+		  WHERE o.slug = $1 AND (m.id = $2 OR m.user_id = $2)`,
+		trimmedSlug, trimmedID,
 	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &rec.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -119,7 +121,7 @@ func (s *AdminStore) GetOrgMember(ctx context.Context, orgSlug, memberID string)
 	return rec, nil
 }
 
-// UpdateOrgMemberRole updates the role of an organization member by membership record ID.
+// UpdateOrgMemberRole updates the role of an organization member by membership record ID or user ID.
 func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID, role string) (*OrgMemberRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -127,14 +129,15 @@ func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID,
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	trimmedID := strings.TrimSpace(memberID)
 	rec := &OrgMemberRecord{}
 	if err := tx.QueryRowContext(ctx,
 		`SELECT m.id, m.organization_id, o.slug, m.user_id, u.email, u.display_name, m.role, m.created_at
 		   FROM organization_members m
 		   JOIN organizations o ON o.id = m.organization_id
 		   JOIN users u ON u.id = m.user_id
-		  WHERE o.slug = $1 AND m.id = $2`,
-		strings.TrimSpace(orgSlug), strings.TrimSpace(memberID),
+		  WHERE o.slug = $1 AND (m.id = $2 OR m.user_id = $2)`,
+		strings.TrimSpace(orgSlug), trimmedID,
 	).Scan(&rec.ID, &rec.OrganizationID, &rec.OrganizationSlug, &rec.UserID, &rec.Email, &rec.Name, &rec.Role, &rec.CreatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -144,7 +147,7 @@ func (s *AdminStore) UpdateOrgMemberRole(ctx context.Context, orgSlug, memberID,
 
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE organization_members SET role = $1 WHERE id = $2`,
-		strings.TrimSpace(role), strings.TrimSpace(memberID),
+		strings.TrimSpace(role), rec.ID,
 	); err != nil {
 		return nil, err
 	}

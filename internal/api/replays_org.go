@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"urgentry/internal/httputil"
@@ -14,6 +16,19 @@ import (
 	"urgentry/internal/telemetryquery"
 	"urgentry/pkg/id"
 )
+
+type ReplayRecordingSegment struct {
+	ID          string    `json:"id"`
+	ReplayID    string    `json:"replayId"`
+	SegmentID   int       `json:"segmentId"`
+	DateCreated time.Time `json:"dateCreated"`
+}
+
+type ReplayViewer struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email,omitempty"`
+}
 
 // handleListOrgReplays lists replays across all projects in an organization.
 func handleListOrgReplays(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
@@ -463,26 +478,71 @@ func handleListReplayRecordingSegments(db *sql.DB, queries telemetryquery.Servic
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load replay.")
 			return
 		}
-		type RecordingSegment struct {
-			ID          string    `json:"id"`
-			ReplayID    string    `json:"replayId"`
-			SegmentID   int       `json:"segmentId"`
-			DateCreated time.Time `json:"dateCreated"`
+		httputil.WriteJSON(w, http.StatusOK, replayRecordingSegments(record, replayID))
+	}
+}
+
+func handleGetReplayRecordingSegment(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		projectID, replayID, ok := guardReplayProjectRead(w, r, db, guard, auth, 1, true)
+		if !ok {
+			return
 		}
-		segments := make([]RecordingSegment, 0, len(record.Assets))
-		for _, asset := range record.Assets {
-			segments = append(segments, RecordingSegment{
-				ID:          asset.ID,
-				ReplayID:    replayID,
-				SegmentID:   asset.ChunkIndex,
-				DateCreated: asset.CreatedAt,
-			})
+		record, err := queries.GetReplay(r.Context(), projectID, replayID)
+		if err != nil {
+			if errors.Is(err, sharedstore.ErrNotFound) {
+				httputil.WriteError(w, http.StatusNotFound, "Replay not found.")
+				return
+			}
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load replay.")
+			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, segments)
+		target := strings.TrimSpace(PathParam(r, "segment_id"))
+		for _, segment := range replayRecordingSegments(record, replayID) {
+			if segment.ID == target || strconv.Itoa(segment.SegmentID) == target {
+				httputil.WriteJSON(w, http.StatusOK, segment)
+				return
+			}
+		}
+		httputil.WriteError(w, http.StatusNotFound, "Recording segment not found.")
+	}
+}
+
+func handleListReplayViewedBy(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		projectID, replayID, ok := guardReplayProjectRead(w, r, db, guard, auth, 1, true)
+		if !ok {
+			return
+		}
+		if _, err := queries.GetReplay(r.Context(), projectID, replayID); err != nil {
+			if errors.Is(err, sharedstore.ErrNotFound) {
+				httputil.WriteError(w, http.StatusNotFound, "Replay not found.")
+				return
+			}
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load replay.")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, []ReplayViewer{})
 	}
 }
 
 // -- helpers --
+
+func replayRecordingSegments(record *sharedstore.ReplayRecord, replayID string) []ReplayRecordingSegment {
+	if record == nil {
+		return []ReplayRecordingSegment{}
+	}
+	segments := make([]ReplayRecordingSegment, 0, len(record.Assets))
+	for _, asset := range record.Assets {
+		segments = append(segments, ReplayRecordingSegment{
+			ID:          asset.ID,
+			ReplayID:    replayID,
+			SegmentID:   asset.ChunkIndex,
+			DateCreated: asset.CreatedAt,
+		})
+	}
+	return segments
+}
 
 func listProjectIDsForOrg(db *sql.DB, orgID string) ([]string, error) {
 	rows, err := db.Query(`SELECT id FROM projects WHERE organization_id = ?`, orgID)

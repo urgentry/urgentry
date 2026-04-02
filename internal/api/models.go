@@ -11,18 +11,38 @@ type Organization = sharedstore.Organization
 
 // OrganizationDetail is the enriched organization response for GET /organizations/{slug}/.
 type OrganizationDetail struct {
-	ID              string              `json:"id"`
-	Slug            string              `json:"slug"`
-	Name            string              `json:"name"`
-	DateCreated     time.Time           `json:"dateCreated"`
-	Features        []string            `json:"features"`
-	Access          []string            `json:"access"`
-	Teams           []OrgTeamResponse   `json:"teams"`
-	Projects        []OrgProjectResponse `json:"projects"`
-	Avatar          OrgAvatar           `json:"avatar"`
-	Status          OrgStatus           `json:"status"`
-	IsEarlyAdopter  bool                `json:"isEarlyAdopter"`
-	OnboardingTasks []any               `json:"onboardingTasks"`
+	ID                    string               `json:"id"`
+	Slug                  string               `json:"slug"`
+	Name                  string               `json:"name"`
+	DateCreated           time.Time            `json:"dateCreated"`
+	Features              []string             `json:"features"`
+	Access                []string             `json:"access"`
+	AllowMemberInvite     bool                 `json:"allowMemberInvite"`
+	AllowMemberProjectCreation bool            `json:"allowMemberProjectCreation"`
+	AllowSuperuserAccess  bool                 `json:"allowSuperuserAccess"`
+	Teams                 []OrgTeamResponse    `json:"teams"`
+	Projects              []OrgProjectResponse `json:"projects"`
+	Avatar                OrgAvatar            `json:"avatar"`
+	HasAuthProvider       bool                 `json:"hasAuthProvider"`
+	Links                 OrgLinks             `json:"links"`
+	Require2FA            bool                 `json:"require2FA"`
+	ExtraOptions          map[string]any       `json:"extraOptions"`
+	Status                OrgStatus            `json:"status"`
+	IsEarlyAdopter        bool                 `json:"isEarlyAdopter"`
+	AllowJoinRequests     bool                 `json:"allowJoinRequests"`
+	OpenMembership        bool                 `json:"openMembership"`
+	DefaultRole           string               `json:"defaultRole"`
+	EnhancedPrivacy       bool                 `json:"enhancedPrivacy"`
+	DataScrubber          bool                 `json:"dataScrubber"`
+	DataScrubberDefaults  bool                 `json:"dataScrubberDefaults"`
+	SensitiveFields       []string             `json:"sensitiveFields"`
+	SafeFields            []string             `json:"safeFields"`
+	ScrubIPAddresses      bool                 `json:"scrubIPAddresses"`
+	StoreCrashReports     int                  `json:"storeCrashReports"`
+	RelayPiiConfig        string               `json:"relayPiiConfig"`
+	AllowSharedIssues     bool                 `json:"allowSharedIssues"`
+	TrustedRelays         []string             `json:"trustedRelays"`
+	OnboardingTasks       []any                `json:"onboardingTasks"`
 }
 
 // OrgTeamResponse is the nested team shape inside an organization detail response.
@@ -55,12 +75,19 @@ type OrgProjectResponse struct {
 type OrgAvatar struct {
 	Type string `json:"avatarType"`
 	UUID string `json:"avatarUuid,omitempty"`
+	URL  string `json:"avatarUrl,omitempty"`
 }
 
 // OrgStatus is the status shape in organization detail responses.
 type OrgStatus struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+// OrgLinks is the Sentry-compatible organization links block.
+type OrgLinks struct {
+	OrganizationURL string `json:"organizationUrl"`
+	RegionURL       string `json:"regionUrl"`
 }
 
 type Team = sharedstore.Team
@@ -120,23 +147,32 @@ type Issue struct {
 	IsSubscribed      bool             `json:"isSubscribed"`
 	Priority          int              `json:"priority"`
 	Substatus         string           `json:"substatus"`
+	Logger            *string          `json:"logger"`
 	Metadata          Metadata         `json:"metadata"`
+	Annotations       []IssueAnnotation `json:"annotations"`
 	NumComments       int              `json:"numComments"`
 	UserCount         int              `json:"userCount"`
 	UserReportCount   int              `json:"userReportCount"`
 	Stats             IssueStats       `json:"stats"`
+	Permalink         string           `json:"permalink"`
+	PluginActions     [][]string       `json:"pluginActions"`
+	PluginContexts    []string         `json:"pluginContexts"`
+	PluginIssues      []Metadata       `json:"pluginIssues"`
+	ShareID           *string          `json:"shareId"`
+	StatusDetails     Metadata         `json:"statusDetails"`
+	SubscriptionDetails Metadata       `json:"subscriptionDetails"`
 	ResolvedInRelease string           `json:"resolvedInRelease,omitempty"`
 	MergedIntoIssueID string           `json:"mergedIntoIssueId,omitempty"`
 	FirstSeen         time.Time        `json:"firstSeen"`
 	LastSeen          time.Time        `json:"lastSeen"`
 	Count             string           `json:"count"`
 	ProjectRef        ProjectRef       `json:"project"`
-	Activity          []IssueActivitySummary `json:"activity,omitempty"`
-	Tags              []IssueTagFacet  `json:"tags,omitempty"`
-	FirstRelease      *IssueRelease    `json:"firstRelease,omitempty"`
-	LastRelease       *IssueRelease    `json:"lastRelease,omitempty"`
-	SeenBy            []IssueUser      `json:"seenBy,omitempty"`
-	Participants      []IssueUser      `json:"participants,omitempty"`
+	Activity          []IssueActivitySummary `json:"activity"`
+	Tags              []IssueTagFacet  `json:"tags"`
+	FirstRelease      *IssueRelease    `json:"firstRelease"`
+	LastRelease       *IssueRelease    `json:"lastRelease"`
+	SeenBy            []IssueUser      `json:"seenBy"`
+	Participants      []IssueUser      `json:"participants"`
 }
 
 // IssueActivitySummary is a compact activity entry for issue detail enrichment.
@@ -146,6 +182,12 @@ type IssueActivitySummary struct {
 	User        *IssueUser `json:"user,omitempty"`
 	Data        any       `json:"data,omitempty"`
 	DateCreated time.Time `json:"dateCreated"`
+}
+
+// IssueAnnotation is a lightweight issue annotation entry.
+type IssueAnnotation struct {
+	DisplayName string `json:"displayName"`
+	URL         string `json:"url"`
 }
 
 // IssueTagFacet is a top tag key with value counts for issue detail.
@@ -181,9 +223,13 @@ type IssueUser struct {
 // Metadata is a generic object wrapper used by issue responses.
 type Metadata map[string]any
 
+// IssueSeriesPoint is one timestamp/value pair inside an issue sparkline.
+type IssueSeriesPoint [2]int64
+
 // IssueStats carries the compact issue sparkline fields used by list/detail UIs.
 type IssueStats struct {
-	Last24Hours []int `json:"24h"`
+	Last24Hours []IssueSeriesPoint `json:"24h"`
+	Last30Days  []IssueSeriesPoint `json:"30d"`
 }
 
 // DiscoverIssue is the org-wide issue row used by discover/search endpoints.
