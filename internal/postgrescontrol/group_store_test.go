@@ -184,3 +184,31 @@ func TestGroupStore_WorkflowLifecycle(t *testing.T) {
 		t.Fatalf("unexpected unmerged group: %+v", unmerged)
 	}
 }
+
+func TestGroupStoreBatchIssueCommentCounts(t *testing.T) {
+	db, fx := seedControlFixture(t)
+	store := NewGroupStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	source := createTestGroup(t, store, fx.ProjectID, "grp-comment-source", "checkout failure", "checkout/service.go", now)
+	other := createTestGroup(t, store, fx.ProjectID, "grp-comment-other", "payments failure", "payments/service.go", now.Add(time.Minute))
+
+	if _, err := store.AddIssueComment(ctx, source.ID, fx.UserID, "first"); err != nil {
+		t.Fatalf("AddIssueComment first: %v", err)
+	}
+	if _, err := store.AddIssueComment(ctx, source.ID, fx.UserID, "second"); err != nil {
+		t.Fatalf("AddIssueComment second: %v", err)
+	}
+
+	counts, err := store.BatchIssueCommentCounts(ctx, []string{source.ID, other.ID, source.ID, "missing"})
+	if err != nil {
+		t.Fatalf("BatchIssueCommentCounts: %v", err)
+	}
+	if counts[source.ID] != 2 {
+		t.Fatalf("count[%q] = %d, want 2", source.ID, counts[source.ID])
+	}
+	if counts[other.ID] != 0 {
+		t.Fatalf("count[%q] = %d, want 0", other.ID, counts[other.ID])
+	}
+}

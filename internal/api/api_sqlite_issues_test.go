@@ -153,6 +153,43 @@ func TestAPIListIssues_SQLite_IncludesParityFields(t *testing.T) {
 	}
 }
 
+func TestAPIListIssues_SQLite_NumComments(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-comment-list", "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	authStore := sqlite.NewAuthStore(db)
+	principal, err := authStore.AuthenticatePAT(context.Background(), "gpat_test_admin_token")
+	if err != nil {
+		t.Fatalf("AuthenticatePAT: %v", err)
+	}
+	groupStore := sqlite.NewGroupStore(db)
+	if _, err := groupStore.AddIssueComment(context.Background(), "grp-api-comment-list", principal.User.ID, "first"); err != nil {
+		t.Fatalf("AddIssueComment first: %v", err)
+	}
+	if _, err := groupStore.AddIssueComment(context.Background(), "grp-api-comment-list", principal.User.ID, "second"); err != nil {
+		t.Fatalf("AddIssueComment second: %v", err)
+	}
+
+	resp := authGet(t, ts, "/api/0/projects/test-org/test-project/issues/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var payload []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if len(payload) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(payload))
+	}
+	if comments, ok := payload[0]["numComments"].(float64); !ok || int(comments) != 2 {
+		t.Fatalf("numComments = %#v, want 2", payload[0]["numComments"])
+	}
+}
+
 func TestAPIGetIssue_SQLite_ParityFields(t *testing.T) {
 	db := openTestSQLite(t)
 	insertSQLiteGroup(t, db, "grp-api-parity", "ValueError: bad input", "main.go in handler", "error", "unresolved")

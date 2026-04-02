@@ -342,6 +342,53 @@ func (s *GroupStore) ListIssueComments(ctx context.Context, groupID string, limi
 	return items, rows.Err()
 }
 
+// BatchIssueCommentCounts returns comment counts keyed by group ID.
+func (s *GroupStore) BatchIssueCommentCounts(ctx context.Context, groupIDs []string) (map[string]int, error) {
+	cleaned := make([]string, 0, len(groupIDs))
+	seen := make(map[string]struct{}, len(groupIDs))
+	for _, groupID := range groupIDs {
+		groupID = strings.TrimSpace(groupID)
+		if groupID == "" {
+			continue
+		}
+		if _, ok := seen[groupID]; ok {
+			continue
+		}
+		seen[groupID] = struct{}{}
+		cleaned = append(cleaned, groupID)
+	}
+	if len(cleaned) == 0 {
+		return map[string]int{}, nil
+	}
+	holders := strings.TrimSuffix(strings.Repeat("?,", len(cleaned)), ",")
+	args := make([]any, 0, len(cleaned))
+	for _, groupID := range cleaned {
+		args = append(args, groupID)
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT group_id, COUNT(*)
+		 FROM issue_comments
+		 WHERE group_id IN (`+holders+`)
+		 GROUP BY group_id`,
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int, len(cleaned))
+	for rows.Next() {
+		var groupID string
+		var count int
+		if err := rows.Scan(&groupID, &count); err != nil {
+			return nil, err
+		}
+		counts[groupID] = count
+	}
+	return counts, rows.Err()
+}
+
 // ListIssueActivity returns the recent activity timeline for a group.
 func (s *GroupStore) ListIssueActivity(ctx context.Context, groupID string, limit int) ([]sharedstore.IssueActivityEntry, error) {
 	if limit <= 0 {

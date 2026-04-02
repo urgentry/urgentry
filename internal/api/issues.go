@@ -24,6 +24,10 @@ type issueWorkflowStateReader interface {
 	GetIssueWorkflowState(ctx context.Context, groupID, userID string) (store.IssueWorkflowState, error)
 }
 
+type issueWorkflowCommentCounter interface {
+	BatchIssueCommentCounts(ctx context.Context, groupIDs []string) (map[string]int, error)
+}
+
 type issueResponseExtras struct {
 	AssignedTo   *IssueUser
 	HasSeen      bool
@@ -942,9 +946,17 @@ func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplan
 	if reader, ok := any(issues).(issueWorkflowStateReader); ok {
 		stateReader = reader
 	}
+	var commentCounts map[string]int
+	if counter, ok := any(issues).(issueWorkflowCommentCounter); ok {
+		if counts, err := counter.BatchIssueCommentCounts(ctx, groupIDs); err == nil {
+			commentCounts = counts
+		}
+	}
 	for _, row := range rows {
 		item := extras[row.ID]
-		if comments, err := issues.ListIssueComments(ctx, row.ID, 100); err == nil {
+		if commentCounts != nil {
+			item.NumComments = commentCounts[row.ID]
+		} else if comments, err := issues.ListIssueComments(ctx, row.ID, 100); err == nil {
 			item.NumComments = len(comments)
 		}
 		if stateReader != nil {
