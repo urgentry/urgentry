@@ -628,6 +628,20 @@ type bulkMutateRequest struct {
 	} `json:"statusDetails"`
 }
 
+const maxBulkIssueIDs = 200
+
+func validateBulkIssueIDs(w http.ResponseWriter, ids []string) bool {
+	if len(ids) == 0 {
+		httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+		return false
+	}
+	if len(ids) > maxBulkIssueIDs {
+		httputil.WriteError(w, http.StatusBadRequest, "Too many issue IDs.")
+		return false
+	}
+	return true
+}
+
 // handleBulkMutateOrgIssues handles PUT /api/0/organizations/{org_slug}/issues/.
 func handleBulkMutateOrgIssues(db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, hooks *sqlite.HookStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -635,8 +649,7 @@ func handleBulkMutateOrgIssues(db *sql.DB, reads controlplane.IssueReadStore, is
 			return
 		}
 		ids := r.URL.Query()["id"]
-		if len(ids) == 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+		if !validateBulkIssueIDs(w, ids) {
 			return
 		}
 
@@ -710,8 +723,7 @@ func handleBulkDeleteOrgIssues(issues controlplane.IssueWorkflowStore, auth auth
 			return
 		}
 		ids := r.URL.Query()["id"]
-		if len(ids) == 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+		if !validateBulkIssueIDs(w, ids) {
 			return
 		}
 		if err := issues.BulkDeleteGroups(r.Context(), ids); err != nil {

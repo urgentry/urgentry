@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -337,6 +338,31 @@ func TestAPIIssueAssignee_Team(t *testing.T) {
 	if assignee.ID != "backend" {
 		t.Fatalf("id = %q, want backend", assignee.ID)
 	}
+}
+
+func TestAPIBulkIssueOperationsCapIDs_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	params := url.Values{}
+	for i := 0; i < maxBulkIssueIDs+1; i++ {
+		params.Add("id", "grp-bulk-cap")
+	}
+	path := "/api/0/organizations/test-org/issues/?" + params.Encode()
+
+	resp := authPut(t, ts, path, bulkMutateRequest{Status: "ignored"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bulk mutate status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = authDelete(t, ts, path)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bulk delete status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
 }
 
 func TestAPIUpdateIssue_SQLite_RejectsHasSeenMutation(t *testing.T) {
