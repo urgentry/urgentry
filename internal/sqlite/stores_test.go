@@ -397,6 +397,73 @@ func TestReleaseStore_GetReleaseRegression(t *testing.T) {
 	}
 }
 
+func TestReleaseStore_ProjectHasRelease(t *testing.T) {
+	db := openStoreTestDB(t)
+	ctx := context.Background()
+
+	if _, err := db.Exec(`INSERT INTO organizations (id, slug, name) VALUES ('org-1', 'acme', 'Acme')`); err != nil {
+		t.Fatalf("insert org: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status, created_at) VALUES
+		('proj-1', 'org-1', 'checkout', 'Checkout', 'go', 'active', ?),
+		('proj-2', 'org-1', 'mobile', 'Mobile', 'swift', 'active', ?)`,
+		time.Now().UTC().Format(time.RFC3339),
+		time.Now().UTC().Format(time.RFC3339),
+	); err != nil {
+		t.Fatalf("insert projects: %v", err)
+	}
+
+	rs := NewReleaseStore(db)
+	if _, err := rs.CreateRelease(ctx, "acme", "checkout@1.0.0"); err != nil {
+		t.Fatalf("CreateRelease event release: %v", err)
+	}
+	if _, err := rs.CreateRelease(ctx, "acme", "mobile@1.0.0"); err != nil {
+		t.Fatalf("CreateRelease debug release: %v", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(`INSERT INTO events
+		(id, project_id, event_id, release, environment, platform, level, event_type, title, message, culprit, occurred_at, tags_json, payload_json)
+	 VALUES
+		('evt-1', 'proj-1', 'evt-1', 'checkout@1.0.0', 'production', 'go', 'error', 'error', 'CheckoutError', 'boom', 'checkout/service.go', ?, '{}', '{}')`,
+		now,
+	); err != nil {
+		t.Fatalf("insert release event: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO debug_files
+		(id, project_id, release_version, uuid, code_id, name, object_key, size_bytes, checksum, created_at, kind, content_type)
+	 VALUES
+		('dbg-1', 'proj-2', 'mobile@1.0.0', 'UUID-1', '', 'App.dSYM.zip', 'debug/mobile', 1, '', ?, 'apple', 'application/zip')`,
+		now,
+	); err != nil {
+		t.Fatalf("insert debug file: %v", err)
+	}
+
+	hasRelease, err := rs.ProjectHasRelease(ctx, "proj-1", "checkout@1.0.0")
+	if err != nil {
+		t.Fatalf("ProjectHasRelease project event: %v", err)
+	}
+	if !hasRelease {
+		t.Fatal("expected project event release association")
+	}
+
+	hasRelease, err = rs.ProjectHasRelease(ctx, "proj-2", "mobile@1.0.0")
+	if err != nil {
+		t.Fatalf("ProjectHasRelease project debug file: %v", err)
+	}
+	if !hasRelease {
+		t.Fatal("expected project debug-file release association")
+	}
+
+	hasRelease, err = rs.ProjectHasRelease(ctx, "proj-2", "checkout@1.0.0")
+	if err != nil {
+		t.Fatalf("ProjectHasRelease foreign project: %v", err)
+	}
+	if hasRelease {
+		t.Fatal("expected missing project release association")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // SourceMapStore
 // ---------------------------------------------------------------------------

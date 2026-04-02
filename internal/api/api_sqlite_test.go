@@ -305,6 +305,13 @@ func TestAPIOwnershipAndReleaseWorkflow_SQLite(t *testing.T) {
 	); err != nil {
 		t.Fatalf("insert release event: %v", err)
 	}
+	if _, err := db.Exec(
+		`INSERT INTO projects (id, organization_id, slug, name, platform, status, created_at) VALUES
+			('test-proj-id-2', 'test-org-id', 'other-project', 'Other Project', 'go', 'active', ?)`,
+		now,
+	); err != nil {
+		t.Fatalf("insert second project: %v", err)
+	}
 
 	ts := newSQLiteTestServer(t, db)
 	defer ts.Close()
@@ -386,6 +393,20 @@ func TestAPIOwnershipAndReleaseWorkflow_SQLite(t *testing.T) {
 	decodeBody(t, resp, &commits)
 	if len(commits) != 1 || commits[0].CommitSHA != "abc123def456" {
 		t.Fatalf("unexpected commits: %+v", commits)
+	}
+
+	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/releases/backend@1.2.3/commits/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("project release commit list status = %d, want 200", resp.StatusCode)
+	}
+	decodeBody(t, resp, &commits)
+	if len(commits) != 1 || commits[0].CommitSHA != "abc123def456" {
+		t.Fatalf("unexpected project commits: %+v", commits)
+	}
+
+	resp = authGet(t, ts, "/api/0/projects/test-org/other-project/releases/backend@1.2.3/commits/")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("foreign project release commit list status = %d, want 404", resp.StatusCode)
 	}
 
 	resp = authGet(t, ts, "/api/0/organizations/test-org/releases/backend@1.2.3/suspects/")

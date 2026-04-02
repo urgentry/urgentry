@@ -422,6 +422,33 @@ func (s *ReleaseStore) ListCommits(ctx context.Context, orgSlug, version string,
 	return items, rows.Err()
 }
 
+func (s *ReleaseStore) ProjectHasRelease(ctx context.Context, projectID, version string) (bool, error) {
+	var match int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT 1
+		 WHERE EXISTS (
+			SELECT 1 FROM events WHERE project_id = ? AND COALESCE(release, '') = ?
+		 )
+		    OR EXISTS (
+			SELECT 1 FROM release_sessions WHERE project_id = ? AND release_version = ?
+		 )
+		    OR EXISTS (
+			SELECT 1 FROM artifacts WHERE project_id = ? AND release_version = ?
+		 )
+		    OR EXISTS (
+			SELECT 1 FROM debug_files WHERE project_id = ? AND release_version = ?
+		 )`,
+		projectID, version,
+		projectID, version,
+		projectID, version,
+		projectID, version,
+	).Scan(&match)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return match == 1, err
+}
+
 func (s *ReleaseStore) ListSuspects(ctx context.Context, orgSlug, version string, limit int) ([]sharedstore.ReleaseSuspect, error) {
 	commits, err := s.ListCommits(ctx, orgSlug, version, 200)
 	if err != nil || len(commits) == 0 {

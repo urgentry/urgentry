@@ -101,6 +101,30 @@ func TestReleaseStore_CreateReleaseWorkflow(t *testing.T) {
 	if len(commits) != 1 || commits[0].CommitSHA != "abc123" {
 		t.Fatalf("unexpected commits: %+v", commits)
 	}
+
+	hasRelease, err := store.ProjectHasRelease(ctx, fx.ProjectID, "checkout@2.0.0")
+	if err != nil {
+		t.Fatalf("ProjectHasRelease matching project: %v", err)
+	}
+	if !hasRelease {
+		t.Fatal("expected release association for matching project")
+	}
+
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO projects (id, organization_id, team_id, slug, name, platform, created_at, updated_at)
+		 VALUES ('proj-2', $1, $2, 'mobile', 'Mobile', 'swift', $3, $3)`,
+		fx.OrgID, fx.TeamID, now,
+	); err != nil {
+		t.Fatalf("seed second project: %v", err)
+	}
+
+	hasRelease, err = store.ProjectHasRelease(ctx, "proj-2", "checkout@2.0.0")
+	if err != nil {
+		t.Fatalf("ProjectHasRelease foreign project: %v", err)
+	}
+	if hasRelease {
+		t.Fatal("expected no release association for foreign project")
+	}
 }
 
 func TestReleaseStore_ListSuspects(t *testing.T) {

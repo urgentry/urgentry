@@ -18,5 +18,6 @@ type ReleaseStore interface {
 	ListDeploys(ctx context.Context, orgSlug, version string, limit int) ([]sharedstore.ReleaseDeploy, error)
 	AddCommit(ctx context.Context, orgSlug, version string, commit sharedstore.ReleaseCommit) (*sharedstore.ReleaseCommit, error)
 	ListCommits(ctx context.Context, orgSlug, version string, limit int) ([]sharedstore.ReleaseCommit, error)
+	ProjectHasRelease(ctx context.Context, projectID, version string) (bool, error)
 	ListSuspects(ctx context.Context, orgSlug, version string, limit int) ([]sharedstore.ReleaseSuspect, error)
 }

@@ -555,17 +555,28 @@ func handleListReleaseCommitFiles(catalog controlplane.CatalogStore, releases co
 }
 
 // handleListProjectReleaseCommits handles GET /api/0/projects/{org}/{proj}/releases/{version}/commits/.
-// Same as org-level commits but filtered to the project's organization.
+// It reuses the org-level release commit list, but only after verifying that
+// the requested project is actually associated with the release version.
 func handleListProjectReleaseCommits(catalog controlplane.CatalogStore, releases controlplane.ReleaseStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		_, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
-		items, err := releases.ListCommits(r.Context(), PathParam(r, "org_slug"), PathParam(r, "version"), 100)
+		version := PathParam(r, "version")
+		hasRelease, err := releases.ProjectHasRelease(r.Context(), project.ID, version)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load project release.")
+			return
+		}
+		if !hasRelease {
+			httputil.WriteError(w, http.StatusNotFound, "Release not found.")
+			return
+		}
+		items, err := releases.ListCommits(r.Context(), PathParam(r, "org_slug"), version, 100)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list release commits.")
 			return
