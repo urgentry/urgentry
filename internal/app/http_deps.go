@@ -54,6 +54,7 @@ type httpDepsInput struct {
 	auditStore          *sqlite.AuditStore
 	nativeControl       *sqlite.NativeControlStore
 	debugFiles          *sqlite.DebugFileStore
+	preprodArtifacts    *sqlite.PreprodArtifactStore
 	retentionStore      *sqlite.RetentionStore
 	importExport        *sqlite.ImportExportStore
 	integrationRegistry *integration.Registry
@@ -109,6 +110,7 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			NativeControl:       input.nativeControl,
 			ReleaseHealth:       input.releaseHealth,
 			DebugFiles:          input.debugFiles,
+			PreprodArtifacts:    input.preprodArtifacts,
 			Outcomes:            input.outcomeStore,
 			Retention:           input.retentionStore,
 			ImportExport:        input.importExport,

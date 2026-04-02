@@ -52,6 +52,7 @@ type Dependencies struct {
 	ExternalIssues      integration.ExternalIssueStore
 	CodeMappings        store.CodeMappingStore
 	ForwardingStore     store.ForwardingStore
+	PreprodArtifacts    *sqlite.PreprodArtifactStore
 	SamplingRules       *sqlite.SamplingRuleStore
 	UptimeMonitors      *sqlite.UptimeMonitorStore
 	Quota               *sqlite.QuotaStore
@@ -238,6 +239,11 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("GET /api/0/organizations/{org_slug}/releases/{version}/files/{file_id}/", handleGetReleaseFile(control.Catalog, smStore, withAuth(auth.Policy{Scope: auth.ScopeReleaseRead, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("PUT /api/0/organizations/{org_slug}/releases/{version}/files/{file_id}/", handleUpdateReleaseFile(control.Catalog, smStore, withAuth(auth.Policy{Scope: auth.ScopeReleaseWrite, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/releases/{version}/files/{file_id}/", handleDeleteReleaseFile(control.Catalog, smStore, withAuth(auth.Policy{Scope: auth.ScopeReleaseWrite, Resource: auth.ResourceOrganizationPath})))
+	}
+
+	if deps.PreprodArtifacts != nil {
+		mux.Handle("GET /api/0/organizations/{org_slug}/preprodartifacts/{artifact_id}/install-details/", handleGetPreprodArtifactInstallDetails(deps.DB, deps.PreprodArtifacts, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+		mux.Handle("GET /api/0/organizations/{org_slug}/preprodartifacts/{artifact_id}/size-analysis/", handleGetPreprodArtifactSizeAnalysis(deps.DB, deps.PreprodArtifacts, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	}
 
 	// Chunk upload for large source map bundles
@@ -534,6 +540,9 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("POST /api/0/projects/{org_slug}/{proj_slug}/files/dsyms/", handleUploadDsym(deps.DB, deps.DebugFiles, withAuth(auth.Policy{Scope: auth.ScopeProjectArtifactsWrite, Resource: auth.ResourceProjectPath, AllowAutomation: true})))
 	}
 	mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/files/dsyms/", handleDeleteDsyms(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectArtifactsWrite, Resource: auth.ResourceProjectPath, AllowAutomation: true})))
+	if deps.PreprodArtifacts != nil {
+		mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/preprodartifacts/build-distribution/latest/", handleGetLatestPreprodArtifact(deps.DB, deps.PreprodArtifacts, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	}
 
 	// User feedback
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/user-feedback/", handleListUserFeedback(control.Catalog, deps.FeedbackStore, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))

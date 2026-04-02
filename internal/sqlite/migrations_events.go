@@ -628,5 +628,50 @@ var migrationsEvents = []schemaMigration{
 	{46, `
 			ALTER TABLE artifacts ADD COLUMN organization_id TEXT;
 			CREATE INDEX IF NOT EXISTS idx_artifacts_org_release ON artifacts(organization_id, release_version);
-		`},
+	`},
+	{47, `
+			CREATE TABLE IF NOT EXISTS preprod_artifacts (
+				id TEXT PRIMARY KEY,
+				organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				build_id TEXT NOT NULL,
+				state TEXT NOT NULL DEFAULT 'PROCESSED',
+				app_id TEXT,
+				app_name TEXT,
+				app_version TEXT,
+				build_number INTEGER,
+				artifact_type TEXT,
+				app_date_added TEXT,
+				app_date_built TEXT,
+				git_info_json TEXT NOT NULL DEFAULT 'null',
+				platform TEXT,
+				build_configuration TEXT,
+				is_installable INTEGER NOT NULL DEFAULT 0,
+				install_url TEXT,
+				download_count INTEGER NOT NULL DEFAULT 0,
+				release_notes TEXT,
+				install_groups_json TEXT NOT NULL DEFAULT 'null',
+				is_code_signature_valid INTEGER,
+				profile_name TEXT,
+				codesigning_type TEXT,
+				main_binary_identifier TEXT,
+				default_base_artifact_id TEXT,
+				analysis_state TEXT NOT NULL DEFAULT 'NOT_RAN',
+				analysis_error_code TEXT,
+				analysis_error_message TEXT,
+				download_size INTEGER,
+				install_size INTEGER,
+				analysis_duration REAL,
+				analysis_version TEXT,
+				insights_json TEXT NOT NULL DEFAULT 'null',
+				app_components_json TEXT NOT NULL DEFAULT 'null',
+				created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX IF NOT EXISTS idx_preprod_artifacts_project_created
+				ON preprod_artifacts(project_id, created_at DESC, id DESC);
+			CREATE INDEX IF NOT EXISTS idx_preprod_artifacts_org
+				ON preprod_artifacts(organization_id, id);
+			CREATE INDEX IF NOT EXISTS idx_preprod_artifacts_lookup
+				ON preprod_artifacts(project_id, app_id, platform, is_installable, created_at DESC);
+	`},
 }

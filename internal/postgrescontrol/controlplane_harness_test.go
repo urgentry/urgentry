@@ -145,6 +145,17 @@ type integrationParitySnapshot struct {
 	AppGetAfterDeleteStatus    int
 }
 
+type preprodArtifactSnapshot struct {
+	InstallBuildID      string
+	InstallURL          string
+	SizeState           string
+	SizeBaseBuildID     string
+	SizeComparisonCount int
+	LatestBuildID       string
+	CurrentBuildID      string
+	InvalidQueryStatus  int
+}
+
 func TestControlPlaneAPIHarness(t *testing.T) {
 	t.Parallel()
 
@@ -202,6 +213,20 @@ func TestControlPlaneIntegrationParityHarness(t *testing.T) {
 
 	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
 		t.Fatalf("control-plane integration parity drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
+	}
+}
+
+func TestControlPlanePreprodArtifactHarness(t *testing.T) {
+	t.Parallel()
+
+	sqliteHarness := newSQLiteControlPlaneHarness(t)
+	postgresHarness := newPostgresControlPlaneHarness(t)
+
+	sqliteSnapshot := runControlPlanePreprodArtifactSuite(t, sqliteHarness)
+	postgresSnapshot := runControlPlanePreprodArtifactSuite(t, postgresHarness)
+
+	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
+		t.Fatalf("control-plane preprod artifact drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
 	}
 }
 
@@ -302,6 +327,7 @@ func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql
 	audits := sqlite.NewAuditStore(queryDB)
 	releaseHealth := sqlite.NewReleaseHealthStore(queryDB)
 	debugFiles := sqlite.NewDebugFileStore(queryDB, blobStore)
+	preprodArtifacts := sqlite.NewPreprodArtifactStore(queryDB)
 	outcomes := sqlite.NewOutcomeStore(queryDB)
 	retention := sqlite.NewRetentionStore(queryDB, blobStore)
 	nativeControl := sqlite.NewNativeControlStore(queryDB, blobStore, operatorAudits)
@@ -331,6 +357,7 @@ func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql
 		NativeControl:       nativeControl,
 		ReleaseHealth:       releaseHealth,
 		DebugFiles:          debugFiles,
+		PreprodArtifacts:    preprodArtifacts,
 		Outcomes:            outcomes,
 		Retention:           retention,
 		ImportExport:        importExport,
@@ -963,6 +990,22 @@ type harnessExternalIssueLink struct {
 	WebURL      string `json:"webUrl"`
 }
 
+type harnessPreprodArtifact struct {
+	BuildID    string  `json:"buildId"`
+	InstallURL *string `json:"installUrl"`
+}
+
+type harnessPreprodSizeAnalysis struct {
+	State       string     `json:"state"`
+	BaseBuildID *string    `json:"baseBuildId"`
+	Comparisons []struct{} `json:"comparisons"`
+}
+
+type harnessPreprodLatest struct {
+	LatestArtifact  *harnessPreprodArtifact `json:"latestArtifact"`
+	CurrentArtifact *harnessPreprodArtifact `json:"currentArtifact"`
+}
+
 func runControlPlaneIntegrationSuite(t *testing.T, h *controlPlaneHarness) integrationParitySnapshot {
 	t.Helper()
 
@@ -1093,6 +1136,63 @@ func runControlPlaneIntegrationSuite(t *testing.T, h *controlPlaneHarness) integ
 	return snapshot
 }
 
+func runControlPlanePreprodArtifactSuite(t *testing.T, h *controlPlaneHarness) preprodArtifactSnapshot {
+	t.Helper()
+
+	installResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/preprodartifacts/artifact-head/install-details/", h.pat, nil)
+	if installResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s install-details status = %d", h.name, installResp.StatusCode)
+	}
+	var install harnessPreprodArtifact
+	if err := json.NewDecoder(installResp.Body).Decode(&install); err != nil {
+		t.Fatalf("%s decode install-details: %v", h.name, err)
+	}
+	_ = installResp.Body.Close()
+
+	sizeResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/preprodartifacts/artifact-head/size-analysis/", h.pat, nil)
+	if sizeResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s size-analysis status = %d", h.name, sizeResp.StatusCode)
+	}
+	var size harnessPreprodSizeAnalysis
+	if err := json.NewDecoder(sizeResp.Body).Decode(&size); err != nil {
+		t.Fatalf("%s decode size-analysis: %v", h.name, err)
+	}
+	_ = sizeResp.Body.Close()
+
+	latestResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/projects/"+harnessOrgSlug+"/"+harnessProjectSlug+"/preprodartifacts/build-distribution/latest/?appId=com.example.app&platform=apple&buildVersion=1.0.0&buildNumber=41", h.pat, nil)
+	if latestResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s latest build status = %d", h.name, latestResp.StatusCode)
+	}
+	var latest harnessPreprodLatest
+	if err := json.NewDecoder(latestResp.Body).Decode(&latest); err != nil {
+		t.Fatalf("%s decode latest build: %v", h.name, err)
+	}
+	_ = latestResp.Body.Close()
+
+	invalidResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/projects/"+harnessOrgSlug+"/"+harnessProjectSlug+"/preprodartifacts/build-distribution/latest/?platform=apple", h.pat, nil)
+	_ = invalidResp.Body.Close()
+
+	snapshot := preprodArtifactSnapshot{
+		SizeState:           size.State,
+		SizeComparisonCount: len(size.Comparisons),
+		InvalidQueryStatus:  invalidResp.StatusCode,
+	}
+	if install.InstallURL != nil {
+		snapshot.InstallURL = *install.InstallURL
+	}
+	if size.BaseBuildID != nil {
+		snapshot.SizeBaseBuildID = *size.BaseBuildID
+	}
+	snapshot.InstallBuildID = install.BuildID
+	if latest.LatestArtifact != nil {
+		snapshot.LatestBuildID = latest.LatestArtifact.BuildID
+	}
+	if latest.CurrentArtifact != nil {
+		snapshot.CurrentBuildID = latest.CurrentArtifact.BuildID
+	}
+	return snapshot
+}
+
 func openHarnessSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sqlite.Open(t.TempDir())
@@ -1113,6 +1213,87 @@ INSERT OR IGNORE INTO projects (id, organization_id, slug, name, platform, statu
 INSERT OR IGNORE INTO project_keys (id, project_id, public_key, status, label) VALUES ('key-test', '` + harnessProjectID + `', 'test-public-key', 'active', 'Default');
 `); err != nil {
 		t.Fatalf("seed query plane: %v", err)
+	}
+
+	store := sqlite.NewPreprodArtifactStore(db)
+	build41 := 41
+	build42 := 42
+	trueValue := true
+	download100 := int64(100)
+	install200 := int64(200)
+	download120 := int64(120)
+	install230 := int64(230)
+	duration := 9.5
+	baseAdded := time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)
+	headAdded := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
+	for _, artifact := range []*sqlite.PreprodArtifact{
+		{
+			ID:             "artifact-base",
+			OrganizationID: harnessOrgID,
+			ProjectID:      harnessProjectID,
+			BuildID:        "build-41",
+			State:          "PROCESSED",
+			AppInfo: sqlite.PreprodArtifactAppInfo{
+				AppID:        "com.example.app",
+				Name:         "Example App",
+				Version:      "1.0.0",
+				BuildNumber:  &build41,
+				ArtifactType: "XCARCHIVE",
+				DateAdded:    baseAdded,
+				DateBuilt:    baseAdded,
+			},
+			Platform:             "APPLE",
+			BuildConfiguration:   "release",
+			IsInstallable:        true,
+			InstallURL:           "https://example.invalid/install/build-41.plist",
+			DownloadCount:        2,
+			InstallGroups:        []string{"qa"},
+			IsCodeSignatureValid: &trueValue,
+			ProfileName:          "iOS Team Provisioning Profile",
+			CodesigningType:      "development",
+			MainBinaryIdentifier: "macho-base",
+			AnalysisState:        "COMPLETED",
+			DownloadSize:         &download100,
+			InstallSize:          &install200,
+			AnalysisDuration:     &duration,
+			AnalysisVersion:      "1.0.0",
+		},
+		{
+			ID:             "artifact-head",
+			OrganizationID: harnessOrgID,
+			ProjectID:      harnessProjectID,
+			BuildID:        "build-42",
+			State:          "PROCESSED",
+			AppInfo: sqlite.PreprodArtifactAppInfo{
+				AppID:        "com.example.app",
+				Name:         "Example App",
+				Version:      "1.1.0",
+				BuildNumber:  &build42,
+				ArtifactType: "XCARCHIVE",
+				DateAdded:    headAdded,
+				DateBuilt:    headAdded,
+			},
+			Platform:              "APPLE",
+			BuildConfiguration:    "release",
+			IsInstallable:         true,
+			InstallURL:            "https://example.invalid/install/build-42.plist",
+			DownloadCount:         5,
+			InstallGroups:         []string{"qa", "beta"},
+			IsCodeSignatureValid:  &trueValue,
+			ProfileName:           "iOS Team Provisioning Profile",
+			CodesigningType:       "development",
+			MainBinaryIdentifier:  "macho-head",
+			DefaultBaseArtifactID: "artifact-base",
+			AnalysisState:         "COMPLETED",
+			DownloadSize:          &download120,
+			InstallSize:           &install230,
+			AnalysisDuration:      &duration,
+			AnalysisVersion:       "1.0.0",
+		},
+	} {
+		if err := store.Save(context.Background(), artifact); err != nil {
+			t.Fatalf("seed query-plane preprod artifact %s: %v", artifact.ID, err)
+		}
 	}
 }
 
