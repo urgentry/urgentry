@@ -281,6 +281,10 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
 			return
 		}
+		if body.HasSeen != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "hasSeen updates are not supported.")
+			return
+		}
 
 		patch := store.IssuePatch{}
 		if body.Status != "" {
@@ -317,7 +321,7 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 		principal := authPrincipalFromContext(r.Context())
 		userID := principalUserID(principal)
 
-		hasSideEffects := body.HasSeen != nil || body.IsBookmarked != nil || body.IsSubscribed != nil || body.Discard != nil || body.Merge != nil
+		hasSideEffects := body.IsBookmarked != nil || body.IsSubscribed != nil || body.Discard != nil || body.Merge != nil
 		if patch.Status == nil && patch.Assignee == nil && patch.ResolutionSubstatus == nil && patch.ResolvedInRelease == nil && patch.Priority == nil && !hasSideEffects {
 			httputil.WriteError(w, http.StatusBadRequest, "No issue changes requested.")
 			return
@@ -770,7 +774,6 @@ func handleGetLatestIssueEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 	}
 }
 
-
 func getLatestIssueEventFromDB(r *http.Request, db *sql.DB, groupID string) (*Event, error) {
 	row, err := sqlite.GetLatestGroupEvent(r.Context(), db, groupID)
 	if err == sql.ErrNoRows || row == nil {
@@ -792,42 +795,42 @@ func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtr
 		shortID = fmt.Sprintf("GENTRY-%d", row.ShortID)
 	}
 	return Issue{
-		ID:                row.ID,
-		ShortID:           shortID,
-		Title:             row.Title,
-		Culprit:           row.Culprit,
-		Level:             row.Level,
-		Status:            row.Status,
-		Type:              extras.Type,
-		AssignedTo:        extras.AssignedTo,
-		HasSeen:           extras.HasSeen,
-		IsBookmarked:      extras.IsBookmarked,
-		IsPublic:          extras.IsPublic,
-		IsSubscribed:      extras.IsSubscribed,
-		Priority:          extras.Priority,
-		Substatus:         extras.Substatus,
-		Logger:            nil,
-		Metadata:          extras.Metadata,
-		Annotations:       []IssueAnnotation{},
-		NumComments:       extras.NumComments,
-		UserCount:         extras.UserCount,
-		Stats:             extras.Stats,
-		Permalink:         "",
-		PluginActions:     [][]string{},
-		PluginContexts:    []string{},
-		PluginIssues:      []Metadata{},
-		ShareID:           nil,
-		StatusDetails:     issueStatusDetails(row),
+		ID:                  row.ID,
+		ShortID:             shortID,
+		Title:               row.Title,
+		Culprit:             row.Culprit,
+		Level:               row.Level,
+		Status:              row.Status,
+		Type:                extras.Type,
+		AssignedTo:          extras.AssignedTo,
+		HasSeen:             extras.HasSeen,
+		IsBookmarked:        extras.IsBookmarked,
+		IsPublic:            extras.IsPublic,
+		IsSubscribed:        extras.IsSubscribed,
+		Priority:            extras.Priority,
+		Substatus:           extras.Substatus,
+		Logger:              nil,
+		Metadata:            extras.Metadata,
+		Annotations:         []IssueAnnotation{},
+		NumComments:         extras.NumComments,
+		UserCount:           extras.UserCount,
+		Stats:               extras.Stats,
+		Permalink:           "",
+		PluginActions:       [][]string{},
+		PluginContexts:      []string{},
+		PluginIssues:        []Metadata{},
+		ShareID:             nil,
+		StatusDetails:       issueStatusDetails(row),
 		SubscriptionDetails: Metadata{},
-		ResolvedInRelease: row.ResolvedInRelease,
-		MergedIntoIssueID: row.MergedIntoGroupID,
-		FirstSeen:         row.FirstSeen,
-		LastSeen:          row.LastSeen,
-		Count:             apiIssueCount(row.Count),
-		Activity:          []IssueActivitySummary{},
-		Tags:              []IssueTagFacet{},
-		SeenBy:            []IssueUser{},
-		Participants:      []IssueUser{},
+		ResolvedInRelease:   row.ResolvedInRelease,
+		MergedIntoIssueID:   row.MergedIntoGroupID,
+		FirstSeen:           row.FirstSeen,
+		LastSeen:            row.LastSeen,
+		Count:               apiIssueCount(row.Count),
+		Activity:            []IssueActivitySummary{},
+		Tags:                []IssueTagFacet{},
+		SeenBy:              []IssueUser{},
+		Participants:        []IssueUser{},
 	}
 }
 

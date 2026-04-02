@@ -339,7 +339,7 @@ func TestAPIIssueAssignee_Team(t *testing.T) {
 	}
 }
 
-func TestAPIUpdateIssue_SQLite_MutatesSeenBookmarkAndPriority(t *testing.T) {
+func TestAPIUpdateIssue_SQLite_RejectsHasSeenMutation(t *testing.T) {
 	db := openTestSQLite(t)
 	insertSQLiteGroup(t, db, "grp-api-update", "ValueError: bad input", "main.go in handler", "error", "unresolved")
 
@@ -347,7 +347,22 @@ func TestAPIUpdateIssue_SQLite_MutatesSeenBookmarkAndPriority(t *testing.T) {
 	defer ts.Close()
 
 	resp := authPut(t, ts, "/api/0/issues/grp-api-update/", map[string]any{
-		"hasSeen":      true,
+		"hasSeen": true,
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("update issue status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestAPIUpdateIssue_SQLite_MutatesBookmarkAndPriority(t *testing.T) {
+	db := openTestSQLite(t)
+	insertSQLiteGroup(t, db, "grp-api-update", "ValueError: bad input", "main.go in handler", "error", "unresolved")
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	resp := authPut(t, ts, "/api/0/issues/grp-api-update/", map[string]any{
 		"isBookmarked": true,
 		"priority":     2,
 	})
@@ -357,9 +372,6 @@ func TestAPIUpdateIssue_SQLite_MutatesSeenBookmarkAndPriority(t *testing.T) {
 
 	var updated Issue
 	decodeBody(t, resp, &updated)
-	if !updated.HasSeen {
-		t.Fatal("updated issue hasSeen = false, want true")
-	}
 	if !updated.IsBookmarked {
 		t.Fatal("updated issue isBookmarked = false, want true")
 	}
