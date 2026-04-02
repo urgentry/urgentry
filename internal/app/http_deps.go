@@ -62,6 +62,7 @@ type httpDepsInput struct {
 	uptimeMonitors      *sqlite.UptimeMonitorStore
 	quota               *sqlite.QuotaStore
 	symbolSources       *sqlite.SymbolSourceStore
+	prevent             store.PreventStore
 	metrics             *metrics.Metrics
 	version             string
 }
@@ -127,6 +128,7 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			ExternalUsers:       sqlite.NewExternalUserStore(input.db),
 			ExternalTeams:       sqlite.NewExternalTeamStore(input.db),
 			OrgForwarders:       sqlite.NewOrgForwarderStore(input.db),
+			Prevent:             input.prevent,
 		},
 		Web: web.Dependencies{
 			WebStore:       sqlite.NewWebStore(input.db),

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"urgentry/internal/alert"
 	"urgentry/internal/analyticsservice"
 	"urgentry/internal/api"
@@ -25,7 +26,6 @@ import (
 	sharedstore "urgentry/internal/store"
 	"urgentry/internal/telemetryquery"
 	"urgentry/internal/web"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -101,6 +101,34 @@ type webSnapshot struct {
 	DiscoverVisible bool
 }
 
+type preventSnapshot struct {
+	RepositoryCount       int
+	RepositoryName        string
+	RepositoryDefault     string
+	RepositoryUpdatedAt   string
+	RepositoryLatestAt    string
+	DetailHasUploadToken  bool
+	DetailAnalytics       bool
+	TokenCount            int
+	TokenName             string
+	TokenValue            string
+	SyncBefore            bool
+	SyncAfter             bool
+	BranchCount           int
+	BranchDefault         string
+	BranchNames           []string
+	Suites                []string
+	TestResultCount       int
+	TestResultName        string
+	TestResultFailureRate float64
+	TestResultFailCount   int
+	AggregateTotalFails   int
+	AggregateTotalSkips   int
+	AggregateSlowTests    int
+	AggregateFlakeCount   int
+	RegeneratedTokenValid bool
+}
+
 func TestControlPlaneAPIHarness(t *testing.T) {
 	t.Parallel()
 
@@ -126,6 +154,24 @@ func TestControlPlaneWebHarness(t *testing.T) {
 
 	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
 		t.Fatalf("control-plane web drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
+	}
+}
+
+func TestControlPlanePreventAPIHarness(t *testing.T) {
+	t.Parallel()
+
+	base := time.Now().UTC().Add(-12 * time.Hour).Truncate(time.Second)
+
+	sqliteHarness := newSQLiteControlPlaneHarness(t)
+	postgresHarness := newPostgresControlPlaneHarness(t)
+	seedHarnessPreventControlPlane(t, sqliteHarness, base)
+	seedHarnessPreventControlPlane(t, postgresHarness, base)
+
+	sqliteSnapshot := runControlPlanePreventSuite(t, sqliteHarness)
+	postgresSnapshot := runControlPlanePreventSuite(t, postgresHarness)
+
+	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
+		t.Fatalf("control-plane Prevent API drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
 	}
 }
 
@@ -157,7 +203,7 @@ func newSQLiteControlPlaneHarness(t *testing.T) *controlPlaneHarness {
 		t.Fatalf("sqlite login: %v", err)
 	}
 	control := controlplane.SQLiteServices(db)
-	return startControlPlaneHarness(t, "sqlite", db, db, control, authStore, authz, sessionToken, principal.CSRFToken)
+	return startControlPlaneHarness(t, "sqlite", db, db, control, sqlite.NewPreventStore(db), authStore, authz, sessionToken, principal.CSRFToken)
 }
 
 func newPostgresControlPlaneHarness(t *testing.T) *controlPlaneHarness {
@@ -191,10 +237,10 @@ func newPostgresControlPlaneHarness(t *testing.T) *controlPlaneHarness {
 		Deliveries: NewNotificationDeliveryStore(controlDB),
 		Monitors:   NewMonitorStore(controlDB),
 	}
-	return startControlPlaneHarness(t, "postgres", queryDB, controlDB, control, authStore, authz, sessionToken, principal.CSRFToken)
+	return startControlPlaneHarness(t, "postgres", queryDB, controlDB, control, NewPreventStore(controlDB), authStore, authz, sessionToken, principal.CSRFToken)
 }
 
-func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql.DB, control controlplane.Services, tokenManager auth.TokenManager, authz *auth.Authorizer, sessionToken, csrf string) *controlPlaneHarness {
+func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql.DB, control controlplane.Services, prevent sharedstore.PreventStore, tokenManager auth.TokenManager, authz *auth.Authorizer, sessionToken, csrf string) *controlPlaneHarness {
 	t.Helper()
 
 	blobStore := sharedstore.NewMemoryBlobStore()
@@ -260,6 +306,7 @@ func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql
 		ImportExport:     importExport,
 		BlobStore:        blobStore,
 		Queries:          queryService,
+		Prevent:          prevent,
 	}))
 	t.Cleanup(h.apiServer.Close)
 
@@ -697,6 +744,169 @@ func runControlPlaneWebSuite(t *testing.T, h *controlPlaneHarness) webSnapshot {
 	}
 }
 
+func runControlPlanePreventSuite(t *testing.T, h *controlPlaneHarness) preventSnapshot {
+	t.Helper()
+
+	const owner = "sentry"
+	const repository = "platform"
+	basePath := "/api/0/organizations/" + harnessOrgSlug + "/prevent/owner/" + owner
+
+	reposResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repositories/", h.pat, nil)
+	if reposResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent repositories status=%d", h.name, reposResp.StatusCode)
+	}
+	var repositories struct {
+		Results []struct {
+			Name           string `json:"name"`
+			UpdatedAt      string `json:"updatedAt"`
+			LatestCommitAt string `json:"latestCommitAt"`
+			DefaultBranch  string `json:"defaultBranch"`
+		} `json:"results"`
+		TotalCount int `json:"totalCount"`
+	}
+	decodeJSONBody(t, reposResp, &repositories)
+
+	detailResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/", h.pat, nil)
+	if detailResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s get Prevent repository status=%d", h.name, detailResp.StatusCode)
+	}
+	var detail struct {
+		UploadToken          string `json:"uploadToken"`
+		TestAnalyticsEnabled bool   `json:"testAnalyticsEnabled"`
+	}
+	decodeJSONBody(t, detailResp, &detail)
+
+	tokensResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repositories/tokens/", h.pat, nil)
+	if tokensResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent tokens status=%d", h.name, tokensResp.StatusCode)
+	}
+	var tokens struct {
+		Results []struct {
+			Name  string `json:"name"`
+			Token string `json:"token"`
+		} `json:"results"`
+		TotalCount int `json:"totalCount"`
+	}
+	decodeJSONBody(t, tokensResp, &tokens)
+
+	syncResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repositories/sync/", h.pat, nil)
+	if syncResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s get Prevent sync status=%d", h.name, syncResp.StatusCode)
+	}
+	var syncStatus struct {
+		IsSyncing bool `json:"isSyncing"`
+	}
+	decodeJSONBody(t, syncResp, &syncStatus)
+
+	startSyncResp := jsonRequest(t, h.apiServer, http.MethodPost, basePath+"/repositories/sync/", h.pat, map[string]any{})
+	if startSyncResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s start Prevent sync status=%d", h.name, startSyncResp.StatusCode)
+	}
+	var startedSync struct {
+		IsSyncing bool `json:"isSyncing"`
+	}
+	decodeJSONBody(t, startSyncResp, &startedSync)
+
+	branchesResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/branches/", h.pat, nil)
+	if branchesResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent branches status=%d", h.name, branchesResp.StatusCode)
+	}
+	var branches struct {
+		DefaultBranch string `json:"defaultBranch"`
+		Results       []struct {
+			Name string `json:"name"`
+		} `json:"results"`
+		TotalCount int `json:"totalCount"`
+	}
+	decodeJSONBody(t, branchesResp, &branches)
+
+	suitesResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/test-suites/", h.pat, nil)
+	if suitesResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent test suites status=%d", h.name, suitesResp.StatusCode)
+	}
+	var suites struct {
+		TestSuites []string `json:"testSuites"`
+	}
+	decodeJSONBody(t, suitesResp, &suites)
+
+	resultsResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/test-results/", h.pat, nil)
+	if resultsResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent test results status=%d", h.name, resultsResp.StatusCode)
+	}
+	var results struct {
+		Results []struct {
+			Name           string  `json:"name"`
+			FailureRate    float64 `json:"failureRate"`
+			TotalFailCount int     `json:"totalFailCount"`
+		} `json:"results"`
+		TotalCount int `json:"totalCount"`
+	}
+	decodeJSONBody(t, resultsResp, &results)
+
+	aggregatesResp := jsonRequest(t, h.apiServer, http.MethodGet, basePath+"/repository/"+repository+"/test-results-aggregates/", h.pat, nil)
+	if aggregatesResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s list Prevent aggregates status=%d", h.name, aggregatesResp.StatusCode)
+	}
+	var aggregates struct {
+		TotalFails     int `json:"totalFails"`
+		TotalSkips     int `json:"totalSkips"`
+		TotalSlowTests int `json:"totalSlowTests"`
+		FlakeCount     int `json:"flakeCount"`
+	}
+	decodeJSONBody(t, aggregatesResp, &aggregates)
+
+	regenerateResp := jsonRequest(t, h.apiServer, http.MethodPost, basePath+"/repository/"+repository+"/token/regenerate/", h.pat, map[string]any{})
+	if regenerateResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s regenerate Prevent token status=%d", h.name, regenerateResp.StatusCode)
+	}
+	var regenerated struct {
+		Token string `json:"token"`
+	}
+	decodeJSONBody(t, regenerateResp, &regenerated)
+
+	branchNames := make([]string, 0, len(branches.Results))
+	for _, branch := range branches.Results {
+		branchNames = append(branchNames, branch.Name)
+	}
+
+	snapshot := preventSnapshot{
+		RepositoryCount:      repositories.TotalCount,
+		DetailHasUploadToken: strings.TrimSpace(detail.UploadToken) != "",
+		DetailAnalytics:      detail.TestAnalyticsEnabled,
+		TokenCount:           tokens.TotalCount,
+		SyncBefore:           syncStatus.IsSyncing,
+		SyncAfter:            startedSync.IsSyncing,
+		BranchCount:          branches.TotalCount,
+		BranchDefault:        branches.DefaultBranch,
+		BranchNames:          branchNames,
+		Suites:               suites.TestSuites,
+		TestResultCount:      results.TotalCount,
+		AggregateTotalFails:  aggregates.TotalFails,
+		AggregateTotalSkips:  aggregates.TotalSkips,
+		AggregateSlowTests:   aggregates.TotalSlowTests,
+		AggregateFlakeCount:  aggregates.FlakeCount,
+		RegeneratedTokenValid: strings.HasPrefix(regenerated.Token, "gprevent_") &&
+			strings.Count(regenerated.Token, "_") >= 2 &&
+			regenerated.Token != detail.UploadToken,
+	}
+	if len(repositories.Results) > 0 {
+		snapshot.RepositoryName = repositories.Results[0].Name
+		snapshot.RepositoryDefault = repositories.Results[0].DefaultBranch
+		snapshot.RepositoryUpdatedAt = repositories.Results[0].UpdatedAt
+		snapshot.RepositoryLatestAt = repositories.Results[0].LatestCommitAt
+	}
+	if len(tokens.Results) > 0 {
+		snapshot.TokenName = tokens.Results[0].Name
+		snapshot.TokenValue = tokens.Results[0].Token
+	}
+	if len(results.Results) > 0 {
+		snapshot.TestResultName = results.Results[0].Name
+		snapshot.TestResultFailureRate = results.Results[0].FailureRate
+		snapshot.TestResultFailCount = results.Results[0].TotalFailCount
+	}
+	return snapshot
+}
+
 func openHarnessSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sqlite.Open(t.TempDir())
@@ -742,6 +952,119 @@ func seedHarnessPostgresControlPlane(t *testing.T, db *sql.DB) {
 	for _, statement := range statements {
 		if _, err := db.ExecContext(ctx, statement.query, statement.args...); err != nil {
 			t.Fatalf("seed postgres control plane: %v", err)
+		}
+	}
+}
+
+func seedHarnessPreventControlPlane(t *testing.T, h *controlPlaneHarness, base time.Time) {
+	t.Helper()
+
+	switch h.name {
+	case "postgres":
+		seedHarnessPostgresPreventControlPlane(t, h.controlDB, base)
+	default:
+		seedHarnessSQLitePreventControlPlane(t, h.controlDB, base)
+	}
+}
+
+func seedHarnessSQLitePreventControlPlane(t *testing.T, db *sql.DB, base time.Time) {
+	t.Helper()
+
+	lastSynced := base.Add(-30 * time.Minute)
+	lastStarted := base.Add(-45 * time.Minute)
+	previousRun := base.Add(-35 * 24 * time.Hour)
+
+	statements := []struct {
+		query string
+		args  []any
+	}{
+		{
+			query: `INSERT INTO repositories (id, organization_id, owner_slug, name, provider, url, external_slug, status, default_branch, test_analytics_enabled, sync_status, last_synced_at, last_sync_started_at, last_sync_error, created_at)
+VALUES ('repo-prevent-1', ?, 'sentry', 'platform', 'github', 'https://github.com/sentry/platform', 'sentry/platform', 'active', 'main', 1, 'synced', ?, ?, '', ?)`,
+			args: []any{harnessOrgID, lastSynced.Format(time.RFC3339), lastStarted.Format(time.RFC3339), base.Format(time.RFC3339)},
+		},
+		{
+			query: `INSERT INTO prevent_repository_branches (id, repository_id, name, is_default, status, last_synced_at, created_at) VALUES
+	('branch-prevent-1', 'repo-prevent-1', 'main', 1, 'active', ?, ?),
+	('branch-prevent-2', 'repo-prevent-1', 'release/1.0', 0, 'active', NULL, ?)`,
+			args: []any{lastSynced.Format(time.RFC3339), base.Format(time.RFC3339), base.Format(time.RFC3339)},
+		},
+		{
+			query: `INSERT INTO prevent_repository_tokens (id, repository_id, label, token_value, token_prefix, token_hash, status, created_at, last_used_at, revoked_at, rotated_at)
+VALUES ('token-prevent-1', 'repo-prevent-1', 'CI', 'gprevent_old_full', 'gprevent_old', 'hash-old', 'active', ?, NULL, NULL, NULL)`,
+			args: []any{base.Format(time.RFC3339)},
+		},
+		{
+			query: `INSERT INTO prevent_repository_test_suites (id, repository_id, external_suite_id, name, status, last_run_at, created_at)
+VALUES ('suite-prevent-1', 'repo-prevent-1', 'suite-ext-1', 'Unit', 'active', ?, ?)`,
+			args: []any{base.Format(time.RFC3339), base.Format(time.RFC3339)},
+		},
+		{
+			query: `INSERT INTO prevent_repository_test_results (id, repository_id, suite_id, suite_name, branch_name, commit_sha, status, duration_ms, test_count, failure_count, skipped_count, created_at) VALUES
+	('result-prevent-current', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'abc123', 'failed', 2400, 120, 3, 2, ?),
+	('result-prevent-previous', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'def456', 'passed', 1200, 120, 1, 1, ?)`,
+			args: []any{base.Format(time.RFC3339), previousRun.Format(time.RFC3339)},
+		},
+		{
+			query: `INSERT INTO prevent_repository_test_result_aggregates (id, repository_id, branch_name, total_runs, passing_runs, failing_runs, skipped_runs, avg_duration_ms, last_run_at, created_at)
+VALUES ('agg-prevent-1', 'repo-prevent-1', 'main', 10, 7, 2, 1, 1800, ?, ?)`,
+			args: []any{base.Format(time.RFC3339), base.Format(time.RFC3339)},
+		},
+	}
+	for _, statement := range statements {
+		if _, err := db.Exec(statement.query, statement.args...); err != nil {
+			t.Fatalf("seed sqlite Prevent control plane: %v", err)
+		}
+	}
+}
+
+func seedHarnessPostgresPreventControlPlane(t *testing.T, db *sql.DB, base time.Time) {
+	t.Helper()
+
+	lastSynced := base.Add(-30 * time.Minute)
+	lastStarted := base.Add(-45 * time.Minute)
+	previousRun := base.Add(-35 * 24 * time.Hour)
+
+	statements := []struct {
+		query string
+		args  []any
+	}{
+		{
+			query: `INSERT INTO repositories (id, organization_id, owner_slug, name, provider, url, external_slug, status, default_branch, test_analytics_enabled, sync_status, last_synced_at, last_sync_started_at, last_sync_error, created_at)
+VALUES ('repo-prevent-1', $1, 'sentry', 'platform', 'github', 'https://github.com/sentry/platform', 'sentry/platform', 'active', 'main', TRUE, 'synced', $2, $3, '', $4)`,
+			args: []any{harnessOrgID, lastSynced, lastStarted, base},
+		},
+		{
+			query: `INSERT INTO prevent_repository_branches (id, repository_id, name, is_default, status, last_synced_at, created_at) VALUES
+	('branch-prevent-1', 'repo-prevent-1', 'main', TRUE, 'active', $1, $2),
+	('branch-prevent-2', 'repo-prevent-1', 'release/1.0', FALSE, 'active', NULL, $3)`,
+			args: []any{lastSynced, base, base},
+		},
+		{
+			query: `INSERT INTO prevent_repository_tokens (id, repository_id, label, token_value, token_prefix, token_hash, status, created_at, last_used_at, revoked_at, rotated_at)
+VALUES ('token-prevent-1', 'repo-prevent-1', 'CI', 'gprevent_old_full', 'gprevent_old', 'hash-old', 'active', $1, NULL, NULL, NULL)`,
+			args: []any{base},
+		},
+		{
+			query: `INSERT INTO prevent_repository_test_suites (id, repository_id, external_suite_id, name, status, last_run_at, created_at)
+VALUES ('suite-prevent-1', 'repo-prevent-1', 'suite-ext-1', 'Unit', 'active', $1, $2)`,
+			args: []any{base, base},
+		},
+		{
+			query: `INSERT INTO prevent_repository_test_results (id, repository_id, suite_id, suite_name, branch_name, commit_sha, status, duration_ms, test_count, failure_count, skipped_count, created_at) VALUES
+	('result-prevent-current', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'abc123', 'failed', 2400, 120, 3, 2, $1),
+	('result-prevent-previous', 'repo-prevent-1', 'suite-prevent-1', 'Unit', 'main', 'def456', 'passed', 1200, 120, 1, 1, $2)`,
+			args: []any{base, previousRun},
+		},
+		{
+			query: `INSERT INTO prevent_repository_test_result_aggregates (id, repository_id, branch_name, total_runs, passing_runs, failing_runs, skipped_runs, avg_duration_ms, last_run_at, created_at)
+VALUES ('agg-prevent-1', 'repo-prevent-1', 'main', 10, 7, 2, 1, 1800, $1, $2)`,
+			args: []any{base, base},
+		},
+	}
+	for _, statement := range statements {
+		if _, err := db.Exec(statement.query, statement.args...); err != nil {
+			t.Fatalf("seed postgres Prevent control plane: %v", err)
 		}
 	}
 }

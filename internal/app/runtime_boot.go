@@ -265,6 +265,7 @@ func (s *runtimeState) newHTTPServer() (*http.Server, error) {
 		uptimeMonitors:      s.uptimeMonitorStore,
 		quota:               s.quotaStore,
 		symbolSources:       s.symbolSourceStore,
+		prevent:             s.control.preventStore,
 		metrics:             s.metrics,
 		version:             s.version,
 	})

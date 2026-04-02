@@ -37,6 +37,7 @@ type runtimeControlPlane struct {
 	operatorAudits store.OperatorAuditStore
 	monitorStore   controlplane.MonitorStore
 	ownershipStore controlplane.OwnershipStore
+	preventStore   store.PreventStore
 	groupStore     issue.GroupStore
 	close          func() error
 	defaultKey     func(context.Context) (string, error)
@@ -75,6 +76,7 @@ func buildSQLiteRuntimeControlPlane(queryDB *sql.DB) runtimeControlPlane {
 		operatorAudits: sqlite.NewOperatorAuditStore(queryDB),
 		monitorStore:   services.Monitors,
 		ownershipStore: services.Ownership,
+		preventStore:   sqlite.NewPreventStore(queryDB),
 		groupStore:     sqlite.NewGroupStore(queryDB),
 		close:          func() error { return nil },
 		defaultKey: func(ctx context.Context) (string, error) {
@@ -132,6 +134,7 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 		operatorAudits: postgrescontrol.NewOperatorAuditStore(controlDB),
 		monitorStore:   services.Monitors,
 		ownershipStore: services.Ownership,
+		preventStore:   postgrescontrol.NewPreventStore(controlDB),
 		groupStore:     groupStore,
 		close:          controlDB.Close,
 		defaultKey: func(ctx context.Context) (string, error) {

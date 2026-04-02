@@ -271,4 +271,19 @@ var migrationsFeatures = []schemaMigration{
 		CREATE INDEX IF NOT EXISTS idx_external_teams_provider
 			ON external_teams(org_id, provider, external_id);
 	`},
+	{76, `
+		CREATE TABLE IF NOT EXISTS external_teams (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL REFERENCES organizations(id),
+			team_slug TEXT NOT NULL DEFAULT '',
+			provider TEXT NOT NULL,
+			external_id TEXT NOT NULL DEFAULT '',
+			external_name TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_external_teams_org
+			ON external_teams(org_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_external_teams_provider
+			ON external_teams(org_id, provider, external_id);
+	`},
 }

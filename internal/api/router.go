@@ -63,6 +63,7 @@ type Dependencies struct {
 	ExternalUsers       store.ExternalUserStore
 	ExternalTeams       store.ExternalTeamStore
 	OrgForwarders       store.OrgForwarderStore
+	Prevent             store.PreventStore
 	NotificationActions *sqlite.NotificationActionStore
 }
 
@@ -194,6 +195,16 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/organizations/{org_slug}/repos/", handleListOrgRepos(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("POST /api/0/organizations/{org_slug}/repos/", handleCreateOrgRepo(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/repos/{repo_id}/commits/", handleListRepoCommits(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repositories/", handleListPreventRepositories(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repositories/sync/", handleGetPreventRepositoriesSync(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("POST /api/0/organizations/{org_slug}/prevent/owner/{owner}/repositories/sync/", handleStartPreventRepositoriesSync(control.Catalog, deps.Auth, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repositories/tokens/", handleListPreventRepositoryTokens(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeProjectTokensRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repository/{repository}/", handleGetPreventRepository(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeProjectTokensRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repository/{repository}/branches/", handleListPreventRepositoryBranches(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repository/{repository}/test-results/", handleListPreventRepositoryTestResults(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repository/{repository}/test-suites/", handleListPreventRepositoryTestSuites(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/prevent/owner/{owner}/repository/{repository}/test-results-aggregates/", handleListPreventRepositoryTestResultsAggregates(control.Catalog, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("POST /api/0/organizations/{org_slug}/prevent/owner/{owner}/repository/{repository}/token/regenerate/", handleRegeneratePreventRepositoryToken(control.Catalog, deps.Auth, deps.Prevent, withAuth(auth.Policy{Scope: auth.ScopeProjectTokensWrite, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/stats-summary/", handleGetStatsSummary(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/stats_v2/", handleGetStatsV2(deps.DB, deps.Outcomes, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/sessions/", handleListOrgSessions(deps.DB, deps.ReleaseHealth, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))

@@ -116,6 +116,9 @@ func sqliteAuthorizedDependencies(t *testing.T, db *sql.DB, deps Dependencies) D
 	if deps.OrgForwarders == nil {
 		deps.OrgForwarders = sqlite.NewOrgForwarderStore(db)
 	}
+	if deps.Prevent == nil {
+		deps.Prevent = sqlite.NewPreventStore(db)
+	}
 	if deps.UptimeMonitors == nil {
 		deps.UptimeMonitors = sqlite.NewUptimeMonitorStore(db)
 	}
