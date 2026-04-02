@@ -256,7 +256,7 @@ var migrationsFeatures = []schemaMigration{
 	{72, `
 		ALTER TABLE projects ADD COLUMN spike_protection INTEGER NOT NULL DEFAULT 0;
 	`},
-	{73, `
+	{74, `
 		CREATE TABLE IF NOT EXISTS external_teams (
 			id TEXT PRIMARY KEY,
 			org_id TEXT NOT NULL REFERENCES organizations(id),
