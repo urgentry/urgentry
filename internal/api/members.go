@@ -1,8 +1,11 @@
 package api
 
 import (
+	"context"
 	"net/http"
+	"sort"
 	"strings"
+	"time"
 
 	authpkg "urgentry/internal/auth"
 	"urgentry/internal/controlplane"
@@ -44,23 +47,80 @@ func handleListOrgMembers(admin controlplane.AdminStore, auth authFunc) http.Han
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization members.")
 			return
 		}
-		members := make([]*Member, 0, len(items))
+		invites, err := admin.ListInvites(r.Context(), orgSlug)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization members.")
+			return
+		}
+		teamCache := map[string][]string{}
+		members := make([]*OrganizationMemberListEntry, 0, len(items)+len(invites))
 		for _, item := range items {
-			members = append(members, &Member{
+			teams, err := orgMemberTeams(r.Context(), admin, orgSlug, item.UserID, teamCache)
+			if err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "Failed to list organization members.")
+				return
+			}
+			members = append(members, &OrganizationMemberListEntry{
 				ID:             item.ID,
 				UserID:         item.UserID,
 				OrganizationID: item.OrganizationID,
 				Email:          item.Email,
 				Name:           item.Name,
 				Role:           item.Role,
+				Teams:          teams,
 				DateCreated:    item.CreatedAt,
 			})
 		}
+		now := time.Now().UTC()
+		for _, invite := range invites {
+			if invite == nil || invite.AcceptedAt != nil || strings.TrimSpace(invite.Status) != "pending" {
+				continue
+			}
+			member := &OrganizationMemberListEntry{
+				ID:             invite.ID,
+				OrganizationID: invite.OrganizationID,
+				Email:          invite.Email,
+				Role:           invite.Role,
+				Pending:        true,
+				Expired:        invite.ExpiresAt != nil && invite.ExpiresAt.Before(now),
+				InviteStatus:   invite.Status,
+				DateCreated:    invite.CreatedAt,
+			}
+			if slug := strings.TrimSpace(invite.TeamSlug); slug != "" {
+				member.Teams = []string{slug}
+			}
+			members = append(members, member)
+		}
+		sort.SliceStable(members, func(i, j int) bool {
+			return members[i].DateCreated.Before(members[j].DateCreated)
+		})
 		if members == nil {
-			members = []*Member{}
+			members = []*OrganizationMemberListEntry{}
 		}
 		httputil.WriteJSON(w, http.StatusOK, members)
 	}
+}
+
+func orgMemberTeams(ctx context.Context, admin controlplane.AdminStore, orgSlug, userID string, cache map[string][]string) ([]string, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	if teams, ok := cache[userID]; ok {
+		return teams, nil
+	}
+	items, err := admin.ListUserTeams(ctx, orgSlug, userID)
+	if err != nil {
+		return nil, err
+	}
+	teams := make([]string, 0, len(items))
+	for _, item := range items {
+		if item == nil || strings.TrimSpace(item.Slug) == "" {
+			continue
+		}
+		teams = append(teams, item.Slug)
+	}
+	cache[userID] = teams
+	return teams, nil
 }
 
 // handleAddOrgMember handles POST /api/0/organizations/{org_slug}/members/.

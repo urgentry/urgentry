@@ -105,6 +105,32 @@ func TestOrganizationMembershipLifecycle(t *testing.T) {
 		t.Fatal("expected invite token")
 	}
 
+	listMembers := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/members/", pat, nil)
+	if listMembers.StatusCode != http.StatusOK {
+		t.Fatalf("list org members status = %d, want 200", listMembers.StatusCode)
+	}
+	var pendingMembers []OrganizationMemberListEntry
+	decodeBody(t, listMembers, &pendingMembers)
+	if len(pendingMembers) != 2 {
+		t.Fatalf("pending org member count = %d, want 2", len(pendingMembers))
+	}
+	foundPendingInvite := false
+	for _, member := range pendingMembers {
+		if member.Email != "new-user@example.com" {
+			continue
+		}
+		foundPendingInvite = true
+		if !member.Pending || member.InviteStatus != "pending" || member.Expired {
+			t.Fatalf("pending invite = %+v, want pending/non-expired", member)
+		}
+		if len(member.Teams) != 1 || member.Teams[0] != "platform" {
+			t.Fatalf("pending invite teams = %+v, want [platform]", member.Teams)
+		}
+	}
+	if !foundPendingInvite {
+		t.Fatalf("expected pending invite in org members: %+v", pendingMembers)
+	}
+
 	acceptInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/invites/"+invite.Token+"/accept/", "", map[string]any{
 		"displayName": "New User",
 		"password":    "temporary-pass-123",
@@ -125,14 +151,30 @@ func TestOrganizationMembershipLifecycle(t *testing.T) {
 		t.Fatal("expected accepted user id")
 	}
 
-	listMembers := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/members/", pat, nil)
+	listMembers = authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/members/", pat, nil)
 	if listMembers.StatusCode != http.StatusOK {
 		t.Fatalf("list org members status = %d, want 200", listMembers.StatusCode)
 	}
-	var orgMembers []Member
+	var orgMembers []OrganizationMemberListEntry
 	decodeBody(t, listMembers, &orgMembers)
 	if len(orgMembers) != 2 {
 		t.Fatalf("org member count = %d, want 2", len(orgMembers))
+	}
+	foundAcceptedUser := false
+	for _, member := range orgMembers {
+		if member.Email != "new-user@example.com" {
+			continue
+		}
+		foundAcceptedUser = true
+		if member.Pending || member.InviteStatus != "" || member.Expired {
+			t.Fatalf("accepted member = %+v, want active member", member)
+		}
+		if len(member.Teams) != 1 || member.Teams[0] != "platform" {
+			t.Fatalf("accepted member teams = %+v, want [platform]", member.Teams)
+		}
+	}
+	if !foundAcceptedUser {
+		t.Fatalf("expected accepted member in org members: %+v", orgMembers)
 	}
 
 	listTeamMembers := authzJSONRequest(t, ts, http.MethodGet, "/api/0/teams/test-org/platform/members/", pat, nil)
@@ -156,4 +198,49 @@ func TestOrganizationMembershipLifecycle(t *testing.T) {
 		t.Fatalf("remove org member status = %d, want 204", removeOrgMember.StatusCode)
 	}
 	removeOrgMember.Body.Close()
+}
+
+func TestOrganizationMembershipListShowsExpiredPendingInvite(t *testing.T) {
+	db := openTestSQLite(t)
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/invites/", pat, map[string]any{
+		"email": "expired-user@example.com",
+		"role":  "member",
+	})
+	if createInvite.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite status = %d, want 201", createInvite.StatusCode)
+	}
+
+	var invite CreatedInvite
+	decodeBody(t, createInvite, &invite)
+
+	expiredAt := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
+	if _, err := db.Exec(`UPDATE member_invites SET expires_at = ? WHERE id = ?`, expiredAt, invite.ID); err != nil {
+		t.Fatalf("expire invite: %v", err)
+	}
+
+	listMembers := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/members/", pat, nil)
+	if listMembers.StatusCode != http.StatusOK {
+		t.Fatalf("list org members status = %d, want 200", listMembers.StatusCode)
+	}
+
+	var members []OrganizationMemberListEntry
+	decodeBody(t, listMembers, &members)
+	if len(members) != 2 {
+		t.Fatalf("org member count = %d, want 2", len(members))
+	}
+
+	for _, member := range members {
+		if member.Email != "expired-user@example.com" {
+			continue
+		}
+		if !member.Pending || !member.Expired || member.InviteStatus != "pending" {
+			t.Fatalf("expired invite = %+v, want pending expired invite", member)
+		}
+		return
+	}
+
+	t.Fatalf("expected expired invite in org members: %+v", members)
 }

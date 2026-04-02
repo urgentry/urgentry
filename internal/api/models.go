@@ -598,6 +598,21 @@ type Member struct {
 	DateCreated    time.Time `json:"dateCreated"`
 }
 
+// OrganizationMemberListEntry is the org members collection row, including invites.
+type OrganizationMemberListEntry struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"userId,omitempty"`
+	OrganizationID string    `json:"organizationId,omitempty"`
+	Email          string    `json:"email"`
+	Name           string    `json:"name"`
+	Role           string    `json:"role"`
+	Teams          []string  `json:"teams,omitempty"`
+	Pending        bool      `json:"pending"`
+	Expired        bool      `json:"expired"`
+	InviteStatus   string    `json:"inviteStatus,omitempty"`
+	DateCreated    time.Time `json:"dateCreated"`
+}
+
 // ProjectMember represents a project-level membership.
 type ProjectMember struct {
 	ID          string    `json:"id"`
