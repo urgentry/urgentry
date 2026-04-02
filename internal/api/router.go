@@ -219,7 +219,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 
 	// Projects (global)
 	mux.Handle("GET /api/0/projects/", handleListAllProjects(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceAnyMembership})))
-	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/", handleGetProject(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/", handleGetProject(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 	mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/", handleUpdateProject(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/", handleDeleteProject(control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceProjectPath})))
 
@@ -436,6 +436,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/discover/saved/{query_id}/", handleDeleteDiscoverSavedQuery(deps.Analytics.Searches, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryWrite, Resource: auth.ResourceOrganizationPath})))
 
 	// Org-level replays
+	mux.Handle("GET /api/0/organizations/{org_slug}/monitors/", handleListOrgMonitors(deps.DB, control.Catalog, control.Monitors, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/replays/", handleListOrgReplays(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/replays/{replay_id}/", handleGetOrgReplay(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/replays/{replay_id}/", handleDeleteOrgReplay(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))

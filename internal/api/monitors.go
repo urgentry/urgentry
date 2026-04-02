@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"strings"
 	"time"
@@ -10,23 +11,55 @@ import (
 	"urgentry/internal/sqlite"
 )
 
+// handleListOrgMonitors lists monitors across all projects in an organization.
+func handleListOrgMonitors(db *sql.DB, catalog controlplane.CatalogStore, monitors controlplane.MonitorStore, auth authFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !auth(w, r) {
+			return
+		}
+		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+		if err != nil || org == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+			return
+		}
+		projects, err := listProjectIDsForOrg(db, org.ID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list projects.")
+			return
+		}
+		resp := make([]Monitor, 0)
+		for _, pid := range projects {
+			items, err := monitors.ListMonitors(r.Context(), pid, 100)
+			if err != nil {
+				continue
+			}
+			ref := ProjectRef{ID: pid}
+			for _, item := range items {
+				resp = append(resp, mapMonitor(item, ref))
+			}
+		}
+		httputil.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
 func handleListMonitors(catalog controlplane.CatalogStore, monitors controlplane.MonitorStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
-		items, err := monitors.ListMonitors(r.Context(), projectID, 100)
+		items, err := monitors.ListMonitors(r.Context(), project.ID, 100)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list monitors.")
 			return
 		}
+		ref := apiProjectRefFromProject(project)
 		resp := make([]Monitor, 0, len(items))
 		for _, item := range items {
-			resp = append(resp, mapMonitor(item))
+			resp = append(resp, mapMonitor(item, ref))
 		}
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
@@ -44,7 +77,7 @@ func handleCreateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
@@ -54,7 +87,7 @@ func handleCreateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 			return
 		}
 		monitor := &sqlite.Monitor{
-			ProjectID:   projectID,
+			ProjectID:   project.ID,
 			Slug:        strings.TrimSpace(body.Slug),
 			Status:      normalizeMonitorStatus(body.Status),
 			Environment: strings.TrimSpace(body.Environment),
@@ -70,7 +103,7 @@ func handleCreateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to create monitor.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusCreated, mapMonitor(*item))
+		httputil.WriteJSON(w, http.StatusCreated, mapMonitor(*item, apiProjectRefFromProject(project)))
 	}
 }
 
@@ -79,11 +112,11 @@ func handleGetMonitor(catalog controlplane.CatalogStore, monitors controlplane.M
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
-		item, err := monitors.GetMonitor(r.Context(), projectID, PathParam(r, "monitor_slug"))
+		item, err := monitors.GetMonitor(r.Context(), project.ID, PathParam(r, "monitor_slug"))
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load monitor.")
 			return
@@ -92,7 +125,7 @@ func handleGetMonitor(catalog controlplane.CatalogStore, monitors controlplane.M
 			httputil.WriteError(w, http.StatusNotFound, "Monitor not found.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, mapMonitor(*item))
+		httputil.WriteJSON(w, http.StatusOK, mapMonitor(*item, apiProjectRefFromProject(project)))
 	}
 }
 
@@ -101,11 +134,11 @@ func handleUpdateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
-		existing, err := monitors.GetMonitor(r.Context(), projectID, PathParam(r, "monitor_slug"))
+		existing, err := monitors.GetMonitor(r.Context(), project.ID, PathParam(r, "monitor_slug"))
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load monitor.")
 			return
@@ -133,7 +166,7 @@ func handleUpdateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update monitor.")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, mapMonitor(*item))
+		httputil.WriteJSON(w, http.StatusOK, mapMonitor(*item, apiProjectRefFromProject(project)))
 	}
 }
 
@@ -144,15 +177,6 @@ func handleDeleteMonitor(catalog controlplane.CatalogStore, monitors controlplan
 		}
 		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
 		if !ok {
-			return
-		}
-		existing, err := monitors.GetMonitor(r.Context(), projectID, PathParam(r, "monitor_slug"))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load monitor.")
-			return
-		}
-		if existing == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Monitor not found.")
 			return
 		}
 		if err := monitors.DeleteMonitor(r.Context(), projectID, PathParam(r, "monitor_slug")); err != nil {
@@ -185,13 +209,23 @@ func handleListMonitorCheckIns(catalog controlplane.CatalogStore, monitors contr
 	}
 }
 
-func mapMonitor(item sqlite.Monitor) Monitor {
+func mapMonitor(item sqlite.Monitor, project ProjectRef) Monitor {
+	name := item.Slug
+	env := item.Environment
+	if env == "" {
+		env = "production"
+	}
 	resp := Monitor{
 		ID:            item.ID,
 		ProjectID:     item.ProjectID,
+		Name:          name,
 		Slug:          item.Slug,
 		Status:        item.Status,
-		Environment:   item.Environment,
+		IsMuted:       item.Status == "disabled",
+		Environment:   env,
+		Environments:  []string{env},
+		Project:       project,
+		AlertRule:     nil,
 		LastCheckInID: item.LastCheckInID,
 		LastStatus:    item.LastStatus,
 		Config: MonitorConfig{
