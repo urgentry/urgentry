@@ -69,6 +69,46 @@ func setLinkHeader(w http.ResponseWriter, r *http.Request, nextCursor string, ha
 	w.Header().Set("Link", strings.Join(parts, ", "))
 }
 
+// PaginationOpts holds the parsed offset and limit for DB-level pagination.
+type PaginationOpts struct {
+	Offset int
+	Limit  int
+}
+
+// ParsePagination extracts pagination parameters from the request.
+// It reads cursor (offset) and per_page (limit, default 100, max 100).
+func ParsePagination(r *http.Request) PaginationOpts {
+	cursor := r.URL.Query().Get("cursor")
+	offset := 0
+	if cursor != "" {
+		if n, err := strconv.Atoi(cursor); err == nil && n > 0 {
+			offset = n
+		}
+	}
+	limit := defaultPageSize
+	if pp := r.URL.Query().Get("per_page"); pp != "" {
+		if n, err := strconv.Atoi(pp); err == nil && n > 0 && n <= defaultPageSize {
+			limit = n
+		}
+	}
+	return PaginationOpts{Offset: offset, Limit: limit}
+}
+
+// SetPaginationHeaders sets RFC 5988 Link headers based on DB query results.
+// count is the number of rows returned (may be limit+1 to detect next page).
+func SetPaginationHeaders[T any](w http.ResponseWriter, r *http.Request, items []T, opts PaginationOpts) []T {
+	hasNext := len(items) > opts.Limit
+	if hasNext {
+		items = items[:opts.Limit]
+	}
+	nextCursor := ""
+	if hasNext {
+		nextCursor = strconv.Itoa(opts.Offset + opts.Limit)
+	}
+	setLinkHeader(w, r, nextCursor, hasNext)
+	return items
+}
+
 // ---------------------------------------------------------------------------
 // Path parameter helpers
 // ---------------------------------------------------------------------------

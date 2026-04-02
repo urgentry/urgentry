@@ -30,6 +30,11 @@ func GetIssue(ctx context.Context, db *sql.DB, id string) (*store.WebIssue, erro
 }
 
 func ListGroupEvents(ctx context.Context, db *sql.DB, groupID string, limit int) ([]store.WebEvent, error) {
+	return ListGroupEventsPaged(ctx, db, groupID, limit, 0)
+}
+
+// ListGroupEventsPaged lists group events with DB-level LIMIT/OFFSET.
+func ListGroupEventsPaged(ctx context.Context, db *sql.DB, groupID string, limit, offset int) ([]store.WebEvent, error) {
 	q := `SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
 	             payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
 	      FROM events WHERE group_id = ? ORDER BY ingested_at DESC`
@@ -37,6 +42,10 @@ func ListGroupEvents(ctx context.Context, db *sql.DB, groupID string, limit int)
 	if limit > 0 {
 		q += ` LIMIT ?`
 		args = append(args, limit)
+	}
+	if offset > 0 {
+		q += ` OFFSET ?`
+		args = append(args, offset)
 	}
 	rows, err := db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -57,13 +66,21 @@ func GetLatestGroupEvent(ctx context.Context, db *sql.DB, groupID string) (*stor
 }
 
 func ListProjectEvents(ctx context.Context, db *sql.DB, projectID string, limit int) ([]store.WebEvent, error) {
+	return ListProjectEventsPaged(ctx, db, projectID, limit, 0)
+}
+
+// ListProjectEventsPaged lists events with DB-level LIMIT/OFFSET.
+func ListProjectEventsPaged(ctx context.Context, db *sql.DB, projectID string, limit, offset int) ([]store.WebEvent, error) {
 	if limit <= 0 {
 		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	rows, err := db.QueryContext(ctx,
 		`SELECT event_id, group_id, title, message, level, platform, culprit, occurred_at, tags_json,
 		        payload_json, COALESCE(processing_status, 'completed'), COALESCE(ingest_error, '')
-		 FROM events WHERE project_id = ? ORDER BY ingested_at DESC LIMIT ?`, projectID, limit)
+		 FROM events WHERE project_id = ? ORDER BY ingested_at DESC LIMIT ? OFFSET ?`, projectID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

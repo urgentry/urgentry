@@ -636,12 +636,14 @@ func handleListIssueEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 		}
 		id := PathParam(r, "issue_id")
 
-		events, err := listIssueEventsFromDB(r, db, id)
+		pg := ParsePagination(r)
+		rows, err := sqlite.ListGroupEventsPaged(r.Context(), db, id, pg.Limit+1, pg.Offset)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list issue events.")
 			return
 		}
-		page := Paginate(w, r, events)
+		events := apiEventsFromWebEvents(rows)
+		page := SetPaginationHeaders(w, r, events, pg)
 		if page == nil {
 			page = []*Event{}
 		}

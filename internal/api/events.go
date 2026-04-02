@@ -80,12 +80,13 @@ func handleListProjectEvents(db *sql.DB, auth authFunc) http.HandlerFunc {
 			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
 			return
 		}
-		events, err := listRecentEventsFromDB(r, db, projectID, 100)
+		pg := ParsePagination(r)
+		events, err := listRecentEventsFromDBPaged(r, db, projectID, pg.Limit+1, pg.Offset)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list events.")
 			return
 		}
-		page := Paginate(w, r, events)
+		page := SetPaginationHeaders(w, r, events, pg)
 		if page == nil {
 			page = []*Event{}
 		}
@@ -134,7 +135,11 @@ func handleGetProjectEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 // ---------------------------------------------------------------------------
 
 func listRecentEventsFromDB(r *http.Request, db *sql.DB, projectID string, limit int) ([]*Event, error) {
-	rows, err := sqlite.ListProjectEvents(r.Context(), db, projectID, limit)
+	return listRecentEventsFromDBPaged(r, db, projectID, limit, 0)
+}
+
+func listRecentEventsFromDBPaged(r *http.Request, db *sql.DB, projectID string, limit, offset int) ([]*Event, error) {
+	rows, err := sqlite.ListProjectEventsPaged(r.Context(), db, projectID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
