@@ -267,6 +267,42 @@ func TestAPIReplayPlaybackEndpoints_SQLite(t *testing.T) {
 	}
 }
 
+func TestAPIReplayDeletion_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+	blobStore := store.NewMemoryBlobStore()
+	replays := sqlite.NewReplayStore(db, blobStore)
+
+	if _, err := replays.SaveEnvelopeReplay(t.Context(), "test-proj-id", "evt-api-replay-delete", []byte(`{
+		"event_id":"evt-api-replay-delete",
+		"replay_id":"replay-delete",
+		"timestamp":"2026-03-29T12:00:00Z",
+		"platform":"javascript",
+		"release":"web@1.2.3",
+		"environment":"production"
+	}`)); err != nil {
+		t.Fatalf("SaveEnvelopeReplay: %v", err)
+	}
+	if err := replays.IndexReplay(t.Context(), "test-proj-id", "replay-delete"); err != nil {
+		t.Fatalf("IndexReplay: %v", err)
+	}
+
+	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	defer ts.Close()
+
+	del := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/organizations/test-org/replays/replay-delete/", pat, nil)
+	if del.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete replay status = %d, want 204", del.StatusCode)
+	}
+	del.Body.Close()
+
+	get := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/replays/replay-delete/", pat, nil)
+	if get.StatusCode != http.StatusNotFound {
+		t.Fatalf("get deleted replay status = %d, want 404", get.StatusCode)
+	}
+	get.Body.Close()
+}
+
 func TestAPIProfileQueryViews_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 	seedSQLiteAuth(t, db)
