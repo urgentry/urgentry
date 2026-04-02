@@ -25,7 +25,7 @@ func (s *PreventStore) ListRepositories(ctx context.Context, orgSlug, ownerSlug 
 	query := `
 		SELECT r.id, r.organization_id, o.slug, COALESCE(r.owner_slug, ''), r.name, r.provider, COALESCE(r.url, ''),
 		       COALESCE(r.external_slug, ''), r.status, COALESCE(r.default_branch, ''), COALESCE(r.sync_status, 'idle'),
-		       r.last_synced_at, r.last_sync_started_at, COALESCE(r.last_sync_error, ''), r.created_at
+		       r.last_synced_at, r.last_sync_started_at, COALESCE(r.last_sync_error, ''), COALESCE(r.test_analytics_enabled, 1), r.created_at
 		  FROM repositories r
 		  JOIN organizations o ON o.id = r.organization_id`
 	args := []any{}
@@ -64,7 +64,7 @@ func (s *PreventStore) GetRepository(ctx context.Context, orgSlug, ownerSlug, re
 	row := s.db.QueryRowContext(ctx, `
 		SELECT r.id, r.organization_id, o.slug, COALESCE(r.owner_slug, ''), r.name, r.provider, COALESCE(r.url, ''),
 		       COALESCE(r.external_slug, ''), r.status, COALESCE(r.default_branch, ''), COALESCE(r.sync_status, 'idle'),
-		       r.last_synced_at, r.last_sync_started_at, COALESCE(r.last_sync_error, ''), r.created_at
+		       r.last_synced_at, r.last_sync_started_at, COALESCE(r.last_sync_error, ''), COALESCE(r.test_analytics_enabled, 1), r.created_at
 		  FROM repositories r
 		  JOIN organizations o ON o.id = r.organization_id
 		 WHERE o.slug = ? AND COALESCE(r.owner_slug, '') = ? AND r.name = ?`,
@@ -78,6 +78,44 @@ func (s *PreventStore) GetRepository(ctx context.Context, orgSlug, ownerSlug, re
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (s *PreventStore) GetOwnerSyncStatus(ctx context.Context, orgSlug, ownerSlug string) (bool, error) {
+	var syncing int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		  FROM repositories r
+		  JOIN organizations o ON o.id = r.organization_id
+		 WHERE o.slug = ? AND COALESCE(r.owner_slug, '') = ? AND COALESCE(r.sync_status, 'idle') = 'syncing'`,
+		strings.TrimSpace(orgSlug), strings.TrimSpace(ownerSlug),
+	).Scan(&syncing)
+	if err != nil {
+		return false, err
+	}
+	return syncing > 0, nil
+}
+
+func (s *PreventStore) StartOwnerSync(ctx context.Context, orgSlug, ownerSlug string) (bool, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE repositories
+		   SET sync_status = 'syncing',
+		       last_sync_started_at = ?,
+		       last_sync_error = ''
+		 WHERE organization_id = (
+		 	SELECT id FROM organizations WHERE slug = ?
+		 )
+		   AND COALESCE(owner_slug, '') = ?`,
+		now, strings.TrimSpace(orgSlug), strings.TrimSpace(ownerSlug),
+	)
+	if err != nil {
+		return false, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }
 
 func (s *PreventStore) ListRepositoryBranches(ctx context.Context, orgSlug, ownerSlug, repositoryName string) ([]store.PreventRepositoryBranch, error) {
@@ -122,7 +160,7 @@ func (s *PreventStore) ListRepositoryTokens(ctx context.Context, orgSlug, ownerS
 		return nil, err
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, repository_id, label, token_prefix, token_hash, status, rotated_at, last_used_at, revoked_at, created_at
+		SELECT id, repository_id, label, COALESCE(token_value, ''), token_prefix, token_hash, status, rotated_at, last_used_at, revoked_at, created_at
 		  FROM prevent_repository_tokens
 		 WHERE repository_id = ?
 		 ORDER BY created_at ASC`,
@@ -137,7 +175,7 @@ func (s *PreventStore) ListRepositoryTokens(ctx context.Context, orgSlug, ownerS
 	for rows.Next() {
 		var item store.PreventRepositoryToken
 		var rotatedAt, lastUsedAt, revokedAt, createdAt sql.NullString
-		if err := rows.Scan(&item.ID, &item.RepositoryID, &item.Label, &item.TokenPrefix, &item.TokenHash, &item.Status, &rotatedAt, &lastUsedAt, &revokedAt, &createdAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.RepositoryID, &item.Label, &item.Token, &item.TokenPrefix, &item.TokenHash, &item.Status, &rotatedAt, &lastUsedAt, &revokedAt, &createdAt); err != nil {
 			return nil, err
 		}
 		item.RotatedAt = parseOptionalTime(rotatedAt)
@@ -160,11 +198,11 @@ func (s *PreventStore) RegenerateRepositoryToken(ctx context.Context, orgSlug, o
 	var current store.PreventRepositoryToken
 	var rotatedAt, lastUsedAt, revokedAt, createdAt sql.NullString
 	if err := s.db.QueryRowContext(ctx, `
-		SELECT id, repository_id, label, token_prefix, token_hash, status, rotated_at, last_used_at, revoked_at, created_at
+		SELECT id, repository_id, label, COALESCE(token_value, ''), token_prefix, token_hash, status, rotated_at, last_used_at, revoked_at, created_at
 		  FROM prevent_repository_tokens
 		 WHERE repository_id = ? AND id = ?`,
 		repo.ID, strings.TrimSpace(tokenID),
-	).Scan(&current.ID, &current.RepositoryID, &current.Label, &current.TokenPrefix, &current.TokenHash, &current.Status, &rotatedAt, &lastUsedAt, &revokedAt, &createdAt); err != nil {
+	).Scan(&current.ID, &current.RepositoryID, &current.Label, &current.Token, &current.TokenPrefix, &current.TokenHash, &current.Status, &rotatedAt, &lastUsedAt, &revokedAt, &createdAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, "", nil
 		}
@@ -175,17 +213,19 @@ func (s *PreventStore) RegenerateRepositoryToken(ctx context.Context, orgSlug, o
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := s.db.ExecContext(ctx, `
 		UPDATE prevent_repository_tokens
-		   SET token_prefix = ?,
+		   SET token_value = ?,
+		       token_prefix = ?,
 		       token_hash = ?,
 		       status = 'active',
 		       rotated_at = ?,
 		       last_used_at = NULL,
 		       revoked_at = NULL
 		 WHERE id = ?`,
-		tokenPrefix(raw), hashToken(raw), now, current.ID,
+		raw, tokenPrefix(raw), hashToken(raw), now, current.ID,
 	); err != nil {
 		return nil, "", err
 	}
+	current.Token = raw
 	current.TokenPrefix = tokenPrefix(raw)
 	current.TokenHash = hashToken(raw)
 	current.Status = "active"
@@ -322,6 +362,7 @@ func (s *PreventStore) repositoryByPath(ctx context.Context, orgSlug, ownerSlug,
 func scanPreventRepository(row interface{ Scan(dest ...any) error }) (store.PreventRepository, error) {
 	var item store.PreventRepository
 	var lastSyncedAt, lastSyncStartedAt, createdAt sql.NullString
+	var analyticsEnabled int
 	if err := row.Scan(
 		&item.ID,
 		&item.OrganizationID,
@@ -337,10 +378,12 @@ func scanPreventRepository(row interface{ Scan(dest ...any) error }) (store.Prev
 		&lastSyncedAt,
 		&lastSyncStartedAt,
 		&item.LastSyncError,
+		&analyticsEnabled,
 		&createdAt,
 	); err != nil {
 		return store.PreventRepository{}, err
 	}
+	item.TestAnalyticsEnabled = analyticsEnabled != 0
 	item.LastSyncedAt = parseOptionalTime(lastSyncedAt)
 	item.LastSyncStartedAt = parseOptionalTime(lastSyncStartedAt)
 	item.DateCreated = parseTime(createdAt.String)

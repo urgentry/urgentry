@@ -13,13 +13,13 @@ func TestPreventStoreRepositoryReadAndTokenRotation(t *testing.T) {
 
 	if _, err := db.Exec(`
 INSERT INTO organizations (id, slug, name, created_at) VALUES ('org-1', 'acme', 'Acme', ?);
-INSERT INTO repositories (id, organization_id, owner_slug, name, provider, url, external_slug, status, default_branch, sync_status, last_synced_at, last_sync_started_at, last_sync_error, created_at)
-VALUES ('repo-1', 'org-1', 'sentry', 'platform', 'github', 'https://github.com/sentry/platform', 'sentry/platform', 'active', 'main', 'synced', ?, ?, '', ?);
+INSERT INTO repositories (id, organization_id, owner_slug, name, provider, url, external_slug, status, default_branch, test_analytics_enabled, sync_status, last_synced_at, last_sync_started_at, last_sync_error, created_at)
+VALUES ('repo-1', 'org-1', 'sentry', 'platform', 'github', 'https://github.com/sentry/platform', 'sentry/platform', 'active', 'main', 1, 'synced', ?, ?, '', ?);
 INSERT INTO prevent_repository_branches (id, repository_id, name, is_default, status, last_synced_at, created_at) VALUES
 	('branch-1', 'repo-1', 'main', 1, 'active', ?, ?),
 	('branch-2', 'repo-1', 'release/1.0', 0, 'active', NULL, ?);
-INSERT INTO prevent_repository_tokens (id, repository_id, label, token_prefix, token_hash, status, created_at, last_used_at, revoked_at, rotated_at) VALUES
-	('token-1', 'repo-1', 'CI', 'gprevent_old', 'hash-old', 'active', ?, NULL, NULL, NULL);
+INSERT INTO prevent_repository_tokens (id, repository_id, label, token_value, token_prefix, token_hash, status, created_at, last_used_at, revoked_at, rotated_at) VALUES
+	('token-1', 'repo-1', 'CI', 'gprevent_old_full', 'gprevent_old', 'hash-old', 'active', ?, NULL, NULL, NULL);
 INSERT INTO prevent_repository_test_suites (id, repository_id, external_suite_id, name, status, last_run_at, created_at) VALUES
 	('suite-1', 'repo-1', 'suite-ext-1', 'Unit', 'active', ?, ?);
 INSERT INTO prevent_repository_test_results (id, repository_id, suite_id, suite_name, branch_name, commit_sha, status, duration_ms, test_count, failure_count, skipped_count, created_at) VALUES
@@ -36,7 +36,7 @@ INSERT INTO prevent_repository_test_result_aggregates (id, repository_id, branch
 	if err != nil {
 		t.Fatalf("ListRepositories: %v", err)
 	}
-	if len(repos) != 1 || repos[0].Name != "platform" || repos[0].OwnerSlug != "sentry" || repos[0].SyncStatus != "synced" {
+	if len(repos) != 1 || repos[0].Name != "platform" || repos[0].OwnerSlug != "sentry" || repos[0].SyncStatus != "synced" || !repos[0].TestAnalyticsEnabled {
 		t.Fatalf("unexpected repositories: %+v", repos)
 	}
 
@@ -60,7 +60,7 @@ INSERT INTO prevent_repository_test_result_aggregates (id, repository_id, branch
 	if err != nil {
 		t.Fatalf("ListRepositoryTokens: %v", err)
 	}
-	if len(tokens) != 1 || tokens[0].TokenPrefix != "gprevent_old" {
+	if len(tokens) != 1 || tokens[0].TokenPrefix != "gprevent_old" || tokens[0].Token != "gprevent_old_full" {
 		t.Fatalf("unexpected tokens: %+v", tokens)
 	}
 
@@ -71,12 +71,28 @@ INSERT INTO prevent_repository_test_result_aggregates (id, repository_id, branch
 	if raw == "" || rotated == nil || rotated.TokenPrefix == "gprevent_old" || rotated.RotatedAt == nil {
 		t.Fatalf("unexpected rotated token: %+v raw=%q", rotated, raw)
 	}
+	if rotated.Token != raw {
+		t.Fatalf("rotated token = %q, want raw token", rotated.Token)
+	}
+
+	syncing, err := store.GetOwnerSyncStatus(ctx, "acme", "sentry")
+	if err != nil || syncing {
+		t.Fatalf("GetOwnerSyncStatus before start = %v err=%v, want false nil", syncing, err)
+	}
+	started, err := store.StartOwnerSync(ctx, "acme", "sentry")
+	if err != nil || !started {
+		t.Fatalf("StartOwnerSync = %v err=%v, want true nil", started, err)
+	}
+	syncing, err = store.GetOwnerSyncStatus(ctx, "acme", "sentry")
+	if err != nil || !syncing {
+		t.Fatalf("GetOwnerSyncStatus after start = %v err=%v, want true nil", syncing, err)
+	}
 
 	syncStatus, err := store.GetRepositorySyncStatus(ctx, "acme", "sentry", "platform")
 	if err != nil {
 		t.Fatalf("GetRepositorySyncStatus: %v", err)
 	}
-	if syncStatus == nil || syncStatus.Status != "synced" || syncStatus.LastSyncedAt == nil {
+	if syncStatus == nil || syncStatus.Status != "syncing" || syncStatus.LastSyncedAt == nil {
 		t.Fatalf("unexpected sync status: %+v", syncStatus)
 	}
 

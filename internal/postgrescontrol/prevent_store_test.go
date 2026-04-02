@@ -29,8 +29,8 @@ func TestPreventStoreRepositoryReadAndTokenRotation(t *testing.T) {
 		t.Fatalf("seed org: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `
-INSERT INTO repositories (id, organization_id, owner_slug, name, provider, url, external_slug, status, default_branch, sync_status, last_synced_at, last_sync_started_at, last_sync_error, created_at)
-VALUES ('repo-1', 'org-1', 'sentry', 'platform', 'github', 'https://github.com/sentry/platform', 'sentry/platform', 'active', 'main', 'synced', $1, $2, '', $3)`,
+INSERT INTO repositories (id, organization_id, owner_slug, name, provider, url, external_slug, status, default_branch, test_analytics_enabled, sync_status, last_synced_at, last_sync_started_at, last_sync_error, created_at)
+VALUES ('repo-1', 'org-1', 'sentry', 'platform', 'github', 'https://github.com/sentry/platform', 'sentry/platform', 'active', 'main', TRUE, 'synced', $1, $2, '', $3)`,
 		lastSynced, lastStarted, base,
 	); err != nil {
 		t.Fatalf("seed repository: %v", err)
@@ -44,8 +44,8 @@ INSERT INTO prevent_repository_branches (id, repository_id, name, is_default, st
 		t.Fatalf("seed branches: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `
-INSERT INTO prevent_repository_tokens (id, repository_id, label, token_prefix, token_hash, status, created_at, last_used_at, revoked_at, rotated_at)
-VALUES ('token-1', 'repo-1', 'CI', 'gprevent_old', 'hash-old', 'active', $1, NULL, NULL, NULL)`,
+INSERT INTO prevent_repository_tokens (id, repository_id, label, token_value, token_prefix, token_hash, status, created_at, last_used_at, revoked_at, rotated_at)
+VALUES ('token-1', 'repo-1', 'CI', 'gprevent_old_full', 'gprevent_old', 'hash-old', 'active', $1, NULL, NULL, NULL)`,
 		base,
 	); err != nil {
 		t.Fatalf("seed token: %v", err)
@@ -76,7 +76,7 @@ VALUES ('agg-1', 'repo-1', 'main', 9, 8, 1, 0, 1200, $1, $2)`,
 	if err != nil {
 		t.Fatalf("ListRepositories: %v", err)
 	}
-	if len(repos) != 1 || repos[0].Name != "platform" || repos[0].OwnerSlug != "sentry" || repos[0].SyncStatus != "synced" {
+	if len(repos) != 1 || repos[0].Name != "platform" || repos[0].OwnerSlug != "sentry" || repos[0].SyncStatus != "synced" || !repos[0].TestAnalyticsEnabled {
 		t.Fatalf("unexpected repositories: %+v", repos)
 	}
 
@@ -100,7 +100,7 @@ VALUES ('agg-1', 'repo-1', 'main', 9, 8, 1, 0, 1200, $1, $2)`,
 	if err != nil {
 		t.Fatalf("ListRepositoryTokens: %v", err)
 	}
-	if len(tokens) != 1 || tokens[0].TokenPrefix != "gprevent_old" {
+	if len(tokens) != 1 || tokens[0].TokenPrefix != "gprevent_old" || tokens[0].Token != "gprevent_old_full" {
 		t.Fatalf("unexpected tokens: %+v", tokens)
 	}
 
@@ -111,12 +111,28 @@ VALUES ('agg-1', 'repo-1', 'main', 9, 8, 1, 0, 1200, $1, $2)`,
 	if raw == "" || rotated == nil || rotated.TokenPrefix == "gprevent_old" || rotated.RotatedAt == nil {
 		t.Fatalf("unexpected rotated token: %+v raw=%q", rotated, raw)
 	}
+	if rotated.Token != raw {
+		t.Fatalf("rotated token = %q, want raw token", rotated.Token)
+	}
+
+	syncing, err := store.GetOwnerSyncStatus(ctx, "acme", "sentry")
+	if err != nil || syncing {
+		t.Fatalf("GetOwnerSyncStatus before start = %v err=%v, want false nil", syncing, err)
+	}
+	started, err := store.StartOwnerSync(ctx, "acme", "sentry")
+	if err != nil || !started {
+		t.Fatalf("StartOwnerSync = %v err=%v, want true nil", started, err)
+	}
+	syncing, err = store.GetOwnerSyncStatus(ctx, "acme", "sentry")
+	if err != nil || !syncing {
+		t.Fatalf("GetOwnerSyncStatus after start = %v err=%v, want true nil", syncing, err)
+	}
 
 	syncStatus, err := store.GetRepositorySyncStatus(ctx, "acme", "sentry", "platform")
 	if err != nil {
 		t.Fatalf("GetRepositorySyncStatus: %v", err)
 	}
-	if syncStatus == nil || syncStatus.Status != "synced" || syncStatus.LastSyncedAt == nil {
+	if syncStatus == nil || syncStatus.Status != "syncing" || syncStatus.LastSyncedAt == nil {
 		t.Fatalf("unexpected sync status: %+v", syncStatus)
 	}
 

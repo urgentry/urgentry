@@ -417,10 +417,4 @@ var migrationsCore = []schemaMigration{
 		);
 		CREATE INDEX IF NOT EXISTS idx_prevent_repository_test_aggregates_repo ON prevent_repository_test_result_aggregates(repository_id, created_at ASC);
 	`},
-	{75, `
-		ALTER TABLE prevent_repository_tokens ADD COLUMN token_value TEXT NOT NULL DEFAULT '';
-		UPDATE prevent_repository_tokens
-		SET token_value = token_prefix
-		WHERE COALESCE(token_value, '') = '';
-	`},
 }

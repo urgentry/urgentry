@@ -7,22 +7,22 @@ import (
 
 // PreventRepository represents one repository connected to a Prevent owner.
 type PreventRepository struct {
-	ID                string     `json:"id"`
-	OrganizationID    string     `json:"organizationId"`
-	OrganizationSlug  string     `json:"organizationSlug,omitempty"`
-	OwnerSlug         string     `json:"ownerSlug"`
-	Name              string     `json:"name"`
-	Provider          string     `json:"provider"`
-	URL               string     `json:"url,omitempty"`
-	ExternalSlug      string     `json:"externalSlug,omitempty"`
-	Status            string     `json:"status"`
-	DefaultBranch     string     `json:"defaultBranch,omitempty"`
-	TestAnalyticsEnabled bool    `json:"testAnalyticsEnabled"`
-	SyncStatus        string     `json:"syncStatus"`
-	LastSyncedAt      *time.Time `json:"lastSyncedAt,omitempty"`
-	LastSyncStartedAt *time.Time `json:"lastSyncStartedAt,omitempty"`
-	LastSyncError     string     `json:"lastSyncError,omitempty"`
-	DateCreated       time.Time  `json:"dateCreated"`
+	ID                   string     `json:"id"`
+	OrganizationID       string     `json:"organizationId"`
+	OrganizationSlug     string     `json:"organizationSlug,omitempty"`
+	OwnerSlug            string     `json:"ownerSlug"`
+	Name                 string     `json:"name"`
+	Provider             string     `json:"provider"`
+	URL                  string     `json:"url,omitempty"`
+	ExternalSlug         string     `json:"externalSlug,omitempty"`
+	Status               string     `json:"status"`
+	DefaultBranch        string     `json:"defaultBranch,omitempty"`
+	TestAnalyticsEnabled bool       `json:"testAnalyticsEnabled"`
+	SyncStatus           string     `json:"syncStatus"`
+	LastSyncedAt         *time.Time `json:"lastSyncedAt,omitempty"`
+	LastSyncStartedAt    *time.Time `json:"lastSyncStartedAt,omitempty"`
+	LastSyncError        string     `json:"lastSyncError,omitempty"`
+	DateCreated          time.Time  `json:"dateCreated"`
 }
 
 // PreventRepositoryBranch captures one tracked branch for a repository.
