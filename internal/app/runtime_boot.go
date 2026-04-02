@@ -261,6 +261,8 @@ func (s *runtimeState) newHTTPServer() (*http.Server, error) {
 		importExport:        s.importExportStore,
 		integrationRegistry: s.integrationRegistry,
 		integrationStore:    s.integrationConfigStore,
+		sentryApps:          s.sentryAppStore,
+		externalIssues:      s.externalIssueStore,
 		samplingRules:       s.samplingRuleStore,
 		uptimeMonitors:      s.uptimeMonitorStore,
 		quota:               s.quotaStore,

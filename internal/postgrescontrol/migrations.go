@@ -778,6 +778,65 @@ SET token_value = token_prefix
 WHERE COALESCE(token_value, '') = '';
 `,
 	},
+	{
+		Version: 10,
+		Name:    "integration-apps-and-external-issues",
+		SQL: `
+CREATE TABLE IF NOT EXISTS integration_configs (
+	id TEXT PRIMARY KEY,
+	organization_id TEXT NOT NULL REFERENCES organizations(id),
+	integration_id TEXT NOT NULL,
+	project_id TEXT REFERENCES projects(id),
+	config_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+	status TEXT NOT NULL DEFAULT 'active',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_integration_configs_org
+	ON integration_configs(organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_integration_configs_org_integration
+	ON integration_configs(organization_id, integration_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS sentry_apps (
+	id TEXT PRIMARY KEY,
+	slug TEXT NOT NULL UNIQUE,
+	name TEXT NOT NULL DEFAULT '',
+	author TEXT,
+	overview TEXT,
+	scopes_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+	events_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+	schema_json JSONB NOT NULL DEFAULT 'null'::jsonb,
+	allowed_origins_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+	status TEXT NOT NULL DEFAULT 'published',
+	redirect_url TEXT,
+	webhook_url TEXT,
+	is_alertable BOOLEAN NOT NULL DEFAULT FALSE,
+	verify_install BOOLEAN NOT NULL DEFAULT TRUE,
+	deleted_at TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sentry_apps_slug
+	ON sentry_apps(slug);
+
+CREATE TABLE IF NOT EXISTS group_external_issues (
+	id TEXT PRIMARY KEY,
+	installation_id TEXT NOT NULL REFERENCES integration_configs(id),
+	group_id TEXT NOT NULL REFERENCES groups(id),
+	integration_id TEXT NOT NULL,
+	key TEXT NOT NULL,
+	title TEXT NOT NULL DEFAULT '',
+	url TEXT NOT NULL DEFAULT '',
+	description TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	UNIQUE(installation_id, group_id, key)
+);
+CREATE INDEX IF NOT EXISTS idx_group_external_issues_group_created
+	ON group_external_issues(group_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_group_external_issues_installation
+	ON group_external_issues(installation_id, created_at DESC);
+`,
+	},
 }
 
 func Open(ctx context.Context, dsn string) (*sql.DB, error) {

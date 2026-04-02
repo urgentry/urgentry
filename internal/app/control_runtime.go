@@ -10,6 +10,7 @@ import (
 	"urgentry/internal/auth"
 	"urgentry/internal/config"
 	"urgentry/internal/controlplane"
+	"urgentry/internal/integration"
 	"urgentry/internal/issue"
 	"urgentry/internal/notify"
 	"urgentry/internal/pipeline"
@@ -26,22 +27,25 @@ type bootstrapResult struct {
 }
 
 type runtimeControlPlane struct {
-	services       controlplane.Services
-	keyStore       auth.KeyStore
-	authStore      auth.Store
-	alertStore     alert.RuleStore
-	alertHistory   pipeline.AlertHistoryStore
-	outbox         notify.EmailOutbox
-	deliveries     notify.DeliveryRecorder
-	lifecycle      store.LifecycleStore
-	operatorAudits store.OperatorAuditStore
-	monitorStore   controlplane.MonitorStore
-	ownershipStore controlplane.OwnershipStore
-	preventStore   store.PreventStore
-	groupStore     issue.GroupStore
-	close          func() error
-	defaultKey     func(context.Context) (string, error)
-	bootstrap      func(context.Context, config.Config) (*bootstrapResult, error)
+	services         controlplane.Services
+	keyStore         auth.KeyStore
+	authStore        auth.Store
+	alertStore       alert.RuleStore
+	alertHistory     pipeline.AlertHistoryStore
+	outbox           notify.EmailOutbox
+	deliveries       notify.DeliveryRecorder
+	lifecycle        store.LifecycleStore
+	operatorAudits   store.OperatorAuditStore
+	monitorStore     controlplane.MonitorStore
+	ownershipStore   controlplane.OwnershipStore
+	preventStore     store.PreventStore
+	integrationStore integration.Store
+	sentryAppStore   integration.AppStore
+	externalIssues   integration.ExternalIssueStore
+	groupStore       issue.GroupStore
+	close            func() error
+	defaultKey       func(context.Context) (string, error)
+	bootstrap        func(context.Context, config.Config) (*bootstrapResult, error)
 }
 
 func openRuntimeControlPlane(ctx context.Context, cfg config.Config, queryDB *sql.DB) (runtimeControlPlane, error) {
@@ -65,20 +69,23 @@ func buildSQLiteRuntimeControlPlane(queryDB *sql.DB) runtimeControlPlane {
 	authStore := sqlite.NewAuthStore(queryDB)
 	services := controlplane.SQLiteServices(queryDB)
 	return runtimeControlPlane{
-		services:       services,
-		keyStore:       keyStore,
-		authStore:      authStore,
-		alertStore:     services.Alerts,
-		alertHistory:   sqlite.NewAlertHistoryStore(queryDB),
-		outbox:         services.Outbox,
-		deliveries:     services.Deliveries,
-		lifecycle:      sqlite.NewLifecycleStore(queryDB),
-		operatorAudits: sqlite.NewOperatorAuditStore(queryDB),
-		monitorStore:   services.Monitors,
-		ownershipStore: services.Ownership,
-		preventStore:   sqlite.NewPreventStore(queryDB),
-		groupStore:     sqlite.NewGroupStore(queryDB),
-		close:          func() error { return nil },
+		services:         services,
+		keyStore:         keyStore,
+		authStore:        authStore,
+		alertStore:       services.Alerts,
+		alertHistory:     sqlite.NewAlertHistoryStore(queryDB),
+		outbox:           services.Outbox,
+		deliveries:       services.Deliveries,
+		lifecycle:        sqlite.NewLifecycleStore(queryDB),
+		operatorAudits:   sqlite.NewOperatorAuditStore(queryDB),
+		monitorStore:     services.Monitors,
+		ownershipStore:   services.Ownership,
+		preventStore:     sqlite.NewPreventStore(queryDB),
+		integrationStore: sqlite.NewIntegrationConfigStore(queryDB),
+		sentryAppStore:   sqlite.NewSentryAppStore(queryDB),
+		externalIssues:   sqlite.NewExternalIssueStore(queryDB),
+		groupStore:       sqlite.NewGroupStore(queryDB),
+		close:            func() error { return nil },
 		defaultKey: func(ctx context.Context) (string, error) {
 			return sqlite.EnsureDefaultKey(ctx, queryDB)
 		},
@@ -123,20 +130,23 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 		Monitors:     postgrescontrol.NewMonitorStore(controlDB),
 	}
 	return runtimeControlPlane{
-		services:       services,
-		keyStore:       baseAuthStore,
-		authStore:      authStore,
-		alertStore:     services.Alerts,
-		alertHistory:   postgrescontrol.NewAlertHistoryStore(controlDB),
-		outbox:         services.Outbox,
-		deliveries:     services.Deliveries,
-		lifecycle:      postgrescontrol.NewLifecycleStore(controlDB),
-		operatorAudits: postgrescontrol.NewOperatorAuditStore(controlDB),
-		monitorStore:   services.Monitors,
-		ownershipStore: services.Ownership,
-		preventStore:   postgrescontrol.NewPreventStore(controlDB),
-		groupStore:     groupStore,
-		close:          controlDB.Close,
+		services:         services,
+		keyStore:         baseAuthStore,
+		authStore:        authStore,
+		alertStore:       services.Alerts,
+		alertHistory:     postgrescontrol.NewAlertHistoryStore(controlDB),
+		outbox:           services.Outbox,
+		deliveries:       services.Deliveries,
+		lifecycle:        postgrescontrol.NewLifecycleStore(controlDB),
+		operatorAudits:   postgrescontrol.NewOperatorAuditStore(controlDB),
+		monitorStore:     services.Monitors,
+		ownershipStore:   services.Ownership,
+		preventStore:     postgrescontrol.NewPreventStore(controlDB),
+		integrationStore: postgrescontrol.NewIntegrationConfigStore(controlDB),
+		sentryAppStore:   postgrescontrol.NewSentryAppStore(controlDB),
+		externalIssues:   postgrescontrol.NewExternalIssueStore(controlDB),
+		groupStore:       groupStore,
+		close:            controlDB.Close,
 		defaultKey: func(ctx context.Context) (string, error) {
 			return postgrescontrol.EnsureDefaultKey(ctx, controlDB)
 		},

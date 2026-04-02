@@ -13,6 +13,7 @@ import (
 	"urgentry/internal/analyticsservice"
 	"urgentry/internal/auth"
 	"urgentry/internal/controlplane"
+	"urgentry/internal/integration"
 	"urgentry/internal/sqlite"
 	"urgentry/internal/store"
 	"urgentry/internal/telemetryquery"
@@ -112,6 +113,20 @@ func sqliteAuthorizedDependencies(t *testing.T, db *sql.DB, deps Dependencies) D
 	}
 	if deps.ForwardingStore == nil {
 		deps.ForwardingStore = sqlite.NewForwardingConfigStore(db)
+	}
+	if deps.IntegrationRegistry != nil || deps.IntegrationStore != nil || deps.SentryAppStore != nil || deps.ExternalIssues != nil {
+		if deps.IntegrationRegistry == nil {
+			deps.IntegrationRegistry = integration.NewDefaultRegistry()
+		}
+		if deps.IntegrationStore == nil {
+			deps.IntegrationStore = sqlite.NewIntegrationConfigStore(db)
+		}
+		if deps.SentryAppStore == nil {
+			deps.SentryAppStore = sqlite.NewSentryAppStore(db)
+		}
+		if deps.ExternalIssues == nil {
+			deps.ExternalIssues = sqlite.NewExternalIssueStore(db)
+		}
 	}
 	if deps.OrgForwarders == nil {
 		deps.OrgForwarders = sqlite.NewOrgForwarderStore(db)

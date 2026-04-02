@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -170,9 +171,9 @@ func TestAPITeamExternalTeamAlias_SQLite(t *testing.T) {
 	defer ts.Close()
 
 	create := authzJSONRequest(t, ts, http.MethodPost, "/api/0/teams/test-org/backend/external-teams/", pat, map[string]any{
-		"provider":      "github",
-		"external_id":   "gh-team-1",
-		"external_name": "Backend GitHub Team",
+		"provider":       "github",
+		"external_id":    "gh-team-1",
+		"external_name":  "Backend GitHub Team",
 		"integration_id": 1,
 	})
 	if create.StatusCode != http.StatusCreated {
@@ -195,9 +196,9 @@ func TestAPITeamExternalTeamAlias_SQLite(t *testing.T) {
 	}
 
 	update := authzJSONRequest(t, ts, http.MethodPut, "/api/0/teams/test-org/backend/external-teams/"+created.ID+"/", pat, map[string]any{
-		"provider":      "github",
-		"external_id":   "gh-team-1",
-		"external_name": "Backend GitHub Team Updated",
+		"provider":       "github",
+		"external_id":    "gh-team-1",
+		"external_name":  "Backend GitHub Team Updated",
 		"integration_id": 1,
 	})
 	if update.StatusCode != http.StatusOK {
@@ -219,7 +220,7 @@ func TestAPITeamExternalTeamAlias_SQLite(t *testing.T) {
 func TestAPISentryAppRoutes_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{
-		IntegrationRegistry: integration.NewBuiltinRegistry(),
+		IntegrationRegistry: integration.NewDefaultRegistry(),
 		IntegrationStore:    sqlite.NewIntegrationConfigStore(db),
 	})
 	defer ts.Close()
@@ -244,6 +245,47 @@ func TestAPISentryAppRoutes_SQLite(t *testing.T) {
 		t.Fatalf("unexpected app response: %+v", app)
 	}
 
+	update := authzJSONRequest(t, ts, http.MethodPut, "/api/0/sentry-apps/webhook/", pat, map[string]any{
+		"name":           "Webhook Plus",
+		"scopes":         []string{"event:read", "event:write"},
+		"author":         "urgentry labs",
+		"overview":       "Updated webhook app",
+		"events":         []string{"issue", "event.alert"},
+		"allowedOrigins": []string{"https://example.com"},
+		"isAlertable":    false,
+		"verifyInstall":  false,
+		"schema": map[string]any{
+			"elements": []map[string]any{{"type": "text", "name": "url"}},
+		},
+		"redirectUrl": "https://example.com/install",
+		"webhookUrl":  "https://example.com/webhook",
+	})
+	if update.StatusCode != http.StatusOK {
+		t.Fatalf("update status = %d, want 200", update.StatusCode)
+	}
+	var updated sentryAppResponse
+	decodeBody(t, update, &updated)
+	if updated.Name != "Webhook Plus" || updated.Author != "urgentry labs" || updated.WebhookURL != "https://example.com/webhook" || updated.VerifyInstall {
+		t.Fatalf("unexpected update response: %+v", updated)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(updated.Schema, &schema); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	if got := schema["elements"].([]any)[0].(map[string]any)["name"]; got != "url" {
+		t.Fatalf("unexpected schema: %+v", schema)
+	}
+
+	refetch := authzJSONRequest(t, ts, http.MethodGet, "/api/0/sentry-apps/webhook/", pat, nil)
+	if refetch.StatusCode != http.StatusOK {
+		t.Fatalf("refetch status = %d, want 200", refetch.StatusCode)
+	}
+	var refetched sentryAppResponse
+	decodeBody(t, refetch, &refetched)
+	if refetched.Name != "Webhook Plus" || len(refetched.AllowedOrigins) != 1 || refetched.AllowedOrigins[0] != "https://example.com" {
+		t.Fatalf("unexpected refetched app: %+v", refetched)
+	}
+
 	install := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/integrations/webhook/install", pat, map[string]any{
 		"config": map[string]any{"url": "https://example.com/hook"},
 	})
@@ -257,8 +299,31 @@ func TestAPISentryAppRoutes_SQLite(t *testing.T) {
 	}
 	var items []sentryAppInstallationResponse
 	decodeBody(t, installations, &items)
-	if len(items) != 1 || items[0].App.ID != "webhook" || items[0].Status != "active" {
+	if len(items) != 1 || items[0].App.ID != "webhook" || items[0].App.Name != "Webhook Plus" || items[0].Status != "active" {
 		t.Fatalf("unexpected installations response: %+v", items)
+	}
+
+	del := authzJSONRequest(t, ts, http.MethodDelete, "/api/0/sentry-apps/webhook/", pat, nil)
+	if del.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete status = %d, want 204", del.StatusCode)
+	}
+	del.Body.Close()
+
+	missing := authzJSONRequest(t, ts, http.MethodGet, "/api/0/sentry-apps/webhook/", pat, nil)
+	if missing.StatusCode != http.StatusNotFound {
+		t.Fatalf("missing status = %d, want 404", missing.StatusCode)
+	}
+
+	postDeleteList := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/sentry-apps/", pat, nil)
+	if postDeleteList.StatusCode != http.StatusOK {
+		t.Fatalf("post-delete list status = %d, want 200", postDeleteList.StatusCode)
+	}
+	var remaining []sentryAppResponse
+	decodeBody(t, postDeleteList, &remaining)
+	for _, item := range remaining {
+		if item.ID == "webhook" {
+			t.Fatalf("deleted app still listed: %+v", remaining)
+		}
 	}
 }
 

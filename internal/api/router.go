@@ -48,6 +48,8 @@ type Dependencies struct {
 	Queries             telemetryquery.Service
 	IntegrationRegistry *integration.Registry
 	IntegrationStore    integration.Store
+	SentryAppStore      integration.AppStore
+	ExternalIssues      integration.ExternalIssueStore
 	CodeMappings        store.CodeMappingStore
 	ForwardingStore     store.ForwardingStore
 	SamplingRules       *sqlite.SamplingRuleStore
@@ -225,7 +227,9 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/organizations/{org_slug}/releases/{version}/commitfiles/", handleListReleaseCommitFiles(control.Releases, withAuth(auth.Policy{Scope: auth.ScopeReleaseRead, Resource: auth.ResourceOrganizationPath})))
 
 	// External issues
-	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/external-issues/", handleListExternalIssues(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
+	if deps.ExternalIssues != nil {
+		mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/external-issues/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath}), handleListExternalIssues(deps.ExternalIssues, allowAllAuth)))
+	}
 
 	// Org-level release files
 	if smStore, ok := deps.SourceMapStore.(*sqlite.SourceMapStore); ok && smStore != nil {
@@ -397,9 +401,17 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("DELETE /api/0/organizations/{org_slug}/integrations/{integration_id}/", handleUninstallIntegration(control.Catalog, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/integrations/{integration_id}/webhook", handleIntegrationWebhook(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore))
 		mux.Handle("GET /api/0/organizations/{org_slug}/config/integrations/", handleListIntegrationConfigs(deps.IntegrationRegistry, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
-		mux.Handle("GET /api/0/organizations/{org_slug}/sentry-apps/", handleListSentryApps(control.Catalog, deps.IntegrationRegistry, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
-		mux.Handle("GET /api/0/organizations/{org_slug}/sentry-app-installations/", handleListSentryAppInstallations(control.Catalog, deps.IntegrationRegistry, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
-		mux.Handle("GET /api/0/sentry-apps/{sentry_app_id_or_slug}/", handleGetSentryApp(deps.IntegrationRegistry, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceAnyMembership})))
+		if deps.SentryAppStore != nil {
+			mux.Handle("GET /api/0/organizations/{org_slug}/sentry-apps/", handleListSentryApps(control.Catalog, deps.IntegrationRegistry, deps.SentryAppStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+			mux.Handle("GET /api/0/organizations/{org_slug}/sentry-app-installations/", handleListSentryAppInstallations(control.Catalog, deps.IntegrationRegistry, deps.SentryAppStore, deps.IntegrationStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
+			mux.Handle("GET /api/0/sentry-apps/{sentry_app_id_or_slug}/", handleGetSentryApp(deps.IntegrationRegistry, deps.SentryAppStore, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceAnyMembership})))
+			mux.Handle("PUT /api/0/sentry-apps/{sentry_app_id_or_slug}/", handleUpdateSentryApp(deps.IntegrationRegistry, deps.SentryAppStore, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceAnyMembership})))
+			mux.Handle("DELETE /api/0/sentry-apps/{sentry_app_id_or_slug}/", handleDeleteSentryApp(deps.IntegrationRegistry, deps.SentryAppStore, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceAnyMembership})))
+		}
+		if deps.ExternalIssues != nil {
+			mux.Handle("POST /api/0/sentry-app-installations/{uuid}/external-issues/", handleUpsertInstallationExternalIssue(deps.DB, control.Catalog, deps.Auth, deps.IntegrationStore, deps.ExternalIssues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceAnyMembership})))
+			mux.Handle("DELETE /api/0/sentry-app-installations/{uuid}/external-issues/{external_issue_id}/", handleDeleteInstallationExternalIssue(deps.Auth, deps.ExternalIssues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceAnyMembership})))
+		}
 	}
 
 	// Source map uploads + project-level release files

@@ -20,6 +20,7 @@ import (
 	"urgentry/internal/api"
 	"urgentry/internal/auth"
 	"urgentry/internal/controlplane"
+	"urgentry/internal/integration"
 	"urgentry/internal/issue"
 	"urgentry/internal/notify"
 	"urgentry/internal/sqlite"
@@ -129,6 +130,21 @@ type preventSnapshot struct {
 	RegeneratedTokenValid bool
 }
 
+type integrationParitySnapshot struct {
+	SentryAppName              string
+	SentryAppWebhookURL        string
+	SentryAppAllowedOrigins    []string
+	InstallationCount          int
+	InstallationAppName        string
+	ExternalIssueDisplayName   string
+	ExternalIssueServiceType   string
+	ExternalIssueWebURL        string
+	ExternalIssueCount         int
+	ExternalIssueCountAfterDel int
+	AppDeleteStatus            int
+	AppGetAfterDeleteStatus    int
+}
+
 func TestControlPlaneAPIHarness(t *testing.T) {
 	t.Parallel()
 
@@ -175,6 +191,20 @@ func TestControlPlanePreventAPIHarness(t *testing.T) {
 	}
 }
 
+func TestControlPlaneIntegrationParityHarness(t *testing.T) {
+	t.Parallel()
+
+	sqliteHarness := newSQLiteControlPlaneHarness(t)
+	postgresHarness := newPostgresControlPlaneHarness(t)
+
+	sqliteSnapshot := runControlPlaneIntegrationSuite(t, sqliteHarness)
+	postgresSnapshot := runControlPlaneIntegrationSuite(t, postgresHarness)
+
+	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
+		t.Fatalf("control-plane integration parity drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
+	}
+}
+
 func newSQLiteControlPlaneHarness(t *testing.T) *controlPlaneHarness {
 	t.Helper()
 
@@ -203,7 +233,7 @@ func newSQLiteControlPlaneHarness(t *testing.T) *controlPlaneHarness {
 		t.Fatalf("sqlite login: %v", err)
 	}
 	control := controlplane.SQLiteServices(db)
-	return startControlPlaneHarness(t, "sqlite", db, db, control, sqlite.NewPreventStore(db), authStore, authz, sessionToken, principal.CSRFToken)
+	return startControlPlaneHarness(t, "sqlite", db, db, control, sqlite.NewPreventStore(db), sqlite.NewIntegrationConfigStore(db), sqlite.NewSentryAppStore(db), sqlite.NewExternalIssueStore(db), authStore, authz, sessionToken, principal.CSRFToken)
 }
 
 func newPostgresControlPlaneHarness(t *testing.T) *controlPlaneHarness {
@@ -237,10 +267,10 @@ func newPostgresControlPlaneHarness(t *testing.T) *controlPlaneHarness {
 		Deliveries: NewNotificationDeliveryStore(controlDB),
 		Monitors:   NewMonitorStore(controlDB),
 	}
-	return startControlPlaneHarness(t, "postgres", queryDB, controlDB, control, NewPreventStore(controlDB), authStore, authz, sessionToken, principal.CSRFToken)
+	return startControlPlaneHarness(t, "postgres", queryDB, controlDB, control, NewPreventStore(controlDB), NewIntegrationConfigStore(controlDB), NewSentryAppStore(controlDB), NewExternalIssueStore(controlDB), authStore, authz, sessionToken, principal.CSRFToken)
 }
 
-func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql.DB, control controlplane.Services, prevent sharedstore.PreventStore, tokenManager auth.TokenManager, authz *auth.Authorizer, sessionToken, csrf string) *controlPlaneHarness {
+func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql.DB, control controlplane.Services, prevent sharedstore.PreventStore, integrationStore integration.Store, sentryApps integration.AppStore, externalIssues integration.ExternalIssueStore, tokenManager auth.TokenManager, authz *auth.Authorizer, sessionToken, csrf string) *controlPlaneHarness {
 	t.Helper()
 
 	blobStore := sharedstore.NewMemoryBlobStore()
@@ -287,26 +317,30 @@ func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql
 	}
 
 	h.apiServer = httptest.NewServer(api.NewRouter(api.Dependencies{
-		DB:               queryDB,
-		Auth:             authz,
-		Control:          control,
-		TokenManager:     tokenManager,
-		PrincipalShadows: sqlite.NewPrincipalShadowStore(queryDB),
-		QueryGuard:       queryGuard,
-		Operators:        operatorStore,
-		OperatorAudits:   operatorAudits,
-		Analytics:        analytics,
-		Backfills:        backfills,
-		Audits:           audits,
-		NativeControl:    nativeControl,
-		ReleaseHealth:    releaseHealth,
-		DebugFiles:       debugFiles,
-		Outcomes:         outcomes,
-		Retention:        retention,
-		ImportExport:     importExport,
-		BlobStore:        blobStore,
-		Queries:          queryService,
-		Prevent:          prevent,
+		DB:                  queryDB,
+		Auth:                authz,
+		Control:             control,
+		TokenManager:        tokenManager,
+		PrincipalShadows:    sqlite.NewPrincipalShadowStore(queryDB),
+		QueryGuard:          queryGuard,
+		Operators:           operatorStore,
+		OperatorAudits:      operatorAudits,
+		Analytics:           analytics,
+		Backfills:           backfills,
+		Audits:              audits,
+		NativeControl:       nativeControl,
+		ReleaseHealth:       releaseHealth,
+		DebugFiles:          debugFiles,
+		Outcomes:            outcomes,
+		Retention:           retention,
+		ImportExport:        importExport,
+		BlobStore:           blobStore,
+		Queries:             queryService,
+		IntegrationRegistry: integration.NewDefaultRegistry(),
+		IntegrationStore:    integrationStore,
+		SentryAppStore:      sentryApps,
+		ExternalIssues:      externalIssues,
+		Prevent:             prevent,
 	}))
 	t.Cleanup(h.apiServer.Close)
 
@@ -904,6 +938,158 @@ func runControlPlanePreventSuite(t *testing.T, h *controlPlaneHarness) preventSn
 		snapshot.TestResultFailureRate = results.Results[0].FailureRate
 		snapshot.TestResultFailCount = results.Results[0].TotalFailCount
 	}
+	return snapshot
+}
+
+type harnessSentryApp struct {
+	ID             string   `json:"id"`
+	Slug           string   `json:"slug"`
+	Name           string   `json:"name"`
+	WebhookURL     string   `json:"webhookUrl"`
+	AllowedOrigins []string `json:"allowedOrigins"`
+}
+
+type harnessSentryAppInstallation struct {
+	UUID   string           `json:"uuid"`
+	App    harnessSentryApp `json:"app"`
+	Status string           `json:"status"`
+}
+
+type harnessExternalIssueLink struct {
+	ID          string `json:"id"`
+	IssueID     string `json:"issueId"`
+	ServiceType string `json:"serviceType"`
+	DisplayName string `json:"displayName"`
+	WebURL      string `json:"webUrl"`
+}
+
+func runControlPlaneIntegrationSuite(t *testing.T, h *controlPlaneHarness) integrationParitySnapshot {
+	t.Helper()
+
+	seedHarnessIssues(t, h)
+
+	updateResp := jsonRequest(t, h.apiServer, http.MethodPut, "/api/0/sentry-apps/webhook/", h.pat, map[string]any{
+		"name":           "Webhook Plus",
+		"scopes":         []string{"event:read", "event:write"},
+		"author":         "urgentry labs",
+		"overview":       "Updated webhook app",
+		"events":         []string{"issue", "event.alert"},
+		"allowedOrigins": []string{"https://example.com"},
+		"isAlertable":    false,
+		"verifyInstall":  false,
+		"schema": map[string]any{
+			"elements": []map[string]any{{"type": "text", "name": "url"}},
+		},
+		"redirectUrl": "https://example.com/install",
+		"webhookUrl":  "https://example.com/webhook",
+	})
+	if updateResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s sentry app update status = %d", h.name, updateResp.StatusCode)
+	}
+	var app harnessSentryApp
+	if err := json.NewDecoder(updateResp.Body).Decode(&app); err != nil {
+		t.Fatalf("%s decode sentry app update: %v", h.name, err)
+	}
+	_ = updateResp.Body.Close()
+
+	installResp := jsonRequest(t, h.apiServer, http.MethodPost, "/api/0/organizations/"+harnessOrgSlug+"/integrations/webhook/install", h.pat, map[string]any{
+		"config": map[string]any{"url": "https://example.com/hook"},
+	})
+	if installResp.StatusCode != http.StatusCreated {
+		t.Fatalf("%s integration install status = %d", h.name, installResp.StatusCode)
+	}
+	var installation integration.IntegrationConfig
+	if err := json.NewDecoder(installResp.Body).Decode(&installation); err != nil {
+		t.Fatalf("%s decode integration install: %v", h.name, err)
+	}
+	_ = installResp.Body.Close()
+
+	installationsResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/sentry-app-installations/", h.pat, nil)
+	if installationsResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s sentry app installations status = %d", h.name, installationsResp.StatusCode)
+	}
+	var installations []harnessSentryAppInstallation
+	if err := json.NewDecoder(installationsResp.Body).Decode(&installations); err != nil {
+		t.Fatalf("%s decode sentry app installations: %v", h.name, err)
+	}
+	_ = installationsResp.Body.Close()
+
+	createExternalResp := jsonRequest(t, h.apiServer, http.MethodPost, "/api/0/sentry-app-installations/"+installation.ID+"/external-issues/", h.pat, map[string]any{
+		"issueId":    "grp-harness-1",
+		"webUrl":     "https://example.com/ExternalProj/issue-1",
+		"project":    "ExternalProj",
+		"identifier": "issue-1",
+	})
+	if createExternalResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s external issue create status = %d", h.name, createExternalResp.StatusCode)
+	}
+	var external harnessExternalIssueLink
+	if err := json.NewDecoder(createExternalResp.Body).Decode(&external); err != nil {
+		t.Fatalf("%s decode external issue create: %v", h.name, err)
+	}
+	_ = createExternalResp.Body.Close()
+
+	updateExternalResp := jsonRequest(t, h.apiServer, http.MethodPost, "/api/0/sentry-app-installations/"+installation.ID+"/external-issues/", h.pat, map[string]any{
+		"issueId":    "grp-harness-1",
+		"webUrl":     "https://example.com/ExternalProj/issue-1-updated",
+		"project":    "ExternalProj",
+		"identifier": "issue-1",
+	})
+	if updateExternalResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s external issue update status = %d", h.name, updateExternalResp.StatusCode)
+	}
+	if err := json.NewDecoder(updateExternalResp.Body).Decode(&external); err != nil {
+		t.Fatalf("%s decode external issue update: %v", h.name, err)
+	}
+	_ = updateExternalResp.Body.Close()
+
+	listExternalResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/issues/grp-harness-1/external-issues/", h.pat, nil)
+	if listExternalResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s external issue list status = %d", h.name, listExternalResp.StatusCode)
+	}
+	var externalLinks []harnessExternalIssueLink
+	if err := json.NewDecoder(listExternalResp.Body).Decode(&externalLinks); err != nil {
+		t.Fatalf("%s decode external issue list: %v", h.name, err)
+	}
+	_ = listExternalResp.Body.Close()
+
+	deleteExternalResp := jsonRequest(t, h.apiServer, http.MethodDelete, "/api/0/sentry-app-installations/"+installation.ID+"/external-issues/"+external.ID+"/", h.pat, nil)
+	if deleteExternalResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("%s external issue delete status = %d", h.name, deleteExternalResp.StatusCode)
+	}
+	_ = deleteExternalResp.Body.Close()
+
+	listAfterDeleteResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/issues/grp-harness-1/external-issues/", h.pat, nil)
+	if listAfterDeleteResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s external issue list after delete status = %d", h.name, listAfterDeleteResp.StatusCode)
+	}
+	var externalLinksAfterDelete []harnessExternalIssueLink
+	if err := json.NewDecoder(listAfterDeleteResp.Body).Decode(&externalLinksAfterDelete); err != nil {
+		t.Fatalf("%s decode external issue list after delete: %v", h.name, err)
+	}
+	_ = listAfterDeleteResp.Body.Close()
+
+	deleteAppResp := jsonRequest(t, h.apiServer, http.MethodDelete, "/api/0/sentry-apps/webhook/", h.pat, nil)
+	appGetAfterDeleteResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/sentry-apps/webhook/", h.pat, nil)
+	_ = appGetAfterDeleteResp.Body.Close()
+
+	snapshot := integrationParitySnapshot{
+		SentryAppName:              app.Name,
+		SentryAppWebhookURL:        app.WebhookURL,
+		SentryAppAllowedOrigins:    app.AllowedOrigins,
+		InstallationCount:          len(installations),
+		ExternalIssueDisplayName:   external.DisplayName,
+		ExternalIssueServiceType:   external.ServiceType,
+		ExternalIssueWebURL:        external.WebURL,
+		ExternalIssueCount:         len(externalLinks),
+		ExternalIssueCountAfterDel: len(externalLinksAfterDelete),
+		AppDeleteStatus:            deleteAppResp.StatusCode,
+		AppGetAfterDeleteStatus:    appGetAfterDeleteResp.StatusCode,
+	}
+	if len(installations) > 0 {
+		snapshot.InstallationAppName = installations[0].App.Name
+	}
+	_ = deleteAppResp.Body.Close()
 	return snapshot
 }
 

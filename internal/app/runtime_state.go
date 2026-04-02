@@ -120,6 +120,8 @@ type runtimeState struct {
 	operatorStore          store.OperatorStore
 	integrationRegistry    *integration.Registry
 	integrationConfigStore integration.Store
+	sentryAppStore         integration.AppStore
+	externalIssueStore     integration.ExternalIssueStore
 	samplingRuleStore      *sqlite.SamplingRuleStore
 	uptimeMonitorStore     *sqlite.UptimeMonitorStore
 	quotaStore             *sqlite.QuotaStore
@@ -225,7 +227,9 @@ func (s *runtimeState) buildCoreStores() error {
 	s.analytics = analyticsservice.SQLiteServices(s.db)
 	s.auditStore = sqlite.NewAuditStore(s.db)
 	s.integrationRegistry = integration.NewDefaultRegistry()
-	s.integrationConfigStore = sqlite.NewIntegrationConfigStore(s.db)
+	s.integrationConfigStore = s.control.integrationStore
+	s.sentryAppStore = s.control.sentryAppStore
+	s.externalIssueStore = s.control.externalIssues
 	s.samplingRuleStore = sqlite.NewSamplingRuleStore(s.db)
 	s.uptimeMonitorStore = sqlite.NewUptimeMonitorStore(s.db)
 	s.quotaStore = sqlite.NewQuotaStore(s.db)

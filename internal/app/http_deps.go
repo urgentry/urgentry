@@ -58,6 +58,8 @@ type httpDepsInput struct {
 	importExport        *sqlite.ImportExportStore
 	integrationRegistry *integration.Registry
 	integrationStore    integration.Store
+	sentryApps          integration.AppStore
+	externalIssues      integration.ExternalIssueStore
 	samplingRules       *sqlite.SamplingRuleStore
 	uptimeMonitors      *sqlite.UptimeMonitorStore
 	quota               *sqlite.QuotaStore
@@ -117,6 +119,8 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			Queries:             input.queryService,
 			IntegrationRegistry: input.integrationRegistry,
 			IntegrationStore:    input.integrationStore,
+			SentryAppStore:      input.sentryApps,
+			ExternalIssues:      input.externalIssues,
 			SamplingRules:       input.samplingRules,
 			UptimeMonitors:      input.uptimeMonitors,
 			Quota:               input.quota,
