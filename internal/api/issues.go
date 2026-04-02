@@ -1302,8 +1302,7 @@ func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, db *sql.DB
 		}
 
 		ids := r.URL.Query()["id"]
-		if len(ids) == 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+		if !validateBulkIssueIDs(w, ids) {
 			return
 		}
 
@@ -1456,8 +1455,7 @@ func handleBulkDeleteProjectIssues(catalog controlplane.CatalogStore, issues con
 		}
 
 		ids := r.URL.Query()["id"]
-		if len(ids) == 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing issue IDs.")
+		if !validateBulkIssueIDs(w, ids) {
 			return
 		}
 		if err := issues.BulkDeleteGroups(r.Context(), ids); err != nil {

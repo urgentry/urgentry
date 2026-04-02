@@ -365,6 +365,31 @@ func TestAPIBulkIssueOperationsCapIDs_SQLite(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestAPIProjectBulkIssueOperationsCapIDs_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+
+	ts := newSQLiteTestServer(t, db)
+	defer ts.Close()
+
+	params := url.Values{}
+	for i := 0; i < maxBulkIssueIDs+1; i++ {
+		params.Add("id", "grp-project-bulk-cap")
+	}
+	path := "/api/0/projects/test-org/test-project/issues/?" + params.Encode()
+
+	resp := authPut(t, ts, path, bulkMutateRequest{Status: "ignored"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("project bulk mutate status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = authDelete(t, ts, path)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("project bulk delete status = %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
 func TestAPIUpdateIssue_SQLite_RejectsHasSeenMutation(t *testing.T) {
 	db := openTestSQLite(t)
 	insertSQLiteGroup(t, db, "grp-api-update", "ValueError: bad input", "main.go in handler", "error", "unresolved")
