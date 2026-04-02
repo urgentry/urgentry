@@ -90,7 +90,7 @@ func TestOrganizationMembershipLifecycle(t *testing.T) {
 	}
 	createTeam.Body.Close()
 
-	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/invites/", pat, map[string]any{
+	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/members/", pat, map[string]any{
 		"email":    "new-user@example.com",
 		"role":     "member",
 		"teamSlug": "platform",
@@ -205,7 +205,7 @@ func TestOrganizationMembershipListShowsExpiredPendingInvite(t *testing.T) {
 	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
 	defer ts.Close()
 
-	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/invites/", pat, map[string]any{
+	createInvite := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/members/", pat, map[string]any{
 		"email": "expired-user@example.com",
 		"role":  "member",
 	})

@@ -170,7 +170,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/organizations/{org_slug}/eventids/{event_id}/", handleResolveEventID(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/shortids/{short_id}/", handleResolveShortID(deps.DB, control.Issues, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/members/", handleListOrgMembers(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
-	mux.Handle("POST /api/0/organizations/{org_slug}/members/", handleAddOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("POST /api/0/organizations/{org_slug}/members/", handleCreateInvite(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/members/{member_id}/", handleGetOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("PUT /api/0/organizations/{org_slug}/members/{member_id}/", handleUpdateOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/members/{member_id}/", handleRemoveOrgMember(control.Admin, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))

@@ -123,44 +123,6 @@ func orgMemberTeams(ctx context.Context, admin controlplane.AdminStore, orgSlug,
 	return teams, nil
 }
 
-// handleAddOrgMember handles POST /api/0/organizations/{org_slug}/members/.
-func handleAddOrgMember(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !auth(w, r) {
-			return
-		}
-		var body orgMemberRequest
-		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
-			return
-		}
-		body.UserID = strings.TrimSpace(body.UserID)
-		if body.UserID == "" {
-			httputil.WriteError(w, http.StatusBadRequest, "User ID is required.")
-			return
-		}
-		orgSlug := PathParam(r, "org_slug")
-		rec, err := admin.AddOrgMember(r.Context(), orgSlug, body.UserID, strings.TrimSpace(body.Role))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to add organization member.")
-			return
-		}
-		if rec == nil {
-			httputil.WriteError(w, http.StatusNotFound, "User or organization not found.")
-			return
-		}
-		httputil.WriteJSON(w, http.StatusCreated, &Member{
-			ID:             rec.ID,
-			UserID:         rec.UserID,
-			OrganizationID: rec.OrganizationID,
-			Email:          rec.Email,
-			Name:           rec.Name,
-			Role:           rec.Role,
-			DateCreated:    rec.CreatedAt,
-		})
-	}
-}
-
 // handleRemoveOrgMember handles DELETE /api/0/organizations/{org_slug}/members/{member_id}/.
 func handleRemoveOrgMember(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -360,7 +322,7 @@ func handleListInvites(admin controlplane.AdminStore, auth authFunc) http.Handle
 	}
 }
 
-// handleCreateInvite handles POST /api/0/organizations/{org_slug}/invites/.
+// handleCreateInvite handles POST /api/0/organizations/{org_slug}/members/ and /invites/.
 func handleCreateInvite(admin controlplane.AdminStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
