@@ -53,6 +53,7 @@ type Dependencies struct {
 	CodeMappings        store.CodeMappingStore
 	ForwardingStore     store.ForwardingStore
 	PreprodArtifacts    *sqlite.PreprodArtifactStore
+	Autofix             *sqlite.AutofixStore
 	SamplingRules       *sqlite.SamplingRuleStore
 	UptimeMonitors      *sqlite.UptimeMonitorStore
 	Quota               *sqlite.QuotaStore
@@ -161,6 +162,10 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("PUT /api/0/organizations/{org_slug}/issues/{issue_id}/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath}), handleUpdateIssue(deps.DB, control.IssueReads, control.Issues, deps.Hooks, allowAllAuth)))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/issues/{issue_id}/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath}), handleDeleteIssue(control.Issues, allowAllAuth)))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/events/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath}), handleListIssueEvents(deps.DB, allowAllAuth)))
+	if deps.Autofix != nil {
+		mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/autofix/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath}), handleGetIssueAutofix(deps.Autofix, allowAllAuth)))
+		mux.Handle("POST /api/0/organizations/{org_slug}/issues/{issue_id}/autofix/", withOrgIssueScope(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath}), handleStartIssueAutofix(deps.DB, deps.Autofix, allowAllAuth)))
+	}
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/hashes/", handleListIssueHashes(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/tags/{key}/", handleGetIssueTagDetail(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/tags/{key}/values/", handleListIssueTagValues(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))

@@ -93,6 +93,7 @@ type runtimeState struct {
 	attachmentStore  attachment.Store
 	debugFileStore   *sqlite.DebugFileStore
 	preprodArtifacts *sqlite.PreprodArtifactStore
+	autofixStore     *sqlite.AutofixStore
 	principalShadows *sqlite.PrincipalShadowStore
 	analytics        analyticsservice.Services
 	auditStore       *sqlite.AuditStore
@@ -225,6 +226,7 @@ func (s *runtimeState) buildCoreStores() error {
 	s.attachmentStore = attachment.Store(sqlite.NewAttachmentStore(s.db, s.blobStore))
 	s.debugFileStore = sqlite.NewDebugFileStore(s.db, s.blobStore)
 	s.preprodArtifacts = sqlite.NewPreprodArtifactStore(s.db)
+	s.autofixStore = sqlite.NewAutofixStore(s.db)
 	s.principalShadows = sqlite.NewPrincipalShadowStore(s.db)
 	s.analytics = analyticsservice.SQLiteServices(s.db)
 	s.auditStore = sqlite.NewAuditStore(s.db)

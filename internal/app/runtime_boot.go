@@ -258,6 +258,7 @@ func (s *runtimeState) newHTTPServer() (*http.Server, error) {
 		nativeControl:       s.nativeControlStore,
 		debugFiles:          s.debugFileStore,
 		preprodArtifacts:    s.preprodArtifacts,
+		autofix:             s.autofixStore,
 		retentionStore:      s.retentionStore,
 		importExport:        s.importExportStore,
 		integrationRegistry: s.integrationRegistry,

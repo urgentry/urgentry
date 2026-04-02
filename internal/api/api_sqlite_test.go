@@ -108,6 +108,9 @@ func sqliteAuthorizedDependencies(t *testing.T, db *sql.DB, deps Dependencies) D
 	if deps.PreprodArtifacts == nil {
 		deps.PreprodArtifacts = sqlite.NewPreprodArtifactStore(db)
 	}
+	if deps.Autofix == nil {
+		deps.Autofix = sqlite.NewAutofixStore(db)
+	}
 	if deps.Outcomes == nil {
 		deps.Outcomes = sqlite.NewOutcomeStore(db)
 	}

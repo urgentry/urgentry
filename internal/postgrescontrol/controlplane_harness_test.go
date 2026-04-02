@@ -156,6 +156,15 @@ type preprodArtifactSnapshot struct {
 	InvalidQueryStatus  int
 }
 
+type autofixSnapshot struct {
+	InitialNil    bool
+	RunID         int64
+	Status        string
+	StepCount     int
+	PullRequest   string
+	InvalidStatus int
+}
+
 func TestControlPlaneAPIHarness(t *testing.T) {
 	t.Parallel()
 
@@ -181,6 +190,20 @@ func TestControlPlaneWebHarness(t *testing.T) {
 
 	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
 		t.Fatalf("control-plane web drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
+	}
+}
+
+func TestControlPlaneAutofixHarness(t *testing.T) {
+	t.Parallel()
+
+	sqliteHarness := newSQLiteControlPlaneHarness(t)
+	postgresHarness := newPostgresControlPlaneHarness(t)
+
+	sqliteSnapshot := runControlPlaneAutofixSuite(t, sqliteHarness)
+	postgresSnapshot := runControlPlaneAutofixSuite(t, postgresHarness)
+
+	if !reflect.DeepEqual(sqliteSnapshot, postgresSnapshot) {
+		t.Fatalf("control-plane autofix drift\nsqlite:   %+v\npostgres: %+v", sqliteSnapshot, postgresSnapshot)
 	}
 }
 
@@ -328,6 +351,7 @@ func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql
 	releaseHealth := sqlite.NewReleaseHealthStore(queryDB)
 	debugFiles := sqlite.NewDebugFileStore(queryDB, blobStore)
 	preprodArtifacts := sqlite.NewPreprodArtifactStore(queryDB)
+	autofix := sqlite.NewAutofixStore(queryDB)
 	outcomes := sqlite.NewOutcomeStore(queryDB)
 	retention := sqlite.NewRetentionStore(queryDB, blobStore)
 	nativeControl := sqlite.NewNativeControlStore(queryDB, blobStore, operatorAudits)
@@ -358,6 +382,7 @@ func startControlPlaneHarness(t *testing.T, name string, queryDB, controlDB *sql
 		ReleaseHealth:       releaseHealth,
 		DebugFiles:          debugFiles,
 		PreprodArtifacts:    preprodArtifacts,
+		Autofix:             autofix,
 		Outcomes:            outcomes,
 		Retention:           retention,
 		ImportExport:        importExport,
@@ -1191,6 +1216,72 @@ func runControlPlanePreprodArtifactSuite(t *testing.T, h *controlPlaneHarness) p
 		snapshot.CurrentBuildID = latest.CurrentArtifact.BuildID
 	}
 	return snapshot
+}
+
+func runControlPlaneAutofixSuite(t *testing.T, h *controlPlaneHarness) autofixSnapshot {
+	t.Helper()
+
+	seedHarnessIssues(t, h)
+
+	initialResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/issues/grp-harness-1/autofix/", h.pat, nil)
+	if initialResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s initial autofix get status = %d", h.name, initialResp.StatusCode)
+	}
+	var initial map[string]any
+	if err := json.NewDecoder(initialResp.Body).Decode(&initial); err != nil {
+		t.Fatalf("%s decode initial autofix get: %v", h.name, err)
+	}
+	_ = initialResp.Body.Close()
+
+	startResp := jsonRequest(t, h.apiServer, http.MethodPost, "/api/0/organizations/"+harnessOrgSlug+"/issues/grp-harness-1/autofix/", h.pat, map[string]any{
+		"instruction":          "Focus on checkout failures.",
+		"pr_to_comment_on_url": "https://github.com/acme/backend/pull/42",
+		"stopping_point":       "open_pr",
+	})
+	if startResp.StatusCode != http.StatusAccepted {
+		t.Fatalf("%s autofix start status = %d", h.name, startResp.StatusCode)
+	}
+	var started struct {
+		RunID int64 `json:"run_id"`
+	}
+	if err := json.NewDecoder(startResp.Body).Decode(&started); err != nil {
+		t.Fatalf("%s decode autofix start: %v", h.name, err)
+	}
+	_ = startResp.Body.Close()
+
+	getResp := jsonRequest(t, h.apiServer, http.MethodGet, "/api/0/organizations/"+harnessOrgSlug+"/issues/grp-harness-1/autofix/", h.pat, nil)
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("%s autofix get status = %d", h.name, getResp.StatusCode)
+	}
+	var current map[string]any
+	if err := json.NewDecoder(getResp.Body).Decode(&current); err != nil {
+		t.Fatalf("%s decode autofix get: %v", h.name, err)
+	}
+	_ = getResp.Body.Close()
+
+	invalidResp := jsonRequest(t, h.apiServer, http.MethodPost, "/api/0/organizations/"+harnessOrgSlug+"/issues/grp-harness-1/autofix/", h.pat, map[string]any{
+		"event_id": "evt-does-not-belong",
+	})
+	_ = invalidResp.Body.Close()
+
+	autofix, _ := current["autofix"].(map[string]any)
+	steps, _ := autofix["steps"].([]any)
+	pullRequestStatus := ""
+	if pullRequest, ok := autofix["pull_request"].(map[string]any); ok {
+		if status, ok := pullRequest["status"].(string); ok {
+			pullRequestStatus = status
+		}
+	}
+	status, _ := autofix["status"].(string)
+
+	return autofixSnapshot{
+		InitialNil:    initial["autofix"] == nil,
+		RunID:         started.RunID,
+		Status:        status,
+		StepCount:     len(steps),
+		PullRequest:   pullRequestStatus,
+		InvalidStatus: invalidResp.StatusCode,
+	}
 }
 
 func openHarnessSQLite(t *testing.T) *sql.DB {

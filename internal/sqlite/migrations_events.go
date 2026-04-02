@@ -629,7 +629,7 @@ var migrationsEvents = []schemaMigration{
 			ALTER TABLE artifacts ADD COLUMN organization_id TEXT;
 			CREATE INDEX IF NOT EXISTS idx_artifacts_org_release ON artifacts(organization_id, release_version);
 	`},
-	{47, `
+	{78, `
 			CREATE TABLE IF NOT EXISTS preprod_artifacts (
 				id TEXT PRIMARY KEY,
 				organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -673,5 +673,23 @@ var migrationsEvents = []schemaMigration{
 				ON preprod_artifacts(organization_id, id);
 			CREATE INDEX IF NOT EXISTS idx_preprod_artifacts_lookup
 				ON preprod_artifacts(project_id, app_id, platform, is_installable, created_at DESC);
+	`},
+	{79, `
+			CREATE TABLE IF NOT EXISTS issue_autofix_runs (
+				run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				issue_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+				status TEXT NOT NULL DEFAULT 'COMPLETED',
+				event_id TEXT,
+				stopping_point TEXT NOT NULL DEFAULT 'root_cause',
+				payload_json TEXT NOT NULL DEFAULT '{}',
+				created_at TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX IF NOT EXISTS idx_issue_autofix_runs_issue_latest
+				ON issue_autofix_runs(issue_id, run_id DESC);
+			CREATE INDEX IF NOT EXISTS idx_issue_autofix_runs_project_latest
+				ON issue_autofix_runs(project_id, run_id DESC);
 	`},
 }
