@@ -306,6 +306,7 @@ func NewServer(role string, cfg config.Config, deps Deps) http.Handler {
 		mux.Handle("POST /api/{project_id}/envelope/", ingestChain(ingest.EnvelopeHandlerWithDeps(ingestDeps)))
 		mux.Handle("POST /api/{project_id}/minidump/", ingestChain(ingest.MinidumpHandlerWithDeps(ingestDeps)))
 		mux.Handle("POST /api/{project_id}/security/", ingestChain(ingest.SecurityReportHandler(ingestDeps.Pipeline, ingestDeps.Metrics)))
+		mux.Handle("POST /api/{project_id}/csp-report/", ingestChain(ingest.SecurityReportHandler(ingestDeps.Pipeline, ingestDeps.Metrics)))
 		mux.Handle("POST /api/{project_id}/otlp/v1/traces/", ingestChain(ingest.OTLPTracesHandler(ingestDeps.Pipeline, ingestDeps.Metrics)))
 		mux.Handle("POST /api/{project_id}/otlp/v1/logs/", ingestChain(ingest.OTLPLogsHandler(ingestDeps.Pipeline, ingestDeps.Metrics)))
 		mux.Handle("OPTIONS /api/{project_id}/store/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -318,6 +319,9 @@ func NewServer(role string, cfg config.Config, deps Deps) http.Handler {
 			w.WriteHeader(http.StatusOK)
 		})))
 		mux.Handle("OPTIONS /api/{project_id}/security/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})))
+		mux.Handle("OPTIONS /api/{project_id}/csp-report/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
 		mux.Handle("OPTIONS /api/{project_id}/otlp/v1/traces/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
