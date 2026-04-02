@@ -1,10 +1,14 @@
 package sqlite
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"urgentry/pkg/id"
@@ -23,12 +27,43 @@ type ServiceHook struct {
 
 // HookStore persists project service hooks in SQLite.
 type HookStore struct {
-	db *sql.DB
+	db         *sql.DB
+	HTTPClient *http.Client
 }
 
 // NewHookStore creates a HookStore backed by the given database.
 func NewHookStore(db *sql.DB) *HookStore {
 	return &HookStore{db: db}
+}
+
+// FireHooks POSTs the given payload to all active project hooks subscribed to
+// the provided action. Delivery errors are collected and returned together.
+func (s *HookStore) FireHooks(ctx context.Context, projectID, action string, payload any) error {
+	action = strings.TrimSpace(action)
+	if action == "" {
+		return nil
+	}
+	hooks, err := s.List(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal hook payload: %w", err)
+	}
+	var errs []error
+	for _, hook := range hooks {
+		if strings.TrimSpace(hook.Status) != "" && hook.Status != "active" {
+			continue
+		}
+		if !hookWantsEvent(hook, action) {
+			continue
+		}
+		if err := s.postHook(ctx, hook.URL, body); err != nil {
+			errs = append(errs, fmt.Errorf("fire hook %s: %w", hook.ID, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // List returns all hooks for a project.
@@ -158,4 +193,41 @@ func scanHookRow(rows *sql.Rows) (ServiceHook, error) {
 	h.CreatedAt = parseTime(nullStr(createdAt))
 	h.UpdatedAt = parseTime(nullStr(updatedAt))
 	return h, nil
+}
+
+func (s *HookStore) postHook(ctx context.Context, url string, body []byte) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "urgentry-service-hook/1.0")
+	resp, err := s.httpClient().Do(req)
+	if err != nil {
+		return fmt.Errorf("post hook: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("hook returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (s *HookStore) httpClient() *http.Client {
+	if s != nil && s.HTTPClient != nil {
+		return s.HTTPClient
+	}
+	return &http.Client{Timeout: 10 * time.Second}
+}
+
+func hookWantsEvent(hook ServiceHook, action string) bool {
+	if len(hook.Events) == 0 {
+		return true
+	}
+	for _, item := range hook.Events {
+		if strings.TrimSpace(item) == action {
+			return true
+		}
+	}
+	return false
 }

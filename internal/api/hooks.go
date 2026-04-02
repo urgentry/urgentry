@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
@@ -60,6 +61,36 @@ type createHookRequest struct {
 	Events []string `json:"events"`
 }
 
+var validHookEvents = map[string]struct{}{
+	"event.created":  {},
+	"event.alert":    {},
+	"issue.created":  {},
+	"issue.resolved": {},
+}
+
+func normalizeHookEvents(events []string) ([]string, bool) {
+	if len(events) == 0 {
+		return nil, false
+	}
+	normalized := make([]string, 0, len(events))
+	seen := make(map[string]struct{}, len(events))
+	for _, item := range events {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			return nil, false
+		}
+		if _, ok := validHookEvents[item]; !ok {
+			return nil, false
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		normalized = append(normalized, item)
+	}
+	return normalized, len(normalized) > 0
+}
+
 // handleCreateHook handles POST /api/0/projects/{org}/{proj}/hooks/.
 func handleCreateHook(
 	catalog controlplane.CatalogStore,
@@ -83,13 +114,15 @@ func handleCreateHook(
 			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: url")
 			return
 		}
+		events, ok := normalizeHookEvents(body.Events)
+		if !ok {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid hook events.")
+			return
+		}
 		h := &sqlite.ServiceHook{
 			ProjectID: project.ID,
 			URL:       body.URL,
-			Events:    body.Events,
-		}
-		if h.Events == nil {
-			h.Events = []string{}
+			Events:    events,
 		}
 		if err := hooks.Create(r.Context(), h); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to create hook.")
@@ -109,7 +142,7 @@ func handleGetHook(
 		if !auth(w, r) {
 			return
 		}
-		_, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
@@ -120,6 +153,10 @@ func handleGetHook(
 			return
 		}
 		if h == nil {
+			httputil.WriteError(w, http.StatusNotFound, "Hook not found.")
+			return
+		}
+		if h.ProjectID != project.ID {
 			httputil.WriteError(w, http.StatusNotFound, "Hook not found.")
 			return
 		}
@@ -143,7 +180,7 @@ func handleUpdateHook(
 		if !auth(w, r) {
 			return
 		}
-		_, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
@@ -157,6 +194,10 @@ func handleUpdateHook(
 			httputil.WriteError(w, http.StatusNotFound, "Hook not found.")
 			return
 		}
+		if h.ProjectID != project.ID {
+			httputil.WriteError(w, http.StatusNotFound, "Hook not found.")
+			return
+		}
 		var body updateHookRequest
 		if err := decodeJSON(r, &body); err != nil {
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
@@ -166,7 +207,12 @@ func handleUpdateHook(
 			h.URL = body.URL
 		}
 		if body.Events != nil {
-			h.Events = body.Events
+			events, ok := normalizeHookEvents(body.Events)
+			if !ok {
+				httputil.WriteError(w, http.StatusBadRequest, "Invalid hook events.")
+				return
+			}
+			h.Events = events
 		}
 		if err := hooks.Update(r.Context(), h); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update hook.")
@@ -186,11 +232,20 @@ func handleDeleteHook(
 		if !auth(w, r) {
 			return
 		}
-		_, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
+		project, ok := getProjectFromCatalog(w, r, catalog, PathParam(r, "org_slug"), PathParam(r, "proj_slug"))
 		if !ok {
 			return
 		}
 		hookID := PathParam(r, "hook_id")
+		h, err := hooks.Get(r.Context(), hookID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load hook.")
+			return
+		}
+		if h == nil || h.ProjectID != project.ID {
+			httputil.WriteError(w, http.StatusNotFound, "Hook not found.")
+			return
+		}
 		if err := hooks.Delete(r.Context(), hookID); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete hook.")
 			return

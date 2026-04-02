@@ -3,9 +3,12 @@ package pipeline
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -147,6 +150,101 @@ func TestNewAlertCallback_RecordsSlackDeliveryForSlowTransaction(t *testing.T) {
 	}
 }
 
+func TestNewAlertCallback_FiresServiceHooksForEventAndIssueCreation(t *testing.T) {
+	db := openStoreTestDB(t)
+	ctx := context.Background()
+
+	server, payloads := newHookCaptureServer(t)
+	defer server.Close()
+
+	hooks := sqlite.NewHookStore(db)
+	hooks.HTTPClient = server.Client()
+	for _, item := range [][]string{{"event.created"}, {"issue.created"}} {
+		if err := hooks.Create(ctx, &sqlite.ServiceHook{
+			ProjectID: "proj-1",
+			URL:       server.URL,
+			Events:    item,
+		}); err != nil {
+			t.Fatalf("Create hook %v: %v", item, err)
+		}
+	}
+
+	cb := NewAlertCallback(AlertDeps{Hooks: hooks})
+	cb(ctx, "proj-1", issue.ProcessResult{
+		EventID:    "evt-hook-1",
+		GroupID:    "grp-hook-1",
+		IsNewGroup: true,
+		EventType:  alert.EventTypeError,
+		Status:     "error",
+	})
+
+	actions := collectedHookActions(payloads.snapshot())
+	if _, ok := actions["event.created"]; !ok {
+		t.Fatalf("expected event.created hook, got %#v", actions)
+	}
+	if _, ok := actions["issue.created"]; !ok {
+		t.Fatalf("expected issue.created hook, got %#v", actions)
+	}
+	if got := actions["issue.created"]["data"].(map[string]any)["issue"].(map[string]any)["id"]; got != "grp-hook-1" {
+		t.Fatalf("issue.created issue.id = %v, want grp-hook-1", got)
+	}
+}
+
+func TestNewAlertCallback_FiresEventAlertServiceHook(t *testing.T) {
+	db := openStoreTestDB(t)
+	ctx := context.Background()
+
+	server, payloads := newHookCaptureServer(t)
+	defer server.Close()
+
+	hooks := sqlite.NewHookStore(db)
+	hooks.HTTPClient = server.Client()
+	if err := hooks.Create(ctx, &sqlite.ServiceHook{
+		ProjectID: "proj-1",
+		URL:       server.URL,
+		Events:    []string{"event.alert"},
+	}); err != nil {
+		t.Fatalf("Create hook: %v", err)
+	}
+
+	alertStore := sqlite.NewAlertStore(db)
+	rule := &alert.Rule{
+		ProjectID: "proj-1",
+		Name:      "Every event",
+		Status:    "active",
+		Conditions: []alert.Condition{{
+			ID:   alert.ConditionEveryEvent,
+			Name: "Every event",
+		}},
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}
+	if err := alertStore.CreateRule(ctx, rule); err != nil {
+		t.Fatalf("CreateRule: %v", err)
+	}
+
+	cb := NewAlertCallback(AlertDeps{
+		Evaluator: &alert.Evaluator{Rules: alertStore},
+		Hooks:     hooks,
+	})
+	cb(ctx, "proj-1", issue.ProcessResult{
+		EventID:   "evt-alert-hook-1",
+		GroupID:   "grp-alert-hook-1",
+		EventType: alert.EventTypeError,
+		Status:    "error",
+	})
+
+	actions := collectedHookActions(payloads.snapshot())
+	payload, ok := actions["event.alert"]
+	if !ok {
+		t.Fatalf("expected event.alert hook, got %#v", actions)
+	}
+	alertData := payload["data"].(map[string]any)["alert"].(map[string]any)
+	if got := alertData["ruleId"]; got != rule.ID {
+		t.Fatalf("alert.ruleId = %v, want %q", got, rule.ID)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -168,4 +266,49 @@ func openStoreTestDB(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	return db
+}
+
+type hookPayloads struct {
+	mu    sync.Mutex
+	items []map[string]any
+}
+
+func (h *hookPayloads) add(item map[string]any) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.items = append(h.items, item)
+}
+
+func (h *hookPayloads) snapshot() []map[string]any {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := make([]map[string]any, len(h.items))
+	copy(out, h.items)
+	return out
+}
+
+func newHookCaptureServer(t *testing.T) (*httptest.Server, *hookPayloads) {
+	t.Helper()
+	payloads := &hookPayloads{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode hook payload: %v", err)
+		}
+		payloads.add(payload)
+		w.WriteHeader(http.StatusOK)
+	}))
+	return server, payloads
+}
+
+func collectedHookActions(items []map[string]any) map[string]map[string]any {
+	actions := make(map[string]map[string]any, len(items))
+	for _, item := range items {
+		action, _ := item["action"].(string)
+		if action != "" {
+			actions[action] = item
+		}
+	}
+	return actions
 }

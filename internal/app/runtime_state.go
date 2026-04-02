@@ -85,6 +85,7 @@ type runtimeState struct {
 	leaseStore       runtimeasync.LeaseStore
 	eventStore       store.EventStore
 	feedbackStore    *sqlite.FeedbackStore
+	hookStore        *sqlite.HookStore
 	backfillStore    *sqlite.BackfillStore
 	jobStore         *sqlite.JobStore
 	retentionStore   *sqlite.RetentionStore
@@ -95,27 +96,27 @@ type runtimeState struct {
 	analytics        analyticsservice.Services
 	auditStore       *sqlite.AuditStore
 
-	nativeCrashStore     *sqlite.NativeCrashStore
-	backfillController   *pipeline.BackfillController
-	projectionQueue      runtimeasync.Queue
-	projectionEnqueuer   *telemetrybridge.ProjectionEnqueuer
-	projectionWorker     *telemetrybridge.ProjectionWorker
-	proguardStore        proguard.Store
-	sourceMapStore     sourcemap.Store
-	releaseHealthStore *sqlite.ReleaseHealthStore
-	traceStore         *sqlite.TraceStore
-	profileStore       *sqlite.ProfileStore
-	replayStore        *sqlite.ReplayStore
-	replayPolicies     *sqlite.ReplayConfigStore
-	nativeControlStore *sqlite.NativeControlStore
-	importExportStore  *sqlite.ImportExportStore
-	codeMappingStore   *sqlite.CodeMappingStore
-	queryService       telemetryquery.Service
-	evaluator          *alert.Evaluator
-	notifier           *notify.Notifier
-	releaseStore       *sqlite.ReleaseStore
-	metrics            *metrics.Metrics
-	pipeline           *pipeline.Pipeline
+	nativeCrashStore       *sqlite.NativeCrashStore
+	backfillController     *pipeline.BackfillController
+	projectionQueue        runtimeasync.Queue
+	projectionEnqueuer     *telemetrybridge.ProjectionEnqueuer
+	projectionWorker       *telemetrybridge.ProjectionWorker
+	proguardStore          proguard.Store
+	sourceMapStore         sourcemap.Store
+	releaseHealthStore     *sqlite.ReleaseHealthStore
+	traceStore             *sqlite.TraceStore
+	profileStore           *sqlite.ProfileStore
+	replayStore            *sqlite.ReplayStore
+	replayPolicies         *sqlite.ReplayConfigStore
+	nativeControlStore     *sqlite.NativeControlStore
+	importExportStore      *sqlite.ImportExportStore
+	codeMappingStore       *sqlite.CodeMappingStore
+	queryService           telemetryquery.Service
+	evaluator              *alert.Evaluator
+	notifier               *notify.Notifier
+	releaseStore           *sqlite.ReleaseStore
+	metrics                *metrics.Metrics
+	pipeline               *pipeline.Pipeline
 	operatorStore          store.OperatorStore
 	integrationRegistry    *integration.Registry
 	integrationConfigStore integration.Store
@@ -213,6 +214,7 @@ func (s *runtimeState) openSharedBackends() error {
 func (s *runtimeState) buildCoreStores() error {
 	s.eventStore = sqlite.NewEventStore(s.db)
 	s.feedbackStore = sqlite.NewFeedbackStore(s.db)
+	s.hookStore = sqlite.NewHookStore(s.db)
 	s.backfillStore = sqlite.NewBackfillStore(s.db)
 	s.jobStore = sqlite.NewJobStore(s.db)
 	s.retentionStore = sqlite.NewRetentionStore(s.db, s.blobStore)
@@ -424,6 +426,7 @@ func (s *runtimeState) alertDeps() *pipeline.AlertDeps {
 		Evaluator:        s.evaluator,
 		Notifier:         s.notifier,
 		HistoryStore:     s.control.alertHistory,
+		Hooks:            s.hookStore,
 		AlertStore:       s.control.alertStore,
 		MetricAlertStore: s.control.services.MetricAlerts,
 		Profiles:         s.profileStore,

@@ -84,7 +84,7 @@ type updateIssueRequest struct {
 }
 
 // handleUpdateIssue handles PUT /api/0/issues/{issue_id}/.
-func handleUpdateIssue(reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, hooks *sqlite.HookStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -130,6 +130,10 @@ func handleUpdateIssue(reads controlplane.IssueReadStore, issues controlplane.Is
 			httputil.WriteError(w, http.StatusBadRequest, "No issue changes requested.")
 			return
 		}
+		var resolveTransitions []string
+		if body.Status == "resolved" {
+			resolveTransitions = issueIDsNeedingResolvedHook(r.Context(), reads, []string{id})
+		}
 		if err := issues.PatchIssue(r.Context(), id, patch); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issue.")
 			return
@@ -159,6 +163,9 @@ func handleUpdateIssue(reads controlplane.IssueReadStore, issues controlplane.Is
 		if iss == nil {
 			httputil.WriteError(w, http.StatusNotFound, "Issue not found.")
 			return
+		}
+		if len(resolveTransitions) > 0 {
+			fireResolvedIssueHooks(r.Context(), hooks, reads, db, "", resolveTransitions)
 		}
 		httputil.WriteJSON(w, http.StatusOK, apiIssueFromWebIssue(*iss))
 	}
@@ -329,7 +336,7 @@ type bulkMutateRequest struct {
 }
 
 // handleBulkMutateOrgIssues handles PUT /api/0/organizations/{org_slug}/issues/.
-func handleBulkMutateOrgIssues(issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+func handleBulkMutateOrgIssues(db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, hooks *sqlite.HookStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -381,10 +388,17 @@ func handleBulkMutateOrgIssues(issues controlplane.IssueWorkflowStore, auth auth
 			httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
 			return
 		}
+		resolveTransitions := []string(nil)
+		if body.Status == "resolved" {
+			resolveTransitions = issueIDsNeedingResolvedHook(r.Context(), reads, ids)
+		}
 
 		if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
 			return
+		}
+		if len(resolveTransitions) > 0 {
+			fireResolvedIssueHooks(r.Context(), hooks, reads, db, "", resolveTransitions)
 		}
 
 		resp := map[string]any{}
@@ -591,7 +605,7 @@ func handleGetIssueEvent(db *sql.DB, auth authFunc) http.HandlerFunc {
 }
 
 // handleBulkMutateProjectIssues handles PUT /api/0/projects/{org}/{proj}/issues/.
-func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, issues controlplane.IssueWorkflowStore, auth authFunc) http.HandlerFunc {
+func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, db *sql.DB, reads controlplane.IssueReadStore, issues controlplane.IssueWorkflowStore, hooks *sqlite.HookStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -656,10 +670,17 @@ func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, issues con
 			httputil.WriteError(w, http.StatusBadRequest, "No changes requested.")
 			return
 		}
+		resolveTransitions := []string(nil)
+		if body.Status == "resolved" {
+			resolveTransitions = issueIDsNeedingResolvedHook(r.Context(), reads, ids)
+		}
 
 		if err := issues.BulkMutateGroups(r.Context(), ids, patch); err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to update issues.")
 			return
+		}
+		if len(resolveTransitions) > 0 {
+			fireResolvedIssueHooks(r.Context(), hooks, reads, db, project.ID, resolveTransitions)
 		}
 
 		resp := map[string]any{}
@@ -669,6 +690,72 @@ func handleBulkMutateProjectIssues(catalog controlplane.CatalogStore, issues con
 		}
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
+}
+
+func fireResolvedIssueHooks(ctx context.Context, hooks *sqlite.HookStore, reads controlplane.IssueReadStore, db *sql.DB, projectID string, issueIDs []string) {
+	if hooks == nil || reads == nil || db == nil {
+		return
+	}
+	for _, issueID := range issueIDs {
+		iss, err := reads.GetIssue(ctx, issueID)
+		if err != nil || iss == nil {
+			log.Warn().Err(err).Str("group_id", issueID).Msg("failed to load issue for resolved hook")
+			continue
+		}
+		if iss.Status != "resolved" {
+			continue
+		}
+		resolvedProjectID := projectID
+		if resolvedProjectID == "" {
+			resolvedProjectID, err = projectIDForIssue(ctx, db, issueID)
+			if err != nil {
+				log.Warn().Err(err).Str("group_id", issueID).Msg("failed to resolve project for resolved hook")
+				continue
+			}
+		}
+		payload := map[string]any{
+			"action": "issue.resolved",
+			"data": map[string]any{
+				"project": map[string]any{"id": resolvedProjectID},
+				"issue": map[string]any{
+					"id":                  iss.ID,
+					"title":               iss.Title,
+					"culprit":             iss.Culprit,
+					"status":              iss.Status,
+					"resolutionSubstatus": iss.ResolutionSubstatus,
+					"resolvedInRelease":   iss.ResolvedInRelease,
+				},
+			},
+		}
+		if err := hooks.FireHooks(ctx, resolvedProjectID, "issue.resolved", payload); err != nil {
+			log.Warn().Err(err).Str("group_id", issueID).Msg("failed to dispatch issue.resolved hooks")
+		}
+	}
+}
+
+func issueIDsNeedingResolvedHook(ctx context.Context, reads controlplane.IssueReadStore, issueIDs []string) []string {
+	if reads == nil {
+		return nil
+	}
+	out := make([]string, 0, len(issueIDs))
+	for _, issueID := range issueIDs {
+		iss, err := reads.GetIssue(ctx, issueID)
+		if err != nil || iss == nil {
+			continue
+		}
+		if iss.Status != "resolved" {
+			out = append(out, issueID)
+		}
+	}
+	return out
+}
+
+func projectIDForIssue(ctx context.Context, db *sql.DB, issueID string) (string, error) {
+	var projectID string
+	if err := db.QueryRowContext(ctx, `SELECT project_id FROM groups WHERE id = ?`, issueID).Scan(&projectID); err != nil {
+		return "", err
+	}
+	return projectID, nil
 }
 
 // handleBulkDeleteProjectIssues handles DELETE /api/0/projects/{org}/{proj}/issues/.

@@ -23,44 +23,44 @@ type authFunc func(w http.ResponseWriter, r *http.Request) bool
 
 // Dependencies holds all stores needed by the API handlers.
 type Dependencies struct {
-	DB               *sql.DB
-	Auth             *auth.Authorizer
-	Control          controlplane.Services
-	TokenManager     auth.TokenManager
-	PrincipalShadows *sqlite.PrincipalShadowStore
-	QueryGuard       sqlite.QueryGuard
-	Operators        store.OperatorStore
-	OperatorAudits   store.OperatorAuditStore
-	Analytics        analyticsservice.Services
-	Backfills        *sqlite.BackfillStore
-	Audits           *sqlite.AuditStore
-	NativeControl    *sqlite.NativeControlStore
-	ReleaseHealth    *sqlite.ReleaseHealthStore
-	DebugFiles       *sqlite.DebugFileStore
-	Outcomes         *sqlite.OutcomeStore
-	Retention        *sqlite.RetentionStore
-	ImportExport     *sqlite.ImportExportStore
-	Attachments      attachment.Store
-	ProGuardStore    proguard.Store
-	SourceMapStore   sourcemap.Store
-	BlobStore        store.BlobStore
-	Queries              telemetryquery.Service
-	IntegrationRegistry  *integration.Registry
-	IntegrationStore     integration.Store
-	CodeMappings         store.CodeMappingStore
-	ForwardingStore      store.ForwardingStore
-	SamplingRules        *sqlite.SamplingRuleStore
-	UptimeMonitors       *sqlite.UptimeMonitorStore
-	Quota                *sqlite.QuotaStore
-	SymbolSources        *sqlite.SymbolSourceStore
-	InboundFilters       *sqlite.InboundFilterStore
-	Hooks                *sqlite.HookStore
-	FeedbackStore        *sqlite.FeedbackStore
-	Detectors            store.DetectorStore
-	Workflows            store.WorkflowStore
-	ExternalUsers        store.ExternalUserStore
-	OrgForwarders        store.OrgForwarderStore
-	NotificationActions  *sqlite.NotificationActionStore
+	DB                  *sql.DB
+	Auth                *auth.Authorizer
+	Control             controlplane.Services
+	TokenManager        auth.TokenManager
+	PrincipalShadows    *sqlite.PrincipalShadowStore
+	QueryGuard          sqlite.QueryGuard
+	Operators           store.OperatorStore
+	OperatorAudits      store.OperatorAuditStore
+	Analytics           analyticsservice.Services
+	Backfills           *sqlite.BackfillStore
+	Audits              *sqlite.AuditStore
+	NativeControl       *sqlite.NativeControlStore
+	ReleaseHealth       *sqlite.ReleaseHealthStore
+	DebugFiles          *sqlite.DebugFileStore
+	Outcomes            *sqlite.OutcomeStore
+	Retention           *sqlite.RetentionStore
+	ImportExport        *sqlite.ImportExportStore
+	Attachments         attachment.Store
+	ProGuardStore       proguard.Store
+	SourceMapStore      sourcemap.Store
+	BlobStore           store.BlobStore
+	Queries             telemetryquery.Service
+	IntegrationRegistry *integration.Registry
+	IntegrationStore    integration.Store
+	CodeMappings        store.CodeMappingStore
+	ForwardingStore     store.ForwardingStore
+	SamplingRules       *sqlite.SamplingRuleStore
+	UptimeMonitors      *sqlite.UptimeMonitorStore
+	Quota               *sqlite.QuotaStore
+	SymbolSources       *sqlite.SymbolSourceStore
+	InboundFilters      *sqlite.InboundFilterStore
+	Hooks               *sqlite.HookStore
+	FeedbackStore       *sqlite.FeedbackStore
+	Detectors           store.DetectorStore
+	Workflows           store.WorkflowStore
+	ExternalUsers       store.ExternalUserStore
+	OrgForwarders       store.OrgForwarderStore
+	NotificationActions *sqlite.NotificationActionStore
 }
 
 // ValidateDependencies checks the runtime dependencies needed to mount API
@@ -138,7 +138,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/organizations/{org_slug}/ops/overview/", handleGetOperatorOverview(deps.Operators, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/ops/diagnostics/", handleGetOperatorDiagnostics(deps.Operators, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/", handleListOrganizationIssues(control.Catalog, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
-	mux.Handle("PUT /api/0/organizations/{org_slug}/issues/", handleBulkMutateOrgIssues(control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("PUT /api/0/organizations/{org_slug}/issues/", handleBulkMutateOrgIssues(deps.DB, control.IssueReads, control.Issues, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/issues/", handleBulkDeleteOrgIssues(control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/events/{event_id}/", handleGetIssueEvent(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
 	mux.Handle("GET /api/0/organizations/{org_slug}/issues/{issue_id}/hashes/", handleListIssueHashes(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceOrganizationPath})))
@@ -276,7 +276,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 		mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/automation-tokens/{token_id}/", handleRevokeAutomationToken(control.Catalog, deps.Auth, tokenManager, withAuth(auth.Policy{Scope: auth.ScopeProjectTokensWrite, Resource: auth.ResourceProjectPath})))
 	}
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/issues/", handleListProjectIssues(control.Catalog, control.IssueReads, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
-	mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/issues/", handleBulkMutateProjectIssues(control.Catalog, control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceProjectPath})))
+	mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/issues/", handleBulkMutateProjectIssues(control.Catalog, deps.DB, control.IssueReads, control.Issues, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/issues/", handleBulkDeleteProjectIssues(control.Catalog, control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/events/", handleListProjectEvents(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/events/{event_id}/", handleGetProjectEvent(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
@@ -329,7 +329,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 
 	// Issues
 	mux.Handle("GET /api/0/issues/{issue_id}/", handleGetIssue(control.IssueReads, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceIssuePath})))
-	mux.Handle("PUT /api/0/issues/{issue_id}/", handleUpdateIssue(control.IssueReads, control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceIssuePath})))
+	mux.Handle("PUT /api/0/issues/{issue_id}/", handleUpdateIssue(deps.DB, control.IssueReads, control.Issues, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceIssuePath})))
 	mux.Handle("DELETE /api/0/issues/{issue_id}/", handleDeleteIssue(control.Issues, withAuth(auth.Policy{Scope: auth.ScopeIssueWrite, Resource: auth.ResourceIssuePath})))
 	mux.Handle("GET /api/0/issues/{issue_id}/events/", handleListIssueEvents(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceIssuePath})))
 	mux.Handle("GET /api/0/issues/{issue_id}/events/latest/", handleGetLatestIssueEvent(deps.DB, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceIssuePath})))

@@ -107,6 +107,9 @@ func sqliteAuthorizedDependencies(t *testing.T, db *sql.DB, deps Dependencies) D
 	if deps.Outcomes == nil {
 		deps.Outcomes = sqlite.NewOutcomeStore(db)
 	}
+	if deps.Hooks == nil {
+		deps.Hooks = sqlite.NewHookStore(db)
+	}
 	if deps.Retention == nil {
 		deps.Retention = sqlite.NewRetentionStore(db, deps.BlobStore)
 	}

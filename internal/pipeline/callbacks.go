@@ -18,11 +18,16 @@ type AlertHistoryStore interface {
 	Record(ctx context.Context, trigger alert.TriggerEvent) error
 }
 
+type ServiceHookDispatcher interface {
+	FireHooks(ctx context.Context, projectID, action string, payload any) error
+}
+
 // AlertDeps holds the dependencies needed by the alert callback.
 type AlertDeps struct {
 	Evaluator        *alert.Evaluator
 	Notifier         *notify.Notifier
 	HistoryStore     AlertHistoryStore
+	Hooks            ServiceHookDispatcher
 	AlertStore       alert.RuleStore
 	MetricAlertStore alert.MetricAlertRuleStore
 	Profiles         sharedstore.ProfileReadStore
@@ -50,6 +55,10 @@ func DispatchAlertSignal(ctx context.Context, deps AlertDeps, projectID string, 
 // records history, and dispatches notifications.
 func NewAlertCallback(deps AlertDeps) AlertCallback {
 	return func(ctx context.Context, projectID string, result issue.ProcessResult) {
+		fireServiceHooks(ctx, deps, projectID, "event.created", eventHookPayload(projectID, result))
+		if result.IsNewGroup && result.GroupID != "" {
+			fireServiceHooks(ctx, deps, projectID, "issue.created", issueHookPayload(projectID, result, "unresolved"))
+		}
 		signal := alert.Signal{
 			ProjectID:    projectID,
 			GroupID:      result.GroupID,
@@ -103,6 +112,7 @@ func alertProfileCopy(item *alert.ProfileContext) *alert.ProfileContext {
 
 func dispatchAlertTriggers(ctx context.Context, deps AlertDeps, projectID string, triggers []alert.TriggerEvent) {
 	for _, t := range triggers {
+		fireServiceHooks(ctx, deps, projectID, "event.alert", alertHookPayload(projectID, t))
 		if deps.Metrics != nil {
 			deps.Metrics.RecordAlert()
 		}
@@ -184,4 +194,95 @@ func dispatchAlertTriggers(ctx context.Context, deps AlertDeps, projectID string
 			}
 		}
 	}
+}
+
+func fireServiceHooks(ctx context.Context, deps AlertDeps, projectID, action string, payload any) {
+	if deps.Hooks == nil {
+		return
+	}
+	if err := deps.Hooks.FireHooks(ctx, projectID, action, payload); err != nil {
+		log.Error().Err(err).Str("project_id", projectID).Str("action", action).Msg("service hook dispatch failed")
+	}
+}
+
+func eventHookPayload(projectID string, result issue.ProcessResult) map[string]any {
+	payload := map[string]any{
+		"action": "event.created",
+		"data": map[string]any{
+			"project": map[string]any{"id": projectID},
+			"event":   hookEventData(result),
+		},
+	}
+	if result.GroupID != "" {
+		payload["data"].(map[string]any)["issue"] = map[string]any{"id": result.GroupID}
+	}
+	return payload
+}
+
+func issueHookPayload(projectID string, result issue.ProcessResult, status string) map[string]any {
+	data := map[string]any{
+		"project": map[string]any{"id": projectID},
+		"issue": map[string]any{
+			"id":     result.GroupID,
+			"status": status,
+		},
+	}
+	if result.EventID != "" {
+		data["event"] = hookEventData(result)
+	}
+	return map[string]any{
+		"action": "issue.created",
+		"data":   data,
+	}
+}
+
+func alertHookPayload(projectID string, trigger alert.TriggerEvent) map[string]any {
+	data := map[string]any{
+		"project": map[string]any{"id": projectID},
+		"event": map[string]any{
+			"id":          trigger.EventID,
+			"eventId":     trigger.EventID,
+			"type":        trigger.EventType,
+			"status":      trigger.Status,
+			"traceId":     trigger.TraceID,
+			"transaction": trigger.Transaction,
+			"release":     trigger.Release,
+			"timestamp":   trigger.Timestamp,
+		},
+		"alert": map[string]any{
+			"ruleId": trigger.RuleID,
+		},
+	}
+	if trigger.GroupID != "" {
+		data["issue"] = map[string]any{"id": trigger.GroupID}
+	}
+	if trigger.DurationMS > 0 {
+		data["event"].(map[string]any)["durationMs"] = trigger.DurationMS
+	}
+	if trigger.Profile != nil {
+		data["profile"] = trigger.Profile
+	}
+	return map[string]any{
+		"action": "event.alert",
+		"data":   data,
+	}
+}
+
+func hookEventData(result issue.ProcessResult) map[string]any {
+	data := map[string]any{
+		"id":      result.EventID,
+		"eventId": result.EventID,
+		"type":    result.EventType,
+		"status":  result.Status,
+	}
+	if result.TraceID != "" {
+		data["traceId"] = result.TraceID
+	}
+	if result.Transaction != "" {
+		data["transaction"] = result.Transaction
+	}
+	if result.DurationMS > 0 {
+		data["durationMs"] = result.DurationMS
+	}
+	return data
 }
