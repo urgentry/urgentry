@@ -66,8 +66,42 @@ func SearchProjectIssues(ctx context.Context, db *sql.DB, projectID, filter, raw
 	return scanWebIssues(rows)
 }
 
+// SearchProjectIssuesPaged returns project-scoped issue rows with explicit
+// DB-level LIMIT and OFFSET. Request limit+1 rows to detect whether a next
+// page exists without a separate COUNT query.
+func SearchProjectIssuesPaged(ctx context.Context, db *sql.DB, projectID, filter, rawQuery string, limit, offset int) ([]store.WebIssue, error) {
+	query, args := buildIssueSearchListQuery(projectID, filter, rawQuery, "", "last_seen", limit, offset)
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanWebIssues(rows)
+}
+
 func SearchProjectIssueIDs(ctx context.Context, db *sql.DB, projectID, filter, rawQuery string, limit int) ([]string, error) {
 	query, args := buildIssueSearchIDQuery(projectID, filter, rawQuery, "", "last_seen", limit, 0)
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := make([]string, 0, limit)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// SearchProjectIssueIDsPaged is like SearchProjectIssueIDs but with an
+// explicit offset for DB-level pagination.
+func SearchProjectIssueIDsPaged(ctx context.Context, db *sql.DB, projectID, filter, rawQuery string, limit, offset int) ([]string, error) {
+	query, args := buildIssueSearchIDQuery(projectID, filter, rawQuery, "", "last_seen", limit, offset)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err

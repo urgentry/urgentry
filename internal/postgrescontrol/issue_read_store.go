@@ -46,6 +46,21 @@ func (s *IssueReadStore) SearchProjectIssues(ctx context.Context, projectID, fil
 	return s.loadIssues(ctx, ids)
 }
 
+func (s *IssueReadStore) SearchProjectIssuesPaged(ctx context.Context, projectID, filter, rawQuery string, limit, offset int) ([]store.WebIssue, error) {
+	projectID = strings.TrimSpace(projectID)
+	if projectID == "" {
+		return nil, nil
+	}
+	if s.queryDB == nil {
+		return s.searchProjectIssuesDirectPaged(ctx, projectID, filter, rawQuery, limit, offset)
+	}
+	ids, err := sqlite.SearchProjectIssueIDsPaged(ctx, s.queryDB, projectID, filter, rawQuery, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	return s.loadIssues(ctx, ids)
+}
+
 func (s *IssueReadStore) SearchDiscoverIssues(ctx context.Context, orgSlug, filter, rawQuery string, limit int) ([]store.DiscoverIssue, error) {
 	if s.queryDB == nil {
 		return s.searchDiscoverIssuesDirect(ctx, orgSlug, filter, rawQuery, limit)
@@ -96,6 +111,28 @@ func (s *IssueReadStore) searchProjectIssuesDirect(ctx context.Context, projectI
 	}
 	query += ` ORDER BY last_seen DESC NULLS LAST LIMIT $` + itoa(len(args)+1)
 	args = append(args, clampLimit(limit, 100))
+	rows, err := s.controlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanWebIssues(rows)
+}
+
+func (s *IssueReadStore) searchProjectIssuesDirectPaged(ctx context.Context, projectID, filter, rawQuery string, limit, offset int) ([]store.WebIssue, error) {
+	query := `SELECT id, COALESCE(title, ''), COALESCE(culprit, ''), COALESCE(level, ''), COALESCE(status, ''),
+	                 first_seen, last_seen, COALESCE(times_seen, 0),
+	                 COALESCE(NULLIF(assignee_user_id, ''), NULLIF(assignee_team_id, ''), ''), COALESCE(priority, 2), COALESCE(short_id, 0),
+	                 COALESCE(substatus, ''), COALESCE(resolved_in_release, ''), COALESCE(merged_into_group_id, '')
+	            FROM groups
+	           WHERE project_id = $1`
+	args := []any{projectID}
+	if status := normalizeIssueSearchStatus(filter, rawQuery); status != "" {
+		query += ` AND status = $2`
+		args = append(args, status)
+	}
+	query += ` ORDER BY last_seen DESC NULLS LAST LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
+	args = append(args, clampLimit(limit, 100), offset)
 	rows, err := s.controlDB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err

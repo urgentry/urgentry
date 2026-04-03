@@ -177,6 +177,10 @@ func (s *GroupStore) SearchProjectIssues(ctx context.Context, projectID, filter,
 	return SearchProjectIssues(ctx, s.db, projectID, filter, rawQuery, limit)
 }
 
+func (s *GroupStore) SearchProjectIssuesPaged(ctx context.Context, projectID, filter, rawQuery string, limit, offset int) ([]sharedstore.WebIssue, error) {
+	return SearchProjectIssuesPaged(ctx, s.db, projectID, filter, rawQuery, limit, offset)
+}
+
 func (s *GroupStore) SearchDiscoverIssues(ctx context.Context, orgSlug, filter, rawQuery string, limit int) ([]sharedstore.DiscoverIssue, error) {
 	return SearchDiscoverIssues(ctx, s.db, orgSlug, filter, rawQuery, limit)
 }

@@ -88,22 +88,25 @@ func handleListProjectIssues(db *sql.DB, catalog controlplane.CatalogStore, read
 			httputil.WriteError(w, http.StatusNotFound, "Project not found.")
 			return
 		}
-		rows, err := reads.SearchProjectIssues(r.Context(), project.ID, r.URL.Query().Get("filter"), r.URL.Query().Get("query"), 100)
+		// Parse pagination before querying the DB so we only fetch and
+		// hydrate the rows that will be returned to the client.
+		paging := ParsePagination(r)
+		// Request one extra row to detect whether a next page exists
+		// without a separate COUNT query.
+		rows, err := reads.SearchProjectIssuesPaged(r.Context(), project.ID, r.URL.Query().Get("filter"), r.URL.Query().Get("query"), paging.Limit+1, paging.Offset)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list issues.")
 			return
 		}
+		// Trim to the actual page and set Link headers.
+		rows = SetPaginationHeaders(w, r, rows, paging)
 		extras := loadIssueResponseExtras(r.Context(), db, issues, principalUserID(authPrincipalFromContext(r.Context())), rows)
-		issues := make([]Issue, 0, len(rows))
+		page := make([]Issue, 0, len(rows))
 		for _, row := range rows {
 			issue := apiIssueFromWebIssueWithExtras(row, extras[row.ID])
 			issue.ProjectRef = apiProjectRefFromProject(project)
 			finalizeIssueResponse(&issue, org)
-			issues = append(issues, issue)
-		}
-		page := Paginate(w, r, issues)
-		if page == nil {
-			page = []Issue{}
+			page = append(page, issue)
 		}
 		httputil.WriteJSON(w, http.StatusOK, page)
 	}

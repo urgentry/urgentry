@@ -24,5 +24,9 @@ type IssueWorkflowStore interface {
 type IssueReadStore interface {
 	GetIssue(ctx context.Context, id string) (*sharedstore.WebIssue, error)
 	SearchProjectIssues(ctx context.Context, projectID, filter, rawQuery string, limit int) ([]sharedstore.WebIssue, error)
+	// SearchProjectIssuesPaged is like SearchProjectIssues but accepts an
+	// explicit offset for DB-level pagination. Callers should request
+	// limit+1 rows to detect whether a next page exists.
+	SearchProjectIssuesPaged(ctx context.Context, projectID, filter, rawQuery string, limit, offset int) ([]sharedstore.WebIssue, error)
 	SearchDiscoverIssues(ctx context.Context, orgSlug, filter, rawQuery string, limit int) ([]sharedstore.DiscoverIssue, error)
 }
