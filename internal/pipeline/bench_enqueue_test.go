@@ -70,7 +70,6 @@ func BenchmarkEnqueueNonBlockingDurableSaturated(b *testing.B) {
 }
 
 func BenchmarkEnqueueDurableTimeout(b *testing.B) {
-	setBenchmarkQueueTimings(b, idlePollInterval, time.Nanosecond, 0)
 	silencePipelineLogs(b)
 
 	queue := &benchmarkQueue{
@@ -79,6 +78,7 @@ func BenchmarkEnqueueDurableTimeout(b *testing.B) {
 		},
 	}
 	p := NewDurable(nil, queue, 1, 1)
+	setBenchmarkQueueTimings(p, p.idlePollInterval, time.Nanosecond, 0)
 	item := benchmarkItem()
 
 	b.ReportAllocs()

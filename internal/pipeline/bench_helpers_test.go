@@ -37,20 +37,10 @@ func benchmarkOpenDurableStore(b *testing.B) *sql.DB {
 	return db
 }
 
-func setBenchmarkQueueTimings(tb testing.TB, idle, wait, retry time.Duration) {
-	tb.Helper()
-
-	prevIdle := idlePollInterval
-	prevWait := maxEnqueueWait
-	prevRetry := enqueueRetryInterval
-	idlePollInterval = idle
-	maxEnqueueWait = wait
-	enqueueRetryInterval = retry
-	tb.Cleanup(func() {
-		idlePollInterval = prevIdle
-		maxEnqueueWait = prevWait
-		enqueueRetryInterval = prevRetry
-	})
+func setBenchmarkQueueTimings(p *Pipeline, idle, wait, retry time.Duration) {
+	p.idlePollInterval = idle
+	p.maxEnqueueWait = wait
+	p.enqueueRetryInterval = retry
 }
 
 func silencePipelineLogs(tb testing.TB) {

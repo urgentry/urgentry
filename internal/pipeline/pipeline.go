@@ -65,11 +65,11 @@ func (f NativeJobProcessorFunc) ProcessNativeJob(ctx context.Context, projectID 
 	return f(ctx, projectID, payload)
 }
 
-var (
+const (
 	defaultLeaseDuration = 30 * time.Second
-	idlePollInterval     = 100 * time.Millisecond
-	maxEnqueueWait       = time.Second
-	enqueueRetryInterval = 25 * time.Millisecond
+	defaultIdlePoll      = 100 * time.Millisecond
+	defaultMaxEnqueue    = time.Second
+	defaultEnqueueRetry  = 25 * time.Millisecond
 	alertDispatchTimeout = 250 * time.Millisecond
 )
 
@@ -97,6 +97,11 @@ type Pipeline struct {
 	nativeJobs         NativeJobProcessor
 	filterStore        FilterStore
 	outcomeStore       *sqlite.OutcomeStore
+
+	// Queue timing parameters (configurable for benchmarks).
+	idlePollInterval     time.Duration
+	maxEnqueueWait       time.Duration
+	enqueueRetryInterval time.Duration
 }
 
 type lifecycleState uint8
@@ -131,12 +136,15 @@ func newPipeline(processor *issue.Processor, jobs runtimeasync.Queue, queueSize,
 		numWorkers = 1
 	}
 	p := &Pipeline{
-		processor:   processor,
-		jobQueue:    jobs,
-		queueSize:   queueSize,
-		workers:     numWorkers,
-		workerID:    fmt.Sprintf("worker-%s", sqliteID()),
-		stopCh:      make(chan struct{}),
+		processor:            processor,
+		jobQueue:             jobs,
+		queueSize:            queueSize,
+		workers:              numWorkers,
+		workerID:             fmt.Sprintf("worker-%s", sqliteID()),
+		idlePollInterval:     defaultIdlePoll,
+		maxEnqueueWait:       defaultMaxEnqueue,
+		enqueueRetryInterval: defaultEnqueueRetry,
+		stopCh:               make(chan struct{}),
 		alertStopCh: make(chan struct{}),
 	}
 	if jobs == nil {
@@ -259,7 +267,7 @@ func (p *Pipeline) Enqueue(item Item) bool {
 		return false
 	}
 	if p.jobQueue != nil {
-		deadline := time.Now().Add(maxEnqueueWait)
+		deadline := time.Now().Add(p.maxEnqueueWait)
 		for {
 			ok, err := p.jobQueue.Enqueue(context.Background(), sqlite.JobKindEvent, item.ProjectID, item.RawEvent, p.queueSize)
 			if err != nil {
@@ -276,10 +284,10 @@ func (p *Pipeline) Enqueue(item Item) bool {
 				if p.metrics != nil {
 					p.metrics.RecordDrop()
 				}
-				log.Warn().Str("project_id", item.ProjectID).Dur("max_wait", maxEnqueueWait).Msg("pipeline: durable enqueue timed out")
+				log.Warn().Str("project_id", item.ProjectID).Dur("max_wait", p.maxEnqueueWait).Msg("pipeline: durable enqueue timed out")
 				return false
 			}
-			time.Sleep(enqueueRetryInterval)
+			time.Sleep(p.enqueueRetryInterval)
 		}
 	}
 
@@ -404,11 +412,11 @@ func (p *Pipeline) durableWorker(ctx context.Context, workerID string) {
 		job, err := p.jobQueue.ClaimNext(ctx, workerID, defaultLeaseDuration)
 		if err != nil {
 			log.Error().Err(err).Str("worker_id", workerID).Msg("pipeline: claim job failed")
-			time.Sleep(idlePollInterval)
+			time.Sleep(p.idlePollInterval)
 			continue
 		}
 		if job == nil {
-			time.Sleep(idlePollInterval)
+			time.Sleep(p.idlePollInterval)
 			continue
 		}
 
