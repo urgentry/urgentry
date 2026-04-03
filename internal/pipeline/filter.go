@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -205,14 +206,8 @@ func matchFilteredTransaction(evt *normalize.Event, patterns string) bool {
 
 // globMatch performs simple glob matching where * matches any sequence.
 func globMatch(pattern, s string) bool {
-	// Convert glob to regex: escape special chars, replace * with .*
-	escaped := regexp.QuoteMeta(pattern)
-	escaped = strings.ReplaceAll(escaped, `\*`, `.*`)
-	re, err := regexp.Compile("^" + escaped + "$")
-	if err != nil {
-		return false
-	}
-	return re.MatchString(s)
+	matched, _ := filepath.Match(pattern, s)
+	return matched
 }
 
 // recordFilteredOutcome saves a filtered-event outcome.
