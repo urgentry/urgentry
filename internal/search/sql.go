@@ -128,10 +128,8 @@ func ToSQL(f Filter, dialect SQLDialect, groupAlias string, escapeLike func(stri
 		}
 	}
 
-	// bookmarks:
-	if f.Bookmarked == "me" {
-		// Bookmarked filter requires outer context; accepted silently.
-	}
+	// bookmarks: accepted at parse level, requires outer context for SQL.
+	// No SQL clause generated here — the caller handles bookmark filtering.
 
 	// has: presence checks
 	for _, field := range f.HasFields {
