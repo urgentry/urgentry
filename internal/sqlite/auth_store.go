@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"testing"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -21,6 +22,15 @@ const (
 	defaultSessionTokenTTL  = 30 * 24 * time.Hour
 	passwordAlgorithmBcrypt = "bcrypt"
 )
+
+// testBcryptCost returns bcrypt.MinCost under test to keep tests fast,
+// and bcrypt.DefaultCost in production.
+func testBcryptCost() int {
+	if testing.Testing() {
+		return bcrypt.MinCost
+	}
+	return bcrypt.DefaultCost
+}
 
 // BootstrapOptions control first-run access creation.
 type BootstrapOptions struct {
@@ -76,7 +86,7 @@ func (s *AuthStore) EnsureBootstrapAccess(ctx context.Context, opts BootstrapOpt
 		opts.PersonalAccessToken = rawToken("gpat")
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(opts.Password), bcrypt.DefaultCost)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(opts.Password), testBcryptCost())
 	if err != nil {
 		return nil, fmt.Errorf("hash bootstrap password: %w", err)
 	}

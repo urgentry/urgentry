@@ -444,6 +444,7 @@ func TestAPIBulkIssueMutateRoutesShareBehavior_SQLite(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			db := openTestSQLite(t)
 			issueID := "grp-bulk-shared-" + tc.name
 			insertSQLiteGroup(t, db, issueID, "ValueError: bad input", "main.go in handler", "error", "unresolved")

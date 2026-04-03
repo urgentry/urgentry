@@ -944,7 +944,7 @@ func (s *AdminStore) AcceptInvite(ctx context.Context, rawToken, displayName, pa
 		if password == "" {
 			password = "urgentry-" + id.New()[:20]
 		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), testBcryptCost())
 		if err != nil {
 			return nil, err
 		}
@@ -974,7 +974,7 @@ func (s *AdminStore) AcceptInvite(ctx context.Context, rawToken, displayName, pa
 			user.DisplayName = name
 		}
 		if password != "" {
-			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			hash, err := bcrypt.GenerateFromPassword([]byte(password), testBcryptCost())
 			if err != nil {
 				return nil, err
 			}

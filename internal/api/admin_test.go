@@ -18,6 +18,42 @@ func newSQLiteAuthorizedServer(t *testing.T, db *sql.DB, deps Dependencies) (*ht
 	return newSQLiteAuthorizedServerWithBootstrap(t, db, deps, "owner@example.com", "Owner", "gpat_test_admin_token")
 }
 
+// newSQLiteAuthorizedServerWithBodyLimit creates a minimal test server that only
+// serves the import endpoint with a custom maxImportBytes size limit instead of
+// the production 128 MB limit. This avoids streaming large payloads in tests
+// that verify the size-rejection code path.
+func newSQLiteAuthorizedServerWithBodyLimit(t *testing.T, db *sql.DB, deps Dependencies, maxImportBytes int64) (*httptest.Server, string) {
+	t.Helper()
+
+	seedSQLiteAuth(t, db)
+
+	authStore := sqlite.NewAuthStore(db)
+	bootstrap, err := authStore.EnsureBootstrapAccess(context.Background(), sqlite.BootstrapOptions{
+		DefaultOrganizationID: "test-org-id",
+		Email:                 "owner@example.com",
+		DisplayName:           "Owner",
+		Password:              "test-password-123",
+		PersonalAccessToken:   "gpat_test_admin_token",
+	})
+	if err != nil {
+		t.Fatalf("bootstrap auth: %v", err)
+	}
+	if bootstrap.PAT == "" {
+		t.Fatal("bootstrap PAT is empty")
+	}
+
+	authorizer := auth.NewAuthorizer(authStore, "urgentry_session", "urgentry_csrf", 30*24*time.Hour)
+	deps = sqliteAuthorizedDependencies(t, db, deps)
+
+	authCheck := authorizer.API(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})
+
+	mux := http.NewServeMux()
+	mux.Handle("POST /api/0/organizations/{org_slug}/import/",
+		handleImportWithLimit(db, deps.ImportExport, authCheck, maxImportBytes))
+
+	return httptest.NewServer(mux), bootstrap.PAT
+}
+
 func newSQLiteAuthorizedServerWithBootstrap(t *testing.T, db *sql.DB, deps Dependencies, email, displayName, patToken string) (*httptest.Server, string) {
 	t.Helper()
 

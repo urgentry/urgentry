@@ -133,7 +133,7 @@ func decodeBody(t *testing.T, resp *http.Response, v any) {
 
 func TestAuth_RequiredOnAllEndpoints(t *testing.T) {
 	ts := newTestServer(t)
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 
 	endpoints := []string{
 		"/api/0/organizations/",
@@ -153,6 +153,7 @@ func TestAuth_RequiredOnAllEndpoints(t *testing.T) {
 
 	for _, ep := range endpoints {
 		t.Run(ep, func(t *testing.T) {
+			t.Parallel()
 			resp := noAuthGet(t, ts, ep)
 			resp.Body.Close()
 			if resp.StatusCode != http.StatusUnauthorized {

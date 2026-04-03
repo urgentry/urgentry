@@ -19,6 +19,10 @@ const maxOrganizationImportBodySize = 128 << 20
 // handleImport handles POST /api/0/organizations/{org_slug}/import/.
 // It accepts a JSON import payload and applies it atomically.
 func handleImport(db *sql.DB, importExport *sqlite.ImportExportStore, auth authFunc) http.HandlerFunc {
+	return handleImportWithLimit(db, importExport, auth, maxOrganizationImportBodySize)
+}
+
+func handleImportWithLimit(db *sql.DB, importExport *sqlite.ImportExportStore, auth authFunc, maxBodyBytes int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -35,7 +39,7 @@ func handleImport(db *sql.DB, importExport *sqlite.ImportExportStore, auth authF
 		}
 
 		var payload migration.ImportPayload
-		if err := decodeImportPayload(w, r, &payload); err != nil {
+		if err := decodeImportPayloadWithLimit(w, r, &payload, maxBodyBytes); err != nil {
 			var maxErr *http.MaxBytesError
 			if errors.As(err, &maxErr) {
 				httputil.WriteError(w, http.StatusRequestEntityTooLarge, "import payload exceeds size limit")
@@ -65,12 +69,16 @@ func handleImport(db *sql.DB, importExport *sqlite.ImportExportStore, auth authF
 }
 
 func decodeImportPayload(w http.ResponseWriter, r *http.Request, v any) error {
+	return decodeImportPayloadWithLimit(w, r, v, maxOrganizationImportBodySize)
+}
+
+func decodeImportPayloadWithLimit(w http.ResponseWriter, r *http.Request, v any, maxBytes int64) error {
 	if r.Body == nil {
 		return errors.New("empty request body")
 	}
 	defer r.Body.Close()
 
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxOrganizationImportBodySize))
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return err

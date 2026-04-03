@@ -362,8 +362,12 @@ func TestOrganizationImportRejectsArtifactChecksumMismatch(t *testing.T) {
 }
 
 func TestOrganizationImportRejectsOversizePayload(t *testing.T) {
+	// Use a tiny limit (64 bytes) to test the MaxBytesError path without
+	// streaming the full 128 MB production limit over a local socket.
+	const tinyLimit int64 = 64
+
 	db := openTestSQLite(t)
-	ts, pat := newSQLiteAuthorizedServer(t, db, Dependencies{})
+	ts, pat := newSQLiteAuthorizedServerWithBodyLimit(t, db, Dependencies{}, tinyLimit)
 	defer ts.Close()
 
 	req, err := http.NewRequest(
@@ -371,7 +375,7 @@ func TestOrganizationImportRejectsOversizePayload(t *testing.T) {
 		ts.URL+"/api/0/organizations/test-org/import/",
 		io.MultiReader(
 			bytes.NewBufferString(`{"artifacts":[{"kind":"attachment","projectSlug":"test-project","name":"too-big.txt","bodyBase64":"`),
-			&repeatByteReader{remaining: int64(maxOrganizationImportBodySize) + 1, b: 'a'},
+			&repeatByteReader{remaining: tinyLimit + 1, b: 'a'},
 			bytes.NewBufferString(`"}]}`),
 		),
 	)
