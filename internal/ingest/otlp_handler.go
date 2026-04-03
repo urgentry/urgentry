@@ -1,7 +1,6 @@
 package ingest
 
 import (
-	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -9,16 +8,12 @@ import (
 	"mime"
 	"net/http"
 	"strings"
-	"sync"
 
+	"urgentry/internal/httputil"
 	"urgentry/internal/metrics"
 	"urgentry/internal/pipeline"
 	"urgentry/internal/trace"
 )
-
-// gzipReaderPool reuses gzip.Reader instances to avoid repeated allocation
-// of internal decompression buffers (~54 KB) on each OTLP request.
-var gzipReaderPool sync.Pool
 
 const maxOTLPBodySize = 5 << 20 // 5 MB
 
@@ -91,24 +86,11 @@ func readOTLPBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	switch strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Encoding"))) {
 	case "", "identity":
 	case "gzip":
-		var gz *gzip.Reader
-		if v, ok := gzipReaderPool.Get().(*gzip.Reader); ok {
-			if err := v.Reset(reader); err != nil {
-				gzipReaderPool.Put(v)
-				return nil, err
-			}
-			gz = v
-		} else {
-			var err error
-			gz, err = gzip.NewReader(reader)
-			if err != nil {
-				return nil, err
-			}
+		gz, err := httputil.GetGzipReader(reader)
+		if err != nil {
+			return nil, err
 		}
-		defer func() {
-			gz.Close()
-			gzipReaderPool.Put(gz)
-		}()
+		defer httputil.PutGzipReader(gz)
 		reader = gz
 	default:
 		return nil, errors.New("unsupported otlp content encoding")

@@ -2,18 +2,12 @@ package middleware
 
 import (
 	"compress/flate"
-	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	"urgentry/internal/httputil"
 )
-
-// gzipReaderPool reuses gzip.Reader instances to avoid the ~54 KB/op
-// allocation cost of gzip.NewReader on every compressed request.
-var gzipReaderPool sync.Pool
 
 // Decompress is HTTP middleware that transparently decompresses request bodies
 // based on the Content-Encoding header. Supports gzip and deflate.
@@ -23,34 +17,16 @@ func Decompress(next http.Handler) http.Handler {
 
 		switch encoding {
 		case "gzip":
-			var gr *gzip.Reader
-			if v, ok := gzipReaderPool.Get().(*gzip.Reader); ok {
-				if err := v.Reset(r.Body); err != nil {
-					gzipReaderPool.Put(v)
-					httputil.WriteAPIError(w, httputil.APIError{
-						Status: http.StatusBadRequest,
-						Code:   "invalid_gzip",
-						Detail: "invalid gzip data",
-					})
-					return
-				}
-				gr = v
-			} else {
-				var err error
-				gr, err = gzip.NewReader(r.Body)
-				if err != nil {
-					httputil.WriteAPIError(w, httputil.APIError{
-						Status: http.StatusBadRequest,
-						Code:   "invalid_gzip",
-						Detail: "invalid gzip data",
-					})
-					return
-				}
+			gr, err := httputil.GetGzipReader(r.Body)
+			if err != nil {
+				httputil.WriteAPIError(w, httputil.APIError{
+					Status: http.StatusBadRequest,
+					Code:   "invalid_gzip",
+					Detail: "invalid gzip data",
+				})
+				return
 			}
-			defer func() {
-				gr.Close()
-				gzipReaderPool.Put(gr)
-			}()
+			defer httputil.PutGzipReader(gr)
 			r.Body = &readCloser{Reader: gr, Closer: r.Body}
 			r.Header.Del("Content-Encoding")
 
