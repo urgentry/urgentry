@@ -317,7 +317,9 @@ func (p *OIDCProvider) fetchUserInfo(ctx context.Context, userInfoEndpoint, acce
 
 func (p *OIDCProvider) generateState(organizationID string) string {
 	b := make([]byte, 24)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand: " + err.Error())
+	}
 	state := base64.RawURLEncoding.EncodeToString(b)
 
 	p.mu.Lock()
