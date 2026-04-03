@@ -163,11 +163,16 @@ func (s *bridgeService) ListReplayTimeline(ctx context.Context, projectID, repla
 		return nil, err
 	}
 	query := `
-		SELECT id, replay_id, offset_ms, kind, COALESCE(pane, ''), COALESCE(payload_json::text, '{}')
+		SELECT id, replay_id, offset_ms, kind, COALESCE(lane, ''), COALESCE(payload_json::text, '{}')
 		  FROM telemetry.replay_timeline_items
 		 WHERE project_id = $1 AND replay_id = $2`
 	args := []any{projectID, replayID}
 	next := 3
+	if filter.Pane != "" {
+		query += fmt.Sprintf(` AND COALESCE(lane, '') = $%d`, next)
+		args = append(args, filter.Pane)
+		next++
+	}
 	if filter.Kind != "" {
 		query += fmt.Sprintf(` AND kind = $%d`, next)
 		args = append(args, filter.Kind)
@@ -181,6 +186,31 @@ func (s *bridgeService) ListReplayTimeline(ctx context.Context, projectID, repla
 	if filter.EndMS > 0 {
 		query += fmt.Sprintf(` AND offset_ms <= $%d`, next)
 		args = append(args, filter.EndMS)
+		next++
+	}
+	if filter.EventID != "" {
+		query += fmt.Sprintf(` AND COALESCE(payload_json->>'linked_event_id', '') = $%d`, next)
+		args = append(args, filter.EventID)
+		next++
+	}
+	if filter.TraceID != "" {
+		query += fmt.Sprintf(` AND COALESCE(payload_json->>'trace_id', '') = $%d`, next)
+		args = append(args, filter.TraceID)
+		next++
+	}
+	if filter.IssueID != "" {
+		query += fmt.Sprintf(` AND COALESCE(payload_json->>'linked_issue_id', '') = $%d`, next)
+		args = append(args, filter.IssueID)
+		next++
+	}
+	if filter.Search != "" {
+		query += fmt.Sprintf(` AND (
+			COALESCE(payload_json->>'title', '') ILIKE $%d OR
+			COALESCE(payload_json->>'message', '') ILIKE $%d OR
+			COALESCE(payload_json->>'url', '') ILIKE $%d OR
+			COALESCE(payload_json->>'text', '') ILIKE $%d
+		)`, next, next, next, next)
+		args = append(args, "%"+strings.TrimSpace(filter.Search)+"%")
 		next++
 	}
 	query += ` ORDER BY offset_ms ASC, id ASC LIMIT `

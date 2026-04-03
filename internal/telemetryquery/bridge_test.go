@@ -158,6 +158,48 @@ func TestBridgeListOrgReplays(t *testing.T) {
 	}
 }
 
+func TestBridgeGetReplayAndFilterTimelineByPane(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	source := openBridgeQuerySourceDB(t)
+	seedBridgeDiscoverSource(t, source)
+
+	blobs := store.NewMemoryBlobStore()
+	seedBridgeBenchReplay(t, source, blobs)
+
+	bridge := openMigratedBridgeQueryTestDatabase(t)
+	projector := telemetrybridge.NewProjector(source, bridge)
+	if err := projector.SyncFamilies(ctx, telemetrybridge.Scope{OrganizationID: "org-1", ProjectID: "proj-a"}, telemetrybridge.FamilyReplays, telemetrybridge.FamilyReplayTimeline); err != nil {
+		t.Fatalf("SyncFamilies: %v", err)
+	}
+
+	service := newBridgeTestService(source, bridge, blobs, nil)
+	replay, err := service.GetReplay(ctx, "proj-a", "bench-replay-00")
+	if err != nil {
+		t.Fatalf("GetReplay: %v", err)
+	}
+	if replay.Manifest.ReplayID != "bench-replay-00" || len(replay.Timeline) == 0 {
+		t.Fatalf("unexpected replay: %+v", replay)
+	}
+
+	timeline, err := service.ListReplayTimeline(ctx, "proj-a", "bench-replay-00", store.ReplayTimelineFilter{Pane: "errors", Limit: 20})
+	if err != nil {
+		t.Fatalf("ListReplayTimeline: %v", err)
+	}
+	if len(timeline) == 0 {
+		t.Fatal("expected pane-filtered replay timeline rows")
+	}
+	for _, item := range timeline {
+		if item.Pane != "errors" {
+			t.Fatalf("timeline pane = %q, want errors", item.Pane)
+		}
+		if item.Kind != "error" {
+			t.Fatalf("timeline kind = %q, want error", item.Kind)
+		}
+	}
+}
+
 func TestBridgeDiscoverHarnessLogsAndTransactions(t *testing.T) {
 	t.Parallel()
 
