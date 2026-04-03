@@ -1,28 +1,21 @@
 #!/usr/bin/env bash
 
-free_port() {
-  python3 - <<'PY'
-import socket
-s = socket.socket()
-s.bind(("127.0.0.1", 0))
-print(s.getsockname()[1])
-s.close()
-PY
-}
-
 append_random_port_overrides() {
   local env_file="$1"
+  # Use port 0 to let Docker assign random host ports, eliminating TOCTOU
+  # races from pre-allocated free_port() calls. After compose up, use
+  # docker_host_port() to discover the actual bound ports.
   {
-    echo "URGENTRY_API_PORT=$(free_port)"
-    echo "URGENTRY_INGEST_PORT=$(free_port)"
-    echo "URGENTRY_WORKER_PORT=$(free_port)"
-    echo "URGENTRY_SCHEDULER_PORT=$(free_port)"
-    echo "POSTGRES_PORT=$(free_port)"
-    echo "MINIO_API_PORT=$(free_port)"
-    echo "MINIO_CONSOLE_PORT=$(free_port)"
-    echo "VALKEY_PORT=$(free_port)"
-    echo "NATS_PORT=$(free_port)"
-    echo "NATS_MONITOR_PORT=$(free_port)"
+    echo "URGENTRY_API_PORT=0"
+    echo "URGENTRY_INGEST_PORT=0"
+    echo "URGENTRY_WORKER_PORT=0"
+    echo "URGENTRY_SCHEDULER_PORT=0"
+    echo "POSTGRES_PORT=0"
+    echo "MINIO_API_PORT=0"
+    echo "MINIO_CONSOLE_PORT=0"
+    echo "VALKEY_PORT=0"
+    echo "NATS_PORT=0"
+    echo "NATS_MONITOR_PORT=0"
   } >>"$env_file"
 }
 
