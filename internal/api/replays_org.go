@@ -251,7 +251,7 @@ func handleGetReplaySelectors(db *sql.DB, guard sqlite.QueryGuard, auth authFunc
 			return
 		}
 		defer rows.Close()
-		selectors := make([]string, 0)
+		selectors := make([]string, 0, 8)
 		for rows.Next() {
 			var s string
 			if err := rows.Scan(&s); err != nil {
@@ -353,7 +353,7 @@ func handleListReplayDeletionJobs(w http.ResponseWriter, r *http.Request, db *sq
 		return
 	}
 	defer rows.Close()
-	jobs := make([]ReplayDeletionJob, 0)
+	jobs := make([]ReplayDeletionJob, 0, 8)
 	for rows.Next() {
 		job, err := scanReplayDeletionJob(rows)
 		if err != nil {

@@ -149,7 +149,7 @@ func handleListOrgProjectKeys(catalog controlplane.CatalogStore, auth authFunc) 
 			return
 		}
 
-		keys := make([]*ProjectKey, 0)
+		keys := make([]*ProjectKey, 0, len(allKeys))
 		for _, rec := range allKeys {
 			if _, ok := projectIDs[rec.ProjectID]; !ok {
 				continue
@@ -194,7 +194,7 @@ func handleListOrgRepos(db *sql.DB, auth authFunc) http.HandlerFunc {
 			return
 		}
 		defer rows.Close()
-		repos := make([]RepoResponse, 0)
+		repos := make([]RepoResponse, 0, 8)
 		for rows.Next() {
 			var repo RepoResponse
 			var createdAt sql.NullString
@@ -281,7 +281,7 @@ func handleListRepoCommits(db *sql.DB, auth authFunc) http.HandlerFunc {
 			Message     string `json:"message,omitempty"`
 			DateCreated string `json:"dateCreated,omitempty"`
 		}
-		commits := make([]CommitResponse, 0)
+		commits := make([]CommitResponse, 0, 16)
 		for rows.Next() {
 			var c CommitResponse
 			var createdAt sql.NullString

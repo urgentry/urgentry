@@ -499,7 +499,7 @@ func orgMetricAlertTriggerPayload(triggers []orgMetricAlertTrigger) (float64, []
 		return 0, []string{}
 	}
 	threshold := triggers[0].AlertThreshold
-	actions := make([]string, 0)
+	actions := make([]string, 0, len(triggers))
 	for _, trigger := range triggers {
 		for _, action := range trigger.Actions {
 			data, err := json.Marshal(action)
