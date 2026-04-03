@@ -111,6 +111,11 @@ func (s *WebStore) GetIssueWorkflowState(ctx context.Context, groupID, userID st
 	return NewGroupStore(s.db).GetIssueWorkflowState(ctx, groupID, userID)
 }
 
+// BatchIssueWorkflowStates returns per-user workflow state for multiple issues in a single query.
+func (s *WebStore) BatchIssueWorkflowStates(ctx context.Context, groupIDs []string, userID string) (map[string]store.IssueWorkflowState, error) {
+	return NewGroupStore(s.db).BatchIssueWorkflowStates(ctx, groupIDs, userID)
+}
+
 // ListSimilarIssues returns nearby issues in the same project based on title and culprit overlap.
 func (s *WebStore) ListSimilarIssues(ctx context.Context, groupID string, limit int) ([]store.WebIssue, error) {
 	if limit <= 0 {

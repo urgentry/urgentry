@@ -423,6 +423,48 @@ func (s *GroupStore) ListIssueActivity(ctx context.Context, groupID string, limi
 	return items, rows.Err()
 }
 
+// BatchIssueWorkflowStates loads bookmark/subscription/merge metadata for multiple issues and a user.
+func (s *GroupStore) BatchIssueWorkflowStates(ctx context.Context, groupIDs []string, userID string) (map[string]sharedstore.IssueWorkflowState, error) {
+	result := make(map[string]sharedstore.IssueWorkflowState, len(groupIDs))
+	if len(groupIDs) == 0 || strings.TrimSpace(userID) == "" {
+		return result, nil
+	}
+	placeholders := make([]string, len(groupIDs))
+	args := make([]any, 0, len(groupIDs)*3)
+	for i, id := range groupIDs {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	inClause := strings.Join(placeholders, ",")
+	// User ID args for the subqueries, then group IDs for the IN clause.
+	queryArgs := []any{userID, userID}
+	queryArgs = append(queryArgs, args...)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT g.id,
+			COALESCE((SELECT 1 FROM issue_bookmarks WHERE group_id = g.id AND user_id = ?), 0),
+			COALESCE((SELECT 1 FROM issue_subscriptions WHERE group_id = g.id AND user_id = ?), 0),
+			COALESCE(g.merged_into_group_id, ''),
+			COALESCE(g.resolution_substatus, ''),
+			COALESCE(g.resolved_in_release, '')
+		FROM groups g WHERE g.id IN (`+inClause+`)`, queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var bookmarked, subscribed int64
+		var state sharedstore.IssueWorkflowState
+		if err := rows.Scan(&id, &bookmarked, &subscribed, &state.MergedIntoGroupID, &state.ResolutionSubstatus, &state.ResolvedInRelease); err != nil {
+			return nil, err
+		}
+		state.Bookmarked = bookmarked != 0
+		state.Subscribed = subscribed != 0
+		result[id] = state
+	}
+	return result, rows.Err()
+}
+
 // GetIssueWorkflowState loads bookmark/subscription/merge metadata for one issue and user.
 func (s *GroupStore) GetIssueWorkflowState(ctx context.Context, groupID, userID string) (sharedstore.IssueWorkflowState, error) {
 	var state sharedstore.IssueWorkflowState

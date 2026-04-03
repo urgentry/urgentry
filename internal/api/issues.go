@@ -24,6 +24,10 @@ type issueWorkflowStateReader interface {
 	GetIssueWorkflowState(ctx context.Context, groupID, userID string) (store.IssueWorkflowState, error)
 }
 
+type issueWorkflowBatchStateReader interface {
+	BatchIssueWorkflowStates(ctx context.Context, groupIDs []string, userID string) (map[string]store.IssueWorkflowState, error)
+}
+
 type issueWorkflowCommentCounter interface {
 	BatchIssueCommentCounts(ctx context.Context, groupIDs []string) (map[string]int, error)
 }
@@ -811,6 +815,13 @@ func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtr
 	if row.ShortID > 0 {
 		shortID = fmt.Sprintf("GENTRY-%d", row.ShortID)
 	}
+	stats := extras.Stats
+	if stats.Last24Hours == nil {
+		stats.Last24Hours = []IssueSeriesPoint{}
+	}
+	if stats.Last30Days == nil {
+		stats.Last30Days = []IssueSeriesPoint{}
+	}
 	return Issue{
 		ID:                  row.ID,
 		ShortID:             shortID,
@@ -831,7 +842,7 @@ func apiIssueFromWebIssueWithExtras(row store.WebIssue, extras issueResponseExtr
 		Annotations:         []IssueAnnotation{},
 		NumComments:         extras.NumComments,
 		UserCount:           extras.UserCount,
-		Stats:               extras.Stats,
+		Stats:               stats,
 		Permalink:           "",
 		PluginActions:       [][]string{},
 		PluginContexts:      []string{},
@@ -891,18 +902,12 @@ func projectRefForIssue(ctx context.Context, db *sql.DB, issueID string) (Projec
 
 func defaultIssueResponseExtras(row store.WebIssue) issueResponseExtras {
 	return issueResponseExtras{
-		AssignedTo:   apiIssueAssignee(row.Assignee),
-		HasSeen:      true,
-		IsBookmarked: false,
-		IsPublic:     false,
-		IsSubscribed: false,
-		Priority:     row.Priority,
-		Substatus:    row.ResolutionSubstatus,
-		Metadata:     issueMetadata(row),
-		Type:         "error",
-		NumComments:  0,
-		UserCount:    0,
-		Stats:        issueEmptyStats(),
+		AssignedTo: apiIssueAssignee(row.Assignee),
+		HasSeen:    true,
+		Priority:   row.Priority,
+		Substatus:  row.ResolutionSubstatus,
+		Metadata:   issueMetadata(row),
+		Type:       "error",
 	}
 }
 
@@ -923,17 +928,18 @@ func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplan
 				extras[groupID] = item
 			}
 		}
+		now := time.Now().UTC()
 		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 24, 24*time.Hour); err == nil {
 			for _, groupID := range groupIDs {
 				item := extras[groupID]
-				item.Stats.Last24Hours = issueSparklinePoints(sparklines[groupID], time.Hour, time.Now().UTC())
+				item.Stats.Last24Hours = issueSparklinePoints(sparklines[groupID], time.Hour, now)
 				extras[groupID] = item
 			}
 		}
 		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 30, 30*24*time.Hour); err == nil {
 			for _, groupID := range groupIDs {
 				item := extras[groupID]
-				item.Stats.Last30Days = issueSparklinePoints(sparklines[groupID], 24*time.Hour, time.Now().UTC())
+				item.Stats.Last30Days = issueSparklinePoints(sparklines[groupID], 24*time.Hour, now)
 				extras[groupID] = item
 			}
 		}
@@ -943,16 +949,25 @@ func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplan
 		return extras
 	}
 
-	var stateReader issueWorkflowStateReader
-	if reader, ok := any(issues).(issueWorkflowStateReader); ok {
-		stateReader = reader
-	}
 	var commentCounts map[string]int
 	if counter, ok := any(issues).(issueWorkflowCommentCounter); ok {
 		if counts, err := counter.BatchIssueCommentCounts(ctx, groupIDs); err == nil {
 			commentCounts = counts
 		}
 	}
+
+	// Batch workflow state: single query instead of N queries.
+	var batchStates map[string]store.IssueWorkflowState
+	if batchReader, ok := any(issues).(issueWorkflowBatchStateReader); ok {
+		batchStates, _ = batchReader.BatchIssueWorkflowStates(ctx, groupIDs, userID)
+	}
+	var stateReader issueWorkflowStateReader
+	if batchStates == nil {
+		if reader, ok := any(issues).(issueWorkflowStateReader); ok {
+			stateReader = reader
+		}
+	}
+
 	for _, row := range rows {
 		item := extras[row.ID]
 		if commentCounts != nil {
@@ -960,7 +975,15 @@ func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplan
 		} else if comments, err := issues.ListIssueComments(ctx, row.ID, 100); err == nil {
 			item.NumComments = len(comments)
 		}
-		if stateReader != nil {
+		if batchStates != nil {
+			if state, ok := batchStates[row.ID]; ok {
+				item.IsBookmarked = state.Bookmarked
+				item.IsSubscribed = state.Subscribed
+				if item.Substatus == "" {
+					item.Substatus = state.ResolutionSubstatus
+				}
+			}
+		} else if stateReader != nil {
 			if state, err := stateReader.GetIssueWorkflowState(ctx, row.ID, userID); err == nil {
 				item.IsBookmarked = state.Bookmarked
 				item.IsSubscribed = state.Subscribed
