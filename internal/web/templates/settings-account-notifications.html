@@ -1,0 +1,81 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Account Settings</h1>
+</div>
+
+{{template "account-settings-nav" .}}
+
+<div class="settings-section">
+  <div class="section-header">Notification Preferences</div>
+  <p style="color: var(--text-secondary, #9CA0B0); font-size: 14px; margin: 0 0 16px;">
+    Configure when and how you receive notifications about issues, alerts, and activity.
+  </p>
+
+  <table class="settings-table">
+    <tr>
+      <td class="settings-label">New Issues</td>
+      <td><span class="issue-status-badge active">email</span></td>
+    </tr>
+    <tr>
+      <td class="settings-label">Issue Resolved</td>
+      <td><span class="issue-status-badge active">email</span></td>
+    </tr>
+    <tr>
+      <td class="settings-label">Alert Triggered</td>
+      <td><span class="issue-status-badge active">email</span></td>
+    </tr>
+    <tr>
+      <td class="settings-label">Weekly Digest</td>
+      <td><span class="issue-status-badge">off</span></td>
+    </tr>
+  </table>
+  <p style="color: var(--text-secondary, #9CA0B0); font-size: 13px; margin: 12px 0 0;">
+    Fine-grained notification controls are coming soon.
+  </p>
+</div>
+
+{{template "account-settings-styles" .}}
+{{end}}
+
+{{define "account-settings-nav"}}
+<nav class="account-settings-nav">
+  <a href="/settings/account/" class="{{if eq .ActiveTab "account"}}active{{end}}">Account</a>
+  <a href="/settings/account/security/" class="{{if eq .ActiveTab "security"}}active{{end}}">Security</a>
+  <a href="/settings/account/notifications/" class="{{if eq .ActiveTab "notifications"}}active{{end}}">Notifications</a>
+  <a href="/settings/account/api/" class="{{if eq .ActiveTab "api"}}active{{end}}">API Tokens</a>
+  <a href="/settings/account/close/" class="{{if eq .ActiveTab "close"}}active{{end}}">Close Account</a>
+</nav>
+{{end}}
+
+{{define "account-settings-styles"}}
+<style>
+.account-settings-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.account-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.account-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.account-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+.text-muted {
+  color: var(--text-secondary, #9CA0B0);
+}
+</style>
+{{end}}

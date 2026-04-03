@@ -65,6 +65,7 @@ type Handler struct {
 	searches        analyticsservice.SearchStore
 	startedAt       time.Time // server start time for time-to-first-event
 	authz           *auth.Authorizer
+	tokenManager    auth.TokenManager // optional: nil disables PAT management UI
 }
 
 type Dependencies struct {
@@ -84,6 +85,7 @@ type Dependencies struct {
 	SourceMaps     sourcemap.Store // optional: nil disables source map resolution
 	CodeMappings   store.CodeMappingStore // optional: nil disables code mapping links
 	QuotaStore     *sqlite.QuotaStore // optional: nil disables quota page
+	TokenManager   auth.TokenManager // optional: nil disables PAT management UI
 }
 
 // ValidateDependencies checks the runtime dependencies needed to mount the web
@@ -148,6 +150,11 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"releases.html",
 		"ops.html",
 		"settings.html",
+		"settings-account.html",
+		"settings-account-security.html",
+		"settings-account-notifications.html",
+		"settings-account-api.html",
+		"settings-account-close.html",
 		"analytics-snapshot.html",
 		"performance.html",
 		"performance-queues.html",
@@ -201,6 +208,7 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		searches:        analytics.Searches,
 		startedAt:       time.Now(),
 		authz:           deps.Auth,
+		tokenManager:    deps.TokenManager,
 	}
 	return h
 }
@@ -291,6 +299,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /releases/{version}/debug-files/{debug_file_id}/reprocess", wrap(http.HandlerFunc(h.createDebugFileNativeReprocess)))
 	mux.Handle("GET /ops/{$}", wrap(http.HandlerFunc(h.opsPage)))
 	mux.Handle("GET /settings/{$}", wrap(http.HandlerFunc(h.settingsPage)))
+	mux.Handle("GET /settings/account/{$}", wrap(http.HandlerFunc(h.accountDetailsPage)))
+	mux.Handle("GET /settings/account/security/{$}", wrap(http.HandlerFunc(h.accountSecurityPage)))
+	mux.Handle("POST /settings/account/security/revoke-session", wrap(http.HandlerFunc(h.revokeAccountSession)))
+	mux.Handle("GET /settings/account/notifications/{$}", wrap(http.HandlerFunc(h.accountNotificationsPage)))
+	mux.Handle("GET /settings/account/api/{$}", wrap(http.HandlerFunc(h.accountAPIPage)))
+	mux.Handle("POST /settings/account/api/create", wrap(http.HandlerFunc(h.createAccountAPIToken)))
+	mux.Handle("POST /settings/account/api/{token_id}/revoke", wrap(http.HandlerFunc(h.revokeAccountAPIToken)))
+	mux.Handle("GET /settings/account/close/{$}", wrap(http.HandlerFunc(h.accountClosePage)))
 	mux.Handle("POST /settings/environment", wrap(http.HandlerFunc(h.setEnvironment)))
 	mux.Handle("POST /settings/time-range", wrap(http.HandlerFunc(h.setTimeRangeAction)))
 	mux.Handle("POST /settings/project", wrap(http.HandlerFunc(h.updateProjectSettings)))
