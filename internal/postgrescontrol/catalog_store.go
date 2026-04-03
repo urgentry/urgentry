@@ -636,8 +636,12 @@ func (s *CatalogStore) getReplayIngestPolicy(ctx context.Context, projectID stri
 	if err != nil {
 		return sharedstore.ReplayIngestPolicy{}, fmt.Errorf("load replay ingest policy: %w", err)
 	}
-	_ = json.Unmarshal(scrubFieldsJSON, &policy.ScrubFields)
-	_ = json.Unmarshal(scrubSelectorsJSON, &policy.ScrubSelectors)
+	if err := json.Unmarshal(scrubFieldsJSON, &policy.ScrubFields); err != nil {
+		return sharedstore.ReplayIngestPolicy{}, fmt.Errorf("parse scrub fields: %w", err)
+	}
+	if err := json.Unmarshal(scrubSelectorsJSON, &policy.ScrubSelectors); err != nil {
+		return sharedstore.ReplayIngestPolicy{}, fmt.Errorf("parse scrub selectors: %w", err)
+	}
 	return sharedstore.CanonicalReplayIngestPolicy(policy)
 }
 
