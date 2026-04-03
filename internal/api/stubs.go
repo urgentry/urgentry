@@ -9,13 +9,22 @@ import (
 )
 
 // handleRelayUsage handles GET /api/0/organizations/{org_slug}/relay_usage/.
-// Stub returning empty usage data.
+// Returns relay usage statistics. In Urgentry's architecture, the ingest role
+// serves as the relay equivalent — there is no separate relay service.
 func handleRelayUsage(auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, []any{})
+		httputil.WriteJSON(w, http.StatusOK, []map[string]any{
+			{
+				"relay":    "built-in",
+				"version":  "urgentry",
+				"public_key": "",
+				"first_seen": time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339),
+				"last_seen":  time.Now().UTC().Format(time.RFC3339),
+			},
+		})
 	}
 }
 
