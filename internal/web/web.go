@@ -149,6 +149,12 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"feedback-detail.html",
 		"releases.html",
 		"ops.html",
+		"manage-dashboard.html",
+		"manage-organizations.html",
+		"manage-projects.html",
+		"manage-users.html",
+		"manage-settings.html",
+		"manage-status.html",
 		"settings.html",
 		"settings-account.html",
 		"settings-account-security.html",
@@ -298,6 +304,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /releases/{version}/native/reprocess", wrap(http.HandlerFunc(h.createReleaseNativeReprocess)))
 	mux.Handle("POST /releases/{version}/debug-files/{debug_file_id}/reprocess", wrap(http.HandlerFunc(h.createDebugFileNativeReprocess)))
 	mux.Handle("GET /ops/{$}", wrap(http.HandlerFunc(h.opsPage)))
+	mux.Handle("GET /manage/{$}", wrap(http.HandlerFunc(h.manageDashboardPage)))
+	mux.Handle("GET /manage/organizations/{$}", wrap(http.HandlerFunc(h.manageOrganizationsPage)))
+	mux.Handle("GET /manage/projects/{$}", wrap(http.HandlerFunc(h.manageProjectsPage)))
+	mux.Handle("GET /manage/users/{$}", wrap(http.HandlerFunc(h.manageUsersPage)))
+	mux.Handle("GET /manage/settings/{$}", wrap(http.HandlerFunc(h.manageSettingsPage)))
+	mux.Handle("GET /manage/status/{$}", wrap(http.HandlerFunc(h.manageStatusPage)))
 	mux.Handle("GET /settings/{$}", wrap(http.HandlerFunc(h.settingsPage)))
 	mux.Handle("GET /settings/account/{$}", wrap(http.HandlerFunc(h.accountDetailsPage)))
 	mux.Handle("GET /settings/account/security/{$}", wrap(http.HandlerFunc(h.accountSecurityPage)))

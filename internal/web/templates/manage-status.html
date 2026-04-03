@@ -1,0 +1,125 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Admin Console</h1>
+</div>
+
+{{template "manage-sidebar" .}}
+
+<div class="manage-body">
+  <div class="settings-section">
+    <div class="section-header">Runtime</div>
+    <table class="settings-table">
+      <tr>
+        <td class="settings-label">Go Version</td>
+        <td class="mono">{{.GoVersion}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">OS / Arch</td>
+        <td class="mono">{{.GOOS}} / {{.GOARCH}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">CPUs</td>
+        <td>{{.NumCPU}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">Goroutines</td>
+        <td>{{.NumGoroutine}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">Server Started</td>
+        <td class="mono">{{.StartedAt}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">Uptime</td>
+        <td>{{.Uptime}}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="settings-section">
+    <div class="section-header">Database</div>
+    <table class="settings-table">
+      <tr>
+        <td class="settings-label">File Size</td>
+        <td>{{.DBSizeFmt}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">Open Connections</td>
+        <td>{{.DBOpenConns}}</td>
+      </tr>
+      <tr>
+        <td class="settings-label">Idle Connections</td>
+        <td>{{.DBIdleConns}}</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+{{template "manage-styles" .}}
+{{end}}
+
+{{define "manage-sidebar"}}
+<nav class="manage-sidebar">
+  <a href="/manage/" class="{{if eq .ManageNav "dashboard"}}active{{end}}">Dashboard</a>
+  <a href="/manage/organizations/" class="{{if eq .ManageNav "organizations"}}active{{end}}">Organizations</a>
+  <a href="/manage/projects/" class="{{if eq .ManageNav "projects"}}active{{end}}">Projects</a>
+  <a href="/manage/users/" class="{{if eq .ManageNav "users"}}active{{end}}">Users</a>
+  <a href="/manage/settings/" class="{{if eq .ManageNav "settings"}}active{{end}}">Settings</a>
+  <a href="/manage/status/" class="{{if eq .ManageNav "status"}}active{{end}}">Status</a>
+</nav>
+{{end}}
+
+{{define "manage-styles"}}
+<style>
+.manage-body {
+  margin-top: 16px;
+}
+.manage-sidebar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  padding-bottom: 12px;
+}
+.manage-sidebar a {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.manage-sidebar a:hover,
+.manage-sidebar a.active {
+  background: var(--accent, #7C5CBF);
+  color: #fff;
+}
+.settings-section {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.settings-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.settings-label {
+  font-weight: 500;
+  color: var(--text-secondary, #9CA0B0);
+  width: 220px;
+}
+</style>
+{{end}}
