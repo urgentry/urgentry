@@ -80,7 +80,7 @@ func TestNotifySlackRecordsDelivery(t *testing.T) {
 	n := NewNotifier(nil, deliveries)
 	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{
-			StatusCode: 200,
+			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("ok")),
 			Header:     make(http.Header),
 		}, nil
@@ -115,7 +115,7 @@ func TestNotifyWebhookIncludesProfileContext(t *testing.T) {
 			t.Fatalf("decode payload: %v", err)
 		}
 		return &http.Response{
-			StatusCode: 202,
+			StatusCode: http.StatusAccepted,
 			Body:       io.NopCloser(strings.NewReader("accepted")),
 			Header:     make(http.Header),
 		}, nil
@@ -153,7 +153,7 @@ func TestNotifyWebhookSucceedsWhenDeliveryRecorderFails(t *testing.T) {
 	n := NewNotifier(nil, deliveries)
 	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{
-			StatusCode: 202,
+			StatusCode: http.StatusAccepted,
 			Body:       io.NopCloser(strings.NewReader("accepted")),
 			Header:     make(http.Header),
 		}, nil

@@ -58,7 +58,7 @@ func TestQueryGuardStoreCheckAndRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CheckAndRecord second: %v", err)
 	}
-	if second.Allowed || second.StatusCode != 429 || second.RetryAfter <= 0 {
+	if second.Allowed || second.StatusCode != http.StatusTooManyRequests || second.RetryAfter <= 0 {
 		t.Fatalf("unexpected second decision: %+v", second)
 	}
 
@@ -98,7 +98,7 @@ func TestQueryGuardStoreRejectsOversizedQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CheckAndRecord: %v", err)
 	}
-	if decision.Allowed || decision.StatusCode != 400 {
+	if decision.Allowed || decision.StatusCode != http.StatusBadRequest {
 		t.Fatalf("unexpected oversized-query decision: %+v", decision)
 	}
 }

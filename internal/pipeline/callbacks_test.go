@@ -91,7 +91,7 @@ func TestNewAlertCallback_RecordsSlackDeliveryForSlowTransaction(t *testing.T) {
 	notifier := notify.NewNotifier(nil, deliveryStore)
 	notifier.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{
-			StatusCode: 200,
+			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("ok")),
 			Header:     make(http.Header),
 		}, nil

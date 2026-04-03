@@ -66,7 +66,7 @@ func insertSQLiteReleaseWithOrg(t *testing.T, db *sql.DB, id, version string) {
 
 func authGet(t *testing.T, ts *httptest.Server, path string) *http.Response {
 	t.Helper()
-	req, err := http.NewRequest("GET", ts.URL+path, nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL+path, nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -90,7 +90,7 @@ func noAuthGet(t *testing.T, ts *httptest.Server, path string) *http.Response {
 func authPost(t *testing.T, ts *httptest.Server, path string, body any) *http.Response {
 	t.Helper()
 	b, _ := json.Marshal(body)
-	req, err := http.NewRequest("POST", ts.URL+path, bytes.NewReader(b))
+	req, err := http.NewRequest(http.MethodPost, ts.URL+path, bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -106,7 +106,7 @@ func authPost(t *testing.T, ts *httptest.Server, path string, body any) *http.Re
 func authPut(t *testing.T, ts *httptest.Server, path string, body any) *http.Response {
 	t.Helper()
 	b, _ := json.Marshal(body)
-	req, err := http.NewRequest("PUT", ts.URL+path, bytes.NewReader(b))
+	req, err := http.NewRequest(http.MethodPut, ts.URL+path, bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}

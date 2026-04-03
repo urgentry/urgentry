@@ -129,7 +129,7 @@ func seedReplayHarnessLinkedIssue(t *testing.T, db *sql.DB, projectID string) {
 
 func httptestNewReplayFixtureRequest(t *testing.T, fixture replayfixtures.Fixture) *http.Request {
 	t.Helper()
-	return httptest.NewRequest("POST", "/api/1/envelope/", bytes.NewReader(fixture.EnvelopeBody()))
+	return httptest.NewRequest(http.MethodPost, "/api/1/envelope/", bytes.NewReader(fixture.EnvelopeBody()))
 }
 
 func newRecorder() *httptest.ResponseRecorder {

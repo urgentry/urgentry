@@ -13,7 +13,7 @@ var noop = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 func TestIngestCORS_Preflight(t *testing.T) {
 	handler := IngestCORS(noop)
 
-	req := httptest.NewRequest("OPTIONS", "/api/42/store/", nil)
+	req := httptest.NewRequest(http.MethodOptions,"/api/42/store/", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -37,7 +37,7 @@ func TestIngestCORS_Preflight(t *testing.T) {
 func TestIngestCORS_PostResponse(t *testing.T) {
 	handler := IngestCORS(noop)
 
-	req := httptest.NewRequest("POST", "/api/42/store/", nil)
+	req := httptest.NewRequest(http.MethodPost,"/api/42/store/", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -52,7 +52,7 @@ func TestIngestCORS_PostResponse(t *testing.T) {
 func TestIngestCORS_EnvelopeEndpoint(t *testing.T) {
 	handler := IngestCORS(noop)
 
-	req := httptest.NewRequest("OPTIONS", "/api/99/envelope/", nil)
+	req := httptest.NewRequest(http.MethodOptions,"/api/99/envelope/", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -67,7 +67,7 @@ func TestIngestCORS_EnvelopeEndpoint(t *testing.T) {
 func TestIngestCORS_NonIngestPassthrough(t *testing.T) {
 	handler := IngestCORS(noop)
 
-	req := httptest.NewRequest("GET", "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet,"/healthz", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -80,7 +80,7 @@ func TestAPICORS_AllowedOrigin(t *testing.T) {
 	cfg := CORSConfig{AllowedOrigins: []string{"https://app.example.com"}}
 	handler := APICORS(cfg)(noop)
 
-	req := httptest.NewRequest("GET", "/api/0/organizations/", nil)
+	req := httptest.NewRequest(http.MethodGet,"/api/0/organizations/", nil)
 	req.Header.Set("Origin", "https://app.example.com")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -97,7 +97,7 @@ func TestAPICORS_DisallowedOrigin(t *testing.T) {
 	cfg := CORSConfig{AllowedOrigins: []string{"https://app.example.com"}}
 	handler := APICORS(cfg)(noop)
 
-	req := httptest.NewRequest("GET", "/api/0/organizations/", nil)
+	req := httptest.NewRequest(http.MethodGet,"/api/0/organizations/", nil)
 	req.Header.Set("Origin", "https://evil.example.com")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -111,7 +111,7 @@ func TestAPICORS_Preflight(t *testing.T) {
 	cfg := CORSConfig{AllowedOrigins: []string{"https://app.example.com"}}
 	handler := APICORS(cfg)(noop)
 
-	req := httptest.NewRequest("OPTIONS", "/api/0/projects/", nil)
+	req := httptest.NewRequest(http.MethodOptions,"/api/0/projects/", nil)
 	req.Header.Set("Origin", "https://app.example.com")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -128,7 +128,7 @@ func TestAPICORS_NonAPIPassthrough(t *testing.T) {
 	cfg := CORSConfig{AllowedOrigins: []string{"https://app.example.com"}}
 	handler := APICORS(cfg)(noop)
 
-	req := httptest.NewRequest("GET", "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet,"/healthz", nil)
 	req.Header.Set("Origin", "https://app.example.com")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)

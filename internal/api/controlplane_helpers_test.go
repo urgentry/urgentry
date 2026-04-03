@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -120,7 +121,7 @@ func TestProjectIDFromSlugsFallsBackToControlCatalog(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	req := httptest.NewRequest("GET", "/api/0/projects/acme/checkout/events/", nil)
+	req := httptest.NewRequest(http.MethodGet,"/api/0/projects/acme/checkout/events/", nil)
 	req = req.WithContext(context.WithValue(req.Context(), catalogContextKey{}, testCatalog{
 		org:     &sharedstore.Organization{ID: "org-123", Slug: "acme", Name: "Acme"},
 		project: &sharedstore.Project{ID: "proj-123", OrgSlug: "acme", Slug: "checkout", Name: "Checkout", Platform: "go", Status: "active"},
@@ -149,7 +150,7 @@ func TestGetOrganizationFromDBFallsBackToControlCatalog(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	req := httptest.NewRequest("GET", "/api/0/organizations/acme/", nil)
+	req := httptest.NewRequest(http.MethodGet,"/api/0/organizations/acme/", nil)
 	req = req.WithContext(context.WithValue(req.Context(), catalogContextKey{}, testCatalog{
 		org: &sharedstore.Organization{ID: "org-123", Slug: "acme", Name: "Acme"},
 	}))
@@ -177,7 +178,7 @@ func TestResolveTraceScopeUsesControlCatalogWithoutSQLiteShadow(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	req := httptest.NewRequest("GET", "/api/0/projects/acme/checkout/transactions/", nil)
+	req := httptest.NewRequest(http.MethodGet,"/api/0/projects/acme/checkout/transactions/", nil)
 	req.SetPathValue("org_slug", "acme")
 	req.SetPathValue("proj_slug", "checkout")
 	req = req.WithContext(context.WithValue(req.Context(), catalogContextKey{}, testCatalog{

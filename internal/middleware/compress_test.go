@@ -58,7 +58,7 @@ func TestDecompress_Gzip(t *testing.T) {
 	payload := []byte("hello gzip world")
 	compressed := gzipBytes(t, payload)
 
-	req := httptest.NewRequest("POST", "/", bytes.NewReader(compressed))
+	req := httptest.NewRequest(http.MethodPost,"/", bytes.NewReader(compressed))
 	req.Header.Set("Content-Encoding", "gzip")
 	w := httptest.NewRecorder()
 
@@ -77,7 +77,7 @@ func TestDecompress_Deflate(t *testing.T) {
 	payload := []byte("hello deflate world")
 	compressed := deflateBytes(t, payload)
 
-	req := httptest.NewRequest("POST", "/", bytes.NewReader(compressed))
+	req := httptest.NewRequest(http.MethodPost,"/", bytes.NewReader(compressed))
 	req.Header.Set("Content-Encoding", "deflate")
 	w := httptest.NewRecorder()
 
@@ -95,7 +95,7 @@ func TestDecompress_Deflate(t *testing.T) {
 func TestDecompress_NoEncoding(t *testing.T) {
 	payload := []byte("plain body")
 
-	req := httptest.NewRequest("POST", "/", bytes.NewReader(payload))
+	req := httptest.NewRequest(http.MethodPost,"/", bytes.NewReader(payload))
 	w := httptest.NewRecorder()
 
 	Decompress(echoHandler).ServeHTTP(w, req)
@@ -112,7 +112,7 @@ func TestDecompress_NoEncoding(t *testing.T) {
 func TestDecompress_Identity(t *testing.T) {
 	payload := []byte("identity body")
 
-	req := httptest.NewRequest("POST", "/", bytes.NewReader(payload))
+	req := httptest.NewRequest(http.MethodPost,"/", bytes.NewReader(payload))
 	req.Header.Set("Content-Encoding", "identity")
 	w := httptest.NewRecorder()
 
@@ -128,7 +128,7 @@ func TestDecompress_Identity(t *testing.T) {
 }
 
 func TestDecompress_InvalidGzip(t *testing.T) {
-	req := httptest.NewRequest("POST", "/", strings.NewReader("not valid gzip"))
+	req := httptest.NewRequest(http.MethodPost,"/", strings.NewReader("not valid gzip"))
 	req.Header.Set("Content-Encoding", "gzip")
 	w := httptest.NewRecorder()
 
@@ -147,7 +147,7 @@ func TestDecompress_InvalidGzip(t *testing.T) {
 }
 
 func TestDecompress_UnsupportedEncoding(t *testing.T) {
-	req := httptest.NewRequest("POST", "/", strings.NewReader("data"))
+	req := httptest.NewRequest(http.MethodPost,"/", strings.NewReader("data"))
 	req.Header.Set("Content-Encoding", "br")
 	w := httptest.NewRecorder()
 
@@ -175,7 +175,7 @@ func TestDecompress_ContentEncodingCleared(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest("POST", "/", bytes.NewReader(compressed))
+	req := httptest.NewRequest(http.MethodPost,"/", bytes.NewReader(compressed))
 	req.Header.Set("Content-Encoding", "gzip")
 	w := httptest.NewRecorder()
 

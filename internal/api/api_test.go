@@ -17,7 +17,7 @@ func TestPaginate(t *testing.T) {
 	}
 
 	t.Run("first page", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/test", nil)
+		r := httptest.NewRequest(http.MethodGet,"/test", nil)
 		w := httptest.NewRecorder()
 		page := Paginate(w, r, items)
 		if len(page) != defaultPageSize {
@@ -36,7 +36,7 @@ func TestPaginate(t *testing.T) {
 	})
 
 	t.Run("with cursor", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/test?cursor=200", nil)
+		r := httptest.NewRequest(http.MethodGet,"/test?cursor=200", nil)
 		w := httptest.NewRecorder()
 		page := Paginate(w, r, items)
 		if len(page) != 50 {
@@ -52,7 +52,7 @@ func TestPaginate(t *testing.T) {
 	})
 
 	t.Run("cursor past end", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/test?cursor=999", nil)
+		r := httptest.NewRequest(http.MethodGet,"/test?cursor=999", nil)
 		w := httptest.NewRecorder()
 		page := Paginate(w, r, items)
 		if len(page) != 0 {
@@ -67,7 +67,7 @@ func TestSetPaginationHeadersPreservesQueryParams(t *testing.T) {
 		items[i] = i
 	}
 
-	r := httptest.NewRequest("GET", "/test?per_page=10&query=is%3Aunresolved", nil)
+	r := httptest.NewRequest(http.MethodGet,"/test?per_page=10&query=is%3Aunresolved", nil)
 	w := httptest.NewRecorder()
 
 	page := SetPaginationHeaders(w, r, items, PaginationOpts{Offset: 20, Limit: 10})
@@ -110,7 +110,7 @@ func TestPathParam(t *testing.T) {
 	// PathParam delegates to r.PathValue which is set by the ServeMux.
 	// We can test it via the router in integration tests.
 	// Here just ensure it doesn't panic on an empty request.
-	r := httptest.NewRequest("GET", "/test", nil)
+	r := httptest.NewRequest(http.MethodGet,"/test", nil)
 	val := PathParam(r, "nonexistent")
 	if val != "" {
 		t.Fatalf("expected empty string, got %q", val)
