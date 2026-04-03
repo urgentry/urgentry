@@ -115,6 +115,56 @@ var aggregateCatalog = map[string]struct {
 		Args:  1,
 		Field: "duration.ms",
 	},
+	"min": {
+		Datasets: map[Dataset]struct{}{
+			DatasetTransactions: {},
+		},
+		Args:  1,
+		Field: "duration.ms",
+	},
+	"p75": {
+		Datasets: map[Dataset]struct{}{
+			DatasetTransactions: {},
+		},
+		Args:  1,
+		Field: "duration.ms",
+	},
+	"p99": {
+		Datasets: map[Dataset]struct{}{
+			DatasetTransactions: {},
+		},
+		Args:  1,
+		Field: "duration.ms",
+	},
+	"sum": {
+		Datasets: map[Dataset]struct{}{
+			DatasetTransactions: {},
+		},
+		Args:  1,
+		Field: "duration.ms",
+	},
+	"count_unique": {
+		Datasets: map[Dataset]struct{}{
+			DatasetIssues:       {},
+			DatasetLogs:         {},
+			DatasetTransactions: {},
+		},
+		Args:  1,
+		Field: "",
+	},
+	"failure_rate": {
+		Datasets: map[Dataset]struct{}{
+			DatasetTransactions: {},
+		},
+		Args: 0,
+	},
+	"apdex": {
+		Datasets: map[Dataset]struct{}{
+			DatasetTransactions: {},
+		},
+		Args:  1,
+		Field: "duration.ms",
+	},
 }
 
 func datasetFields(dataset Dataset) map[string]fieldSpec {
