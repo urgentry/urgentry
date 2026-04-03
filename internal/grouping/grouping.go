@@ -112,7 +112,7 @@ func computeDefault(evt *normalize.Event) Result {
 }
 
 func groupByStackTrace(excType string, frames []normalize.Frame) Result {
-	var components []string
+	components := make([]string, 0, len(frames)+1)
 	if excType != "" {
 		components = append(components, "type:"+excType)
 	}
@@ -147,7 +147,7 @@ func groupByMessage(msg string) Result {
 }
 
 func filterInApp(frames []normalize.Frame) []normalize.Frame {
-	var result []normalize.Frame
+	result := make([]normalize.Frame, 0, len(frames))
 	for _, f := range frames {
 		if f.InApp != nil && *f.InApp {
 			result = append(result, f)
@@ -159,25 +159,34 @@ func filterInApp(frames []normalize.Frame) []normalize.Frame {
 // normalizeFrameForGrouping produces a stable string from a frame.
 // Removes noisy values like hex addresses and generated names.
 func normalizeFrameForGrouping(f normalize.Frame) string {
-	var parts []string
+	var b strings.Builder
+	b.WriteString("frame:")
 
-	filename := f.Filename
-	if f.Module != "" {
-		parts = append(parts, "module:"+f.Module)
-	} else if filename != "" {
-		parts = append(parts, "file:"+normalizeFilename(filename))
-	}
+	hasModule := f.Module != ""
+	hasFile := f.Filename != ""
+	hasFn := f.Function != ""
 
-	fn := f.Function
-	if fn != "" {
-		fn = normalizeFunction(fn)
-		parts = append(parts, "func:"+fn)
-	}
-
-	if len(parts) == 0 {
+	if !hasModule && !hasFile && !hasFn {
 		return "frame:<unknown>"
 	}
-	return "frame:" + strings.Join(parts, "|")
+
+	if hasModule {
+		b.WriteString("module:")
+		b.WriteString(f.Module)
+	} else if hasFile {
+		b.WriteString("file:")
+		b.WriteString(normalizeFilename(f.Filename))
+	}
+
+	if hasFn {
+		if hasModule || hasFile {
+			b.WriteByte('|')
+		}
+		b.WriteString("func:")
+		b.WriteString(normalizeFunction(f.Function))
+	}
+
+	return b.String()
 }
 
 var hexPattern = regexp.MustCompile(`0x[0-9a-fA-F]+`)
@@ -217,5 +226,6 @@ func hashComponents(components []string) string {
 		h.Write([]byte(c))
 		h.Write([]byte{0}) // separator
 	}
-	return hex.EncodeToString(h.Sum(nil))[:32]
+	var buf [sha256.Size]byte
+	return hex.EncodeToString(h.Sum(buf[:0]))[:32]
 }
