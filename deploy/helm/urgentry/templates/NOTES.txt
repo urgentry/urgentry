@@ -1,0 +1,43 @@
+Urgentry has been installed. Here is a summary of what was deployed:
+
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Version:   {{ .Chart.AppVersion }}
+
+ROLES DEPLOYED
+  - api       ({{ .Values.replicas.api }} replica(s))  → port 8080
+  - ingest    ({{ .Values.replicas.ingest }} replica(s))  → port 8081
+  - worker    ({{ .Values.replicas.worker }} replica(s))  → port 8082
+  - scheduler ({{ .Values.replicas.scheduler }} replica(s))  → port 8083
+
+ACCESSING THE API
+{{- if .Values.ingress.enabled }}
+  The API is reachable at: http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}
+{{- else }}
+  No Ingress is enabled. Forward the API port locally:
+
+    kubectl --namespace {{ .Release.Namespace }} port-forward \
+      svc/{{ include "urgentry.fullname" . }}-api 8080:8080
+
+  Then open: http://127.0.0.1:8080
+{{- end }}
+
+HEALTH CHECK
+  Each role exposes /readyz for liveness and readiness probes.
+
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/name={{ include "urgentry.name" . }}"
+
+EXTERNAL DEPENDENCIES
+  Make sure the following are reachable from the cluster before the pods start:
+
+  - PostgreSQL  — URGENTRY_CONTROL_DATABASE_URL / URGENTRY_TELEMETRY_DATABASE_URL
+  - NATS        — URGENTRY_NATS_URL
+  - Valkey      — URGENTRY_VALKEY_URL
+  - S3 / MinIO  — URGENTRY_S3_ENDPOINT + credentials
+
+  Set these via values.yaml (externalPostgres, externalNats, externalValkey, externalMinio)
+  or provide existing Secrets via bootstrap.existingSecret / externalMinio.existingSecret.
+
+CONFIGURATION
+  View the active ConfigMap:
+    kubectl --namespace {{ .Release.Namespace }} get configmap {{ include "urgentry.fullname" . }} -o yaml
