@@ -141,6 +141,30 @@ func TestToSQL(t *testing.T) {
 	}
 }
 
+func TestParseComparisonValue(t *testing.T) {
+	tests := []struct {
+		input   string
+		wantOp  string
+		wantVal string
+	}{
+		{">10", ">", "10"},
+		{"<100", "<", "100"},
+		{">=2024-01-01", ">=", "2024-01-01"},
+		{"<=2024-06-01T00:00:00Z", "<=", "2024-06-01T00:00:00Z"},
+		{"!=abc", "!=", "abc"},
+		{"=exact", "=", "exact"},
+		{"bare_value", "=", "bare_value"},
+		{"42", "=", "42"},
+	}
+	for _, tt := range tests {
+		gotOp, gotVal := parseComparisonValue(tt.input)
+		if gotOp != tt.wantOp || gotVal != tt.wantVal {
+			t.Errorf("parseComparisonValue(%q) = (%q, %q), want (%q, %q)",
+				tt.input, gotOp, gotVal, tt.wantOp, tt.wantVal)
+		}
+	}
+}
+
 func TestToSQL_MultipleFilters(t *testing.T) {
 	f := Parse("is:unresolved level:error has:assignee browser.name:Chrome connection")
 	sc := ToSQL(f, SQLite, "g", escapeLike)
