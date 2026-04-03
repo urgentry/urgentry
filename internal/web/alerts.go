@@ -612,3 +612,96 @@ func parseThresholdMS(raw string) (float64, error) {
 	}
 	return value, nil
 }
+
+// ---------------------------------------------------------------------------
+// Alert Detail Page
+// ---------------------------------------------------------------------------
+
+type alertDetailData struct {
+	Title        string
+	Nav          string
+	Environment  string
+	Environments []string
+	Rule         alertRuleRow
+	History      []alertHistoryRow
+	Deliveries   []alertDeliveryRow
+}
+
+func (h *Handler) alertDetailPage(w http.ResponseWriter, r *http.Request) {
+	if h.webStore == nil || h.alerts == nil {
+		writeWebUnavailable(w, r, "Web UI unavailable")
+		return
+	}
+	ctx := r.Context()
+	ruleID := r.PathValue("id")
+
+	rule, err := h.alerts.GetRule(ctx, ruleID)
+	if err != nil {
+		writeWebNotFound(w, r, "Alert rule not found.")
+		return
+	}
+
+	history, err := h.webStore.ListAlertHistory(ctx, 100)
+	if err != nil {
+		history = nil
+	}
+	// Filter history to this rule.
+	var ruleHistory []alertHistoryRow
+	for _, item := range history {
+		if item.RuleID == ruleID {
+			ruleHistory = append(ruleHistory, alertHistoryRow{
+				ID:       item.ID,
+				RuleID:   item.RuleID,
+				RuleName: item.RuleName,
+				GroupID:  item.GroupID,
+				EventID:  item.EventID,
+				FiredAt:  item.FiredAt.Format(time.RFC3339),
+			})
+		}
+	}
+
+	deliveries, _ := h.webStore.ListAlertDeliveries(ctx, 100)
+	var ruleDeliveries []alertDeliveryRow
+	for _, d := range deliveries {
+		if d.RuleID == ruleID {
+			ruleDeliveries = append(ruleDeliveries, alertDeliveryRow{
+				ID:        d.ID,
+				ProjectID: d.ProjectID,
+				RuleID:    d.RuleID,
+				GroupID:   d.GroupID,
+				EventID:   d.EventID,
+				Kind:      d.Kind,
+				Target:    d.Target,
+				Status:    d.Status,
+				Attempts:  d.Attempts,
+			})
+		}
+	}
+
+	summary, trigLabel, threshMS := alertRuleTriggerSummary(rule)
+	emailTargets, webhookURL, slackURL := alertRuleActionSummary(rule)
+	ruleRow := alertRuleRow{
+		ID:           rule.ID,
+		ProjectID:    rule.ProjectID,
+		Name:         rule.Name,
+		Status:       string(rule.Status),
+		CreatedAt:    rule.CreatedAt.Format(time.RFC3339),
+		Trigger:      summary,
+		TriggerLabel: trigLabel,
+		ThresholdMS:  threshMS,
+		EmailTargets: emailTargets,
+		WebhookURL:   webhookURL,
+		SlackURL:     slackURL,
+	}
+
+	h.render(w, "alert-detail.html", alertDetailData{
+		Title:        "Alert: " + rule.Name,
+		Nav:          "alerts",
+		Environment:  readSelectedEnvironment(r),
+		Environments: h.loadEnvironments(ctx),
+		Rule:         ruleRow,
+		History:      ruleHistory,
+		Deliveries:   ruleDeliveries,
+	})
+}
+

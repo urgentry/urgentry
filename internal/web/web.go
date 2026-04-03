@@ -140,6 +140,7 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"issue-detail.html",
 		"event-detail.html",
 		"alerts.html",
+		"alert-detail.html",
 		"monitors.html",
 		"monitor-detail.html",
 		"feedback.html",
@@ -271,6 +272,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /issues/{id}/unmerge", wrap(http.HandlerFunc(h.unmergeIssue)))
 	mux.Handle("GET /events/{id}/{$}", wrap(http.HandlerFunc(h.eventDetailPage)))
 	mux.Handle("GET /alerts/{$}", wrap(http.HandlerFunc(h.alertsPage)))
+	mux.Handle("GET /alerts/{id}/{$}", wrap(http.HandlerFunc(h.alertDetailPage)))
 	mux.Handle("POST /alerts/", wrap(http.HandlerFunc(h.createAlertRule)))
 	mux.Handle("POST /alerts/{id}/update", wrap(http.HandlerFunc(h.updateAlertRule)))
 	mux.Handle("POST /alerts/{id}/delete", wrap(http.HandlerFunc(h.deleteAlertRule)))
