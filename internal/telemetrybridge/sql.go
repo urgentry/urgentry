@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"urgentry/internal/sqlutil"
 )
 
 func Open(ctx context.Context, dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+	db, err := sqlutil.OpenPostgres(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open telemetry bridge: %w", err)
 	}

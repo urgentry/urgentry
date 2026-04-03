@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"urgentry/internal/sqlutil"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -840,7 +842,7 @@ CREATE INDEX IF NOT EXISTS idx_group_external_issues_installation
 }
 
 func Open(ctx context.Context, dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+	db, err := sqlutil.OpenPostgres(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres control plane: %w", err)
 	}
