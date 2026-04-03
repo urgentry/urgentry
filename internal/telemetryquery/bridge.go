@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"urgentry/internal/discover"
 	"urgentry/internal/discoverharness"
@@ -36,6 +37,12 @@ type bridgeService struct {
 	sourceReplays  store.ReplayReadStore
 	sourceProfiles store.ProfileReadStore
 	projector      *telemetrybridge.Projector
+
+	// Cached lookups to avoid per-request DB queries.
+	projectSlugsMu    sync.Mutex
+	projectSlugsCache map[string]string
+	orgScopeMu        sync.Mutex
+	orgScopeCache     map[string]string // orgSlug -> orgID
 }
 
 type Dependencies struct {
@@ -114,6 +121,15 @@ func (s *bridgeService) Explain(query discover.Query) (discover.ExplainPlan, err
 }
 
 func (s *bridgeService) orgScope(ctx context.Context, orgSlug string) (telemetrybridge.Scope, error) {
+	s.orgScopeMu.Lock()
+	if s.orgScopeCache != nil {
+		if orgID, ok := s.orgScopeCache[orgSlug]; ok {
+			s.orgScopeMu.Unlock()
+			return telemetrybridge.Scope{OrganizationID: orgID}, nil
+		}
+	}
+	s.orgScopeMu.Unlock()
+
 	var scope telemetrybridge.Scope
 	if err := s.sourceDB.QueryRowContext(ctx, `SELECT id FROM organizations WHERE slug = ?`, orgSlug).Scan(&scope.OrganizationID); err != nil {
 		if err == sql.ErrNoRows {
@@ -121,6 +137,13 @@ func (s *bridgeService) orgScope(ctx context.Context, orgSlug string) (telemetry
 		}
 		return scope, fmt.Errorf("resolve organization scope: %w", err)
 	}
+
+	s.orgScopeMu.Lock()
+	if s.orgScopeCache == nil {
+		s.orgScopeCache = make(map[string]string, 4)
+	}
+	s.orgScopeCache[orgSlug] = scope.OrganizationID
+	s.orgScopeMu.Unlock()
 	return scope, nil
 }
 
@@ -136,6 +159,14 @@ func (s *bridgeService) projectScope(ctx context.Context, projectID string) (tel
 }
 
 func (s *bridgeService) projectSlugMap(ctx context.Context) (map[string]string, error) {
+	s.projectSlugsMu.Lock()
+	if s.projectSlugsCache != nil {
+		cached := s.projectSlugsCache
+		s.projectSlugsMu.Unlock()
+		return cached, nil
+	}
+	s.projectSlugsMu.Unlock()
+
 	rows, err := s.sourceDB.QueryContext(ctx, `SELECT id, slug FROM projects`)
 	if err != nil {
 		return nil, fmt.Errorf("list project slugs: %w", err)
@@ -149,7 +180,14 @@ func (s *bridgeService) projectSlugMap(ctx context.Context) (map[string]string, 
 		}
 		items[id] = slug
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	s.projectSlugsMu.Lock()
+	s.projectSlugsCache = items
+	s.projectSlugsMu.Unlock()
+	return items, nil
 }
 
 func clamp(value, minValue, maxValue int) int {

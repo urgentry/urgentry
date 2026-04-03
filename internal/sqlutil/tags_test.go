@@ -25,20 +25,21 @@ func TestParseTags_Array(t *testing.T) {
 
 func TestParseTags_Empty(t *testing.T) {
 	tags := ParseTags("")
-	if tags == nil {
-		t.Error("expected non-nil map for empty input")
-	}
 	if len(tags) != 0 {
-		t.Errorf("expected empty map, got %v", tags)
+		t.Errorf("expected nil/empty for empty input, got %v", tags)
+	}
+}
+
+func TestParseTags_EmptyObject(t *testing.T) {
+	tags := ParseTags("{}")
+	if len(tags) != 0 {
+		t.Errorf("expected nil/empty for {}, got %v", tags)
 	}
 }
 
 func TestParseTags_Invalid(t *testing.T) {
 	tags := ParseTags("not json")
-	if tags == nil {
-		t.Error("expected non-nil map for invalid JSON")
-	}
 	if len(tags) != 0 {
-		t.Errorf("expected empty map, got %v", tags)
+		t.Errorf("expected nil/empty for invalid JSON, got %v", tags)
 	}
 }

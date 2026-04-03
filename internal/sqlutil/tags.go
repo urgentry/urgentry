@@ -4,11 +4,14 @@ package sqlutil
 import "encoding/json"
 
 // ParseTags unmarshals a JSON string into a map of tags.
-// Returns an empty (non-nil) map if raw is empty or invalid.
+// Returns nil if raw is empty or contains only "{}".
 func ParseTags(raw string) map[string]string {
-	tags := make(map[string]string)
-	if raw != "" {
-		_ = json.Unmarshal([]byte(raw), &tags)
+	if raw == "" || raw == "{}" {
+		return nil
+	}
+	var tags map[string]string
+	if json.Unmarshal([]byte(raw), &tags) != nil || len(tags) == 0 {
+		return nil
 	}
 	return tags
 }
