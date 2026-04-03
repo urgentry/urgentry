@@ -47,6 +47,12 @@ type Filter struct {
 	NegEventType string
 	Assigned    string   // assigned:email@example.com
 	NegAssigned string
+	Platform    string   // platform:python
+	NegPlatform string
+	FirstSeen   string   // firstSeen:>2024-01-01 (comparison op + value)
+	LastSeen    string   // lastSeen:<2024-06-01
+	TimesSeen   string   // times_seen:>10
+	Bookmarked  string   // bookmarks:me
 
 	// Tag filters (arbitrary key:value pairs like browser.name:Chrome).
 	Tags    []TagFilter

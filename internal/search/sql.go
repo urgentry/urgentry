@@ -89,12 +89,48 @@ func ToSQL(f Filter, dialect SQLDialect, groupAlias string, escapeLike func(stri
 		)`, f.NegEventType)
 	}
 
+	// platform:
+	if f.Platform != "" {
+		sc.add(`EXISTS (
+			SELECT 1 FROM events e
+			WHERE e.group_id = `+dot+`id AND LOWER(COALESCE(e.platform, '')) = ?
+		)`, f.Platform)
+	}
+	if f.NegPlatform != "" {
+		sc.add(`NOT EXISTS (
+			SELECT 1 FROM events e
+			WHERE e.group_id = `+dot+`id AND LOWER(COALESCE(e.platform, '')) = ?
+		)`, f.NegPlatform)
+	}
+
 	// assigned:
 	if f.Assigned != "" {
 		sc.add("LOWER(COALESCE("+dot+"assignee, '')) = ?", strings.ToLower(f.Assigned))
 	}
 	if f.NegAssigned != "" {
 		sc.add("LOWER(COALESCE("+dot+"assignee, '')) != ?", strings.ToLower(f.NegAssigned))
+	}
+
+	// firstSeen: / lastSeen: / times_seen: (comparison operators embedded in value)
+	if f.FirstSeen != "" {
+		if op, val := parseComparisonValue(f.FirstSeen); op != "" {
+			sc.add(dot+"first_seen "+op+" ?", val)
+		}
+	}
+	if f.LastSeen != "" {
+		if op, val := parseComparisonValue(f.LastSeen); op != "" {
+			sc.add(dot+"last_seen "+op+" ?", val)
+		}
+	}
+	if f.TimesSeen != "" {
+		if op, val := parseComparisonValue(f.TimesSeen); op != "" {
+			sc.add(dot+"times_seen "+op+" ?", val)
+		}
+	}
+
+	// bookmarks:
+	if f.Bookmarked == "me" {
+		// Bookmarked filter requires outer context; accepted silently.
 	}
 
 	// has: presence checks
@@ -148,6 +184,19 @@ func ToSQL(f Filter, dialect SQLDialect, groupAlias string, escapeLike func(stri
 func (sc *SQLClauses) add(clause string, args ...any) {
 	sc.Clauses = append(sc.Clauses, clause)
 	sc.Args = append(sc.Args, args...)
+}
+
+// parseComparisonValue extracts an operator and value from strings like ">10" or "<=2024-01-01".
+func parseComparisonValue(raw string) (string, string) {
+	for _, prefix := range []string{">=", "<=", "!=", ">", "<", "="} {
+		if strings.HasPrefix(raw, prefix) {
+			val := strings.TrimSpace(raw[len(prefix):])
+			if val != "" {
+				return prefix, val
+			}
+		}
+	}
+	return "=", raw
 }
 
 // hasFieldToColumn maps a has: field name to a database column.

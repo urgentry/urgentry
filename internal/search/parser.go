@@ -74,6 +74,20 @@ func assignKeyValue(f *Filter, key, value string, negated bool) {
 		} else {
 			f.Assigned = value
 		}
+	case "platform":
+		if negated {
+			f.NegPlatform = strings.ToLower(value)
+		} else {
+			f.Platform = strings.ToLower(value)
+		}
+	case "firstseen", "first_seen":
+		f.FirstSeen = value
+	case "lastseen", "last_seen":
+		f.LastSeen = value
+	case "times_seen", "timesseen":
+		f.TimesSeen = value
+	case "bookmarks":
+		f.Bookmarked = value
 	default:
 		// Unknown key — treat as a tag filter.
 		tf := TagFilter{Key: key, Value: value}
