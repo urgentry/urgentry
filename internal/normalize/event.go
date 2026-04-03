@@ -273,26 +273,28 @@ func normalizeTimestamp(raw json.RawMessage) time.Time {
 		return time.Now().UTC()
 	}
 
-	// Try ISO 8601 string
-	var ts string
-	if err := json.Unmarshal(raw, &ts); err == nil {
-		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
-			return t.UTC()
+	// Dispatch by first byte to avoid wasted unmarshal attempts.
+	switch raw[0] {
+	case '"':
+		var ts string
+		if err := json.Unmarshal(raw, &ts); err == nil {
+			if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
+				return t.UTC()
+			}
+			if t, err := time.Parse("2006-01-02T15:04:05Z", ts); err == nil {
+				return t.UTC()
+			}
+			if t, err := time.Parse("2006-01-02T15:04:05.000Z", ts); err == nil {
+				return t.UTC()
+			}
 		}
-		if t, err := time.Parse("2006-01-02T15:04:05Z", ts); err == nil {
-			return t.UTC()
+	default:
+		var epoch float64
+		if err := json.Unmarshal(raw, &epoch); err == nil && epoch > 0 {
+			sec := int64(epoch)
+			nsec := int64((epoch - float64(sec)) * 1e9)
+			return time.Unix(sec, nsec).UTC()
 		}
-		if t, err := time.Parse("2006-01-02T15:04:05.000Z", ts); err == nil {
-			return t.UTC()
-		}
-	}
-
-	// Try epoch float
-	var epoch float64
-	if err := json.Unmarshal(raw, &epoch); err == nil && epoch > 0 {
-		sec := int64(epoch)
-		nsec := int64((epoch - float64(sec)) * 1e9)
-		return time.Unix(sec, nsec).UTC()
 	}
 
 	return time.Now().UTC()
@@ -329,61 +331,69 @@ func normalizeLevel(level string) string {
 }
 
 func normalizeTags(raw json.RawMessage) map[string]string {
-	// Try object format first: {"key": "value"}
-	var objTags map[string]string
-	if err := json.Unmarshal(raw, &objTags); err == nil {
-		return objTags
+	if len(raw) == 0 {
+		return nil
 	}
-
-	// Try array-of-pairs format: [["key", "value"], ...]
-	var arrTags [][]string
-	if err := json.Unmarshal(raw, &arrTags); err == nil {
-		result := make(map[string]string, len(arrTags))
-		for _, pair := range arrTags {
-			if len(pair) >= 2 {
-				result[pair[0]] = pair[1]
-			}
+	// Dispatch by first byte to avoid wasted unmarshal attempts.
+	switch raw[0] {
+	case '{':
+		var objTags map[string]string
+		if err := json.Unmarshal(raw, &objTags); err == nil {
+			return objTags
 		}
-		return result
-	}
-
-	var objectTags []struct {
-		Key   string `json:"key"`
-		Value string `json:"value"`
-	}
-	if err := json.Unmarshal(raw, &objectTags); err == nil {
-		result := make(map[string]string, len(objectTags))
-		for _, item := range objectTags {
-			if item.Key == "" {
-				continue
+	case '[':
+		// Try array-of-pairs format: [["key", "value"], ...]
+		var arrTags [][]string
+		if err := json.Unmarshal(raw, &arrTags); err == nil {
+			result := make(map[string]string, len(arrTags))
+			for _, pair := range arrTags {
+				if len(pair) >= 2 {
+					result[pair[0]] = pair[1]
+				}
 			}
-			result[item.Key] = item.Value
+			return result
 		}
-		return result
+		// Try array-of-objects format: [{"key": "k", "value": "v"}, ...]
+		var objectTags []struct {
+			Key   string `json:"key"`
+			Value string `json:"value"`
+		}
+		if err := json.Unmarshal(raw, &objectTags); err == nil {
+			result := make(map[string]string, len(objectTags))
+			for _, item := range objectTags {
+				if item.Key != "" {
+					result[item.Key] = item.Value
+				}
+			}
+			return result
+		}
 	}
-
 	return nil
 }
 
 func normalizeMessage(raw json.RawMessage) string {
-	// Try string first
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		return s
+	if len(raw) == 0 {
+		return ""
 	}
-
-	// Try message object: {"message": "...", "params": [...]}
-	var obj struct {
-		Formatted string `json:"formatted"`
-		Message   string `json:"message"`
-	}
-	if err := json.Unmarshal(raw, &obj); err == nil {
-		if obj.Formatted != "" {
-			return obj.Formatted
+	// Dispatch by first byte to avoid wasted unmarshal attempts.
+	switch raw[0] {
+	case '"':
+		var s string
+		if err := json.Unmarshal(raw, &s); err == nil {
+			return s
 		}
-		return obj.Message
+	case '{':
+		var obj struct {
+			Formatted string `json:"formatted"`
+			Message   string `json:"message"`
+		}
+		if err := json.Unmarshal(raw, &obj); err == nil {
+			if obj.Formatted != "" {
+				return obj.Formatted
+			}
+			return obj.Message
+		}
 	}
-
 	return ""
 }
 
