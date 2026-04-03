@@ -82,7 +82,7 @@ func buildLegacyScope(input LegacyInput) Scope {
 	}
 }
 
-func parseLegacyToken(dataset Dataset, token string, selectedEnv *string) (Predicate, bool, *ValidationError) {
+func parseLegacyToken(_ Dataset, token string, selectedEnv *string) (Predicate, bool, *ValidationError) {
 	trimmed := strings.TrimSpace(token)
 	if trimmed == "" {
 		return Predicate{}, false, nil

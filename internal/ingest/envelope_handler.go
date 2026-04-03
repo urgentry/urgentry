@@ -472,7 +472,7 @@ func saveAggregateCount(ctx context.Context, store *sqlite.ReleaseHealthStore, s
 	}
 }
 
-func dispatchReleaseAlert(ctx context.Context, deps *pipeline.AlertDeps, store *sqlite.ReleaseHealthStore, projectID, release, environment string) {
+func dispatchReleaseAlert(ctx context.Context, deps *pipeline.AlertDeps, store *sqlite.ReleaseHealthStore, projectID, release, _ string) {
 	if deps == nil || deps.Evaluator == nil || store == nil {
 		return
 	}

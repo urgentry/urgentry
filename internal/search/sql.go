@@ -22,7 +22,7 @@ type SQLClauses struct {
 // The caller joins them with AND and appends to their query.
 // The groupAlias is the table alias for the groups table (e.g. "g").
 // The escaper is a function that escapes LIKE wildcards.
-func ToSQL(f Filter, dialect SQLDialect, groupAlias string, escapeLike func(string) string) SQLClauses {
+func ToSQL(f Filter, _ SQLDialect, groupAlias string, escapeLike func(string) string) SQLClauses {
 	var sc SQLClauses
 	dot := groupAlias + "."
 	if groupAlias == "" {

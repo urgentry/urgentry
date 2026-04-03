@@ -182,7 +182,7 @@ func TestDashboardStarterTemplates(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/dashboards/", sessionToken, "", "", nil)

@@ -129,7 +129,7 @@ func TestSetEnvironmentCookie(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -175,7 +175,7 @@ func TestSetEnvironmentClearsCookie(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -204,7 +204,7 @@ func TestSetEnvironmentRedirectsToReferer(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}

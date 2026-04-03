@@ -99,25 +99,25 @@ func CheckMixedVersionCluster(contract UpgradeContract, state ClusterVersionStat
 	}, nil
 }
 
-func roleWindow(nodes []NodeVersion, roles ...ClusterRole) (min int, max int, ok bool) {
+func roleWindow(nodes []NodeVersion, roles ...ClusterRole) (minVal int, maxVal int, ok bool) {
 	for _, node := range nodes {
 		if !hasRole(roles, node.Role) {
 			continue
 		}
 		if !ok {
-			min = node.BinaryVersion
-			max = node.BinaryVersion
+			minVal = node.BinaryVersion
+			maxVal = node.BinaryVersion
 			ok = true
 			continue
 		}
-		if node.BinaryVersion < min {
-			min = node.BinaryVersion
+		if node.BinaryVersion < minVal {
+			minVal = node.BinaryVersion
 		}
-		if node.BinaryVersion > max {
-			max = node.BinaryVersion
+		if node.BinaryVersion > maxVal {
+			maxVal = node.BinaryVersion
 		}
 	}
-	return min, max, ok
+	return minVal, maxVal, ok
 }
 
 func hasRole(roles []ClusterRole, role ClusterRole) bool {

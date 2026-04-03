@@ -152,8 +152,8 @@ func mergeStarterPredicate(base, extra *discover.Predicate) *discover.Predicate 
 		return base
 	}
 	if base == nil {
-		copy := *extra
-		return &copy
+		cloned := *extra
+		return &cloned
 	}
 	return &discover.Predicate{Op: "and", Args: []discover.Predicate{*base, *extra}}
 }

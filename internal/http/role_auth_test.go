@@ -104,7 +104,7 @@ func loginSessionClient(t *testing.T, srv roleTestServer) (*http.Client, string)
 	}
 	client := &http.Client{
 		Jar:           jar,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	form := url.Values{
@@ -246,7 +246,7 @@ func TestRoleMountingAPI(t *testing.T) {
 	}
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp, err = client.Get(srv.server.URL + "/issues/")
 	if err != nil {

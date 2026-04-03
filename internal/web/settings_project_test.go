@@ -39,7 +39,7 @@ func TestProjectSettingsSubRoutes(t *testing.T) {
 				t.Fatalf("GET %s status = %d, want 200; body: %s", tc.path, resp.StatusCode, body)
 			}
 			if !strings.Contains(body, tc.contains) {
-				t.Fatalf("GET %s: expected body to contain %q; got: %s", tc.path, tc.contains, body[:min(500, len(body))])
+				t.Fatalf("GET %s: expected body to contain %q; got: %s", tc.path, tc.contains, body[:minInt(500, len(body))])
 			}
 		})
 	}
@@ -55,7 +55,7 @@ func TestProjectSettingsSubRoutes(t *testing.T) {
 	}
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

@@ -32,7 +32,7 @@ func handleListProcessingIssues(auth authFunc) http.HandlerFunc {
 
 // handleRootCapabilities returns the API root with version and capabilities.
 func handleRootCapabilities() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{
 			"version": "0",
 			"auth": map[string]any{

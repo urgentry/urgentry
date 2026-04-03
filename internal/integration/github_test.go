@@ -313,7 +313,7 @@ func TestGitHubClient_RecentCommits(t *testing.T) {
 }
 
 func TestGitHubClient_CompareCommits(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"commits": []commitListItem{
@@ -348,7 +348,7 @@ func TestGitHubClient_CompareCommits(t *testing.T) {
 }
 
 func TestGitHubClient_APIError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"message":"Bad credentials"}`))
 	}))

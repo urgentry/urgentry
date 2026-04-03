@@ -280,8 +280,8 @@ func cloneProfileContext(item *ProfileContext) *ProfileContext {
 	if item == nil {
 		return nil
 	}
-	copy := *item
-	return &copy
+	cloned := *item
+	return &cloned
 }
 
 func shouldTrigger(r *Rule, signal Signal) bool {

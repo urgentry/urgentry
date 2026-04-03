@@ -286,7 +286,7 @@ func estimateCost(query Query) CostEstimate {
 	score := 0
 	switch query.Dataset {
 	case DatasetIssues:
-		score += 1
+		score++
 	case DatasetLogs:
 		score += 4
 	case DatasetTransactions:

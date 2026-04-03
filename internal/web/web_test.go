@@ -48,7 +48,7 @@ func TestDefaultPageScopeCachesWithinRequestState(t *testing.T) {
 	handler := NewHandlerWithDeps(deps)
 
 	var got pageScope
-	wrapped := withPageRequestState(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	wrapped := withPageRequestState(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		first, err := handler.defaultPageScope(r.Context())
 		if err != nil {
 			t.Fatalf("first defaultPageScope: %v", err)

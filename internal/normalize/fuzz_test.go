@@ -36,7 +36,7 @@ func FuzzNormalize(f *testing.F) {
 	f.Add([]byte(`{"event_id":"deadbeefdeadbeefdeadbeefdeadbeef"}`))
 	f.Add([]byte(`{"event_id":"x","message":"hello"}`))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		// Must not panic regardless of input
 		_, _ = Normalize(data)
 	})

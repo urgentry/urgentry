@@ -259,18 +259,18 @@ func mapReplayTimelineItem(item sharedstore.ReplayTimelineItem) ReplayTimelineIt
 	}
 }
 
-func boundedIntQuery(r *http.Request, name string, defaultValue, min, max int) int {
+func boundedIntQuery(r *http.Request, name string, defaultValue, minVal, maxVal int) int {
 	value := defaultValue
 	if raw := strings.TrimSpace(r.URL.Query().Get(name)); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil {
 			value = parsed
 		}
 	}
-	if value < min {
-		value = min
+	if value < minVal {
+		value = minVal
 	}
-	if value > max {
-		value = max
+	if value > maxVal {
+		value = maxVal
 	}
 	return value
 }

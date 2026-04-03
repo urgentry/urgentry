@@ -361,7 +361,7 @@ func (q *scriptedQueue) Enqueue(context.Context, string, string, []byte, int) (b
 	return true, nil
 }
 
-func (q *scriptedQueue) EnqueueKeyed(_ context.Context, kind, projectID, dedupeKey string, payload []byte, limit int) (bool, error) {
+func (q *scriptedQueue) EnqueueKeyed(_ context.Context, _, _, _ string, _ []byte, _ int) (bool, error) {
 	return true, nil
 }
 

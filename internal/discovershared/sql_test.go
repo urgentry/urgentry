@@ -300,7 +300,7 @@ func TestCompilePredicateUnsupportedField(t *testing.T) {
 	builder := &fakeArgBuilder{}
 	dialect := PredicateDialect{
 		Builder:   builder,
-		FieldExpr: func(f string) (string, bool) { return "", false },
+		FieldExpr: func(_ string) (string, bool) { return "", false },
 	}
 	_, err := CompilePredicate(discover.Predicate{
 		Op:    "=",
@@ -385,7 +385,7 @@ func TestCompilePredicateOverrideError(t *testing.T) {
 	dialect := PredicateDialect{
 		Builder:   builder,
 		FieldExpr: func(f string) (string, bool) { return "e." + f, true },
-		Override: func(pred discover.Predicate) (string, bool, error) {
+		Override: func(_ discover.Predicate) (string, bool, error) {
 			return "", false, fmt.Errorf("override error")
 		},
 	}

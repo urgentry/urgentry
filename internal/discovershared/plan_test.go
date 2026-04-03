@@ -90,7 +90,7 @@ func TestPlanFilterPredicateError(t *testing.T) {
 	}
 	_, err := PlanFilter(query, 50, FilterPlanConfig{
 		Builder:       builder,
-		FieldExpr:     func(f string) (string, bool) { return "", false },
+		FieldExpr:     func(_ string) (string, bool) { return "", false },
 		TimestampExpr: "t.ts",
 		DefaultOrder:  "t.ts DESC",
 	})

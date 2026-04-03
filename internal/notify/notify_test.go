@@ -78,7 +78,7 @@ func TestNotifyEmailRequiresOutbox(t *testing.T) {
 func TestNotifySlackRecordsDelivery(t *testing.T) {
 	deliveries := &memoryDeliveries{}
 	n := NewNotifier(nil, deliveries)
-	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("ok")),
@@ -151,7 +151,7 @@ func TestNotifyWebhookIncludesProfileContext(t *testing.T) {
 func TestNotifyWebhookSucceedsWhenDeliveryRecorderFails(t *testing.T) {
 	deliveries := &memoryDeliveries{err: errors.New("delivery sink offline")}
 	n := NewNotifier(nil, deliveries)
-	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+	n.HTTPClient = &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusAccepted,
 			Body:       io.NopCloser(strings.NewReader("accepted")),

@@ -27,7 +27,7 @@ func NewUptimePoller(store *sqlite.UptimeMonitorStore, alerts *AlertDeps) *Uptim
 		alerts: alerts,
 		client: func() *http.Client {
 			client := outboundhttp.NewClient(30*time.Second, nil)
-			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			client.CheckRedirect = func(_ *http.Request, via []*http.Request) error {
 				if len(via) >= 5 {
 					return fmt.Errorf("too many redirects")
 				}

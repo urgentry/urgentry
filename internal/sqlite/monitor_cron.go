@@ -108,7 +108,7 @@ func nextCronOccurrence(after time.Time, expr, timezone string) (time.Time, bool
 	return time.Time{}, false
 }
 
-func parseCronField(raw string, min, max int) (cronField, bool) {
+func parseCronField(raw string, minVal, maxVal int) (cronField, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "*" {
 		return cronField{any: true}, true
@@ -122,7 +122,7 @@ func parseCronField(raw string, min, max int) (cronField, bool) {
 			if err != nil || step <= 0 {
 				return cronField{}, false
 			}
-			for value := min; value <= max; value += step {
+			for value := minVal; value <= maxVal; value += step {
 				field.values[value] = true
 			}
 		default:
@@ -130,7 +130,7 @@ func parseCronField(raw string, min, max int) (cronField, bool) {
 			if err != nil {
 				return cronField{}, false
 			}
-			if value < min || value > max {
+			if value < minVal || value > maxVal {
 				return cronField{}, false
 			}
 			field.values[value] = true

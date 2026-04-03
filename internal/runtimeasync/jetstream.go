@@ -80,7 +80,7 @@ func (q *JetStreamQueue) Enqueue(ctx context.Context, kind, projectID string, pa
 	return q.EnqueueKeyed(ctx, kind, projectID, "", payload, 0)
 }
 
-func (q *JetStreamQueue) EnqueueKeyed(ctx context.Context, kind, projectID, dedupeKey string, payload []byte, _ int) (bool, error) {
+func (q *JetStreamQueue) EnqueueKeyed(_ context.Context, kind, projectID, dedupeKey string, payload []byte, _ int) (bool, error) {
 	if q == nil || q.js == nil {
 		return false, fmt.Errorf("jetstream queue is not configured")
 	}
@@ -108,7 +108,7 @@ func (q *JetStreamQueue) EnqueueKeyed(ctx context.Context, kind, projectID, dedu
 	return true, nil
 }
 
-func (q *JetStreamQueue) ClaimNext(ctx context.Context, workerID string, _ time.Duration) (*Job, error) {
+func (q *JetStreamQueue) ClaimNext(ctx context.Context, _ string, _ time.Duration) (*Job, error) {
 	if q == nil || len(q.subs) == 0 {
 		return nil, nil
 	}

@@ -749,7 +749,7 @@ func runControlPlaneWebSuite(t *testing.T, h *controlPlaneHarness) webSnapshot {
 	}
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	settingsForm := url.Values{
@@ -1607,8 +1607,8 @@ func seedHarnessIssues(t *testing.T, h *controlPlaneHarness) {
 				LastEventID:     "evt-harness-merged",
 			},
 		} {
-			copy := item
-			if err := groupStore.UpsertGroup(context.Background(), &copy); err != nil {
+			cloned := item
+			if err := groupStore.UpsertGroup(context.Background(), &cloned); err != nil {
 				t.Fatalf("%s seed control issue %s: %v", h.name, item.ID, err)
 			}
 		}

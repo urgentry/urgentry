@@ -26,7 +26,7 @@ func TestNormalizeValueCoversAllNumericTypes(t *testing.T) {
 		{"string", "hello", "hello"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(_ *testing.T) {
 			// normalizeValue is tested indirectly through SnapshotTable in discoverharness,
 			// but we test it directly here since it's also used in profile support
 		})

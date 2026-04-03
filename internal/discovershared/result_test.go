@@ -639,7 +639,7 @@ func TestRawOrderClauseFallsBackForUnresolvable(t *testing.T) {
 			{Expr: discover.Expression{Field: "unknown"}, Direction: "asc"},
 		},
 	}
-	expr := func(field string) (string, bool) {
+	expr := func(_ string) (string, bool) {
 		return "", false
 	}
 	got := RawOrderClause(query, "fallback", expr)

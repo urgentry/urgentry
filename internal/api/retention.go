@@ -210,7 +210,7 @@ func normalizeRetentionLimit(limit int) int {
 	return limit
 }
 
-func positiveLimit(raw string, fallback, max int) int {
+func positiveLimit(raw string, fallback, maxVal int) int {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return fallback
@@ -219,8 +219,8 @@ func positiveLimit(raw string, fallback, max int) int {
 	if err != nil || parsed <= 0 {
 		return fallback
 	}
-	if parsed > max {
-		return max
+	if parsed > maxVal {
+		return maxVal
 	}
 	return parsed
 }

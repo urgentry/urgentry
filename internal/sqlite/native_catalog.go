@@ -543,7 +543,7 @@ func stringAny(value any) string {
 	}
 }
 
-func (s *DebugFileStore) lookupNativeSymbolSourceByColumn(ctx context.Context, projectID, releaseVersion, kind, column, value string, input NativeLookupInput) (*NativeSymbolSource, *DebugFile, []byte, error) {
+func (s *DebugFileStore) lookupNativeSymbolSourceByColumn(ctx context.Context, projectID, releaseVersion, kind, column, value string, _ NativeLookupInput) (*NativeSymbolSource, *DebugFile, []byte, error) {
 	query := `SELECT id, debug_file_id, project_id, release_version, kind, debug_id, code_id, build_id, uuid, module_name, architecture, platform, created_at
 		FROM native_symbol_sources
 		WHERE project_id = ? AND release_version = ?`

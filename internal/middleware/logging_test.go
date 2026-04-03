@@ -39,7 +39,7 @@ func TestRequestLogging_SetsRequestID(t *testing.T) {
 }
 
 func TestRequestLogging_CapturesStatus(t *testing.T) {
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("not found"))
 	})
@@ -61,7 +61,7 @@ func TestRequestLogging_RedactsInviteAcceptTokenPath(t *testing.T) {
 	log.Logger = zerolog.New(&output)
 	t.Cleanup(func() { log.Logger = previous })
 
-	handler := RequestLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := RequestLogging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	req := httptest.NewRequest(http.MethodPost, "/api/0/invites/ginvite_secret-token-value/accept/", nil)
@@ -78,7 +78,7 @@ func TestRequestLogging_RedactsInviteAcceptTokenPath(t *testing.T) {
 	}
 }
 
-func TestLogFromCtx_WithoutRequestID(t *testing.T) {
+func TestLogFromCtx_WithoutRequestID(_ *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	l := LogFromCtx(req.Context())
 	// Should not panic, just return a logger without request_id.

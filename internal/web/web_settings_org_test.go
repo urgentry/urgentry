@@ -102,7 +102,7 @@ func TestOrgSettingsTeamsShowsSeededData(t *testing.T) {
 func TestOrgSettingsAuthWithOIDC(t *testing.T) {
 	oidcStore := auth.NewMemoryOIDCConfigStore()
 
-	srv, db, sessionToken, _ := setupAuthorizedTestServerWithDeps(t, func(db2 *sql.DB, authz *auth.Authorizer, dataDir string, deps Dependencies) Dependencies {
+	srv, db, sessionToken, _ := setupAuthorizedTestServerWithDeps(t, func(db2 *sql.DB, _ *auth.Authorizer, _ string, deps Dependencies) Dependencies {
 		var orgID string
 		_ = db2.QueryRow(`SELECT id FROM organizations WHERE slug = 'test-org'`).Scan(&orgID)
 		if orgID != "" {

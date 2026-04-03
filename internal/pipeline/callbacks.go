@@ -106,8 +106,8 @@ func alertProfileCopy(item *alert.ProfileContext) *alert.ProfileContext {
 	if item == nil {
 		return nil
 	}
-	copy := *item
-	return &copy
+	cloned := *item
+	return &cloned
 }
 
 func dispatchAlertTriggers(ctx context.Context, deps AlertDeps, projectID string, triggers []alert.TriggerEvent) {

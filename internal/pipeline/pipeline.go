@@ -619,14 +619,14 @@ func retryDelay(attempts int) time.Duration {
 	if attempts < 1 {
 		attempts = 1
 	}
-	delay := time.Second << min(attempts-1, 5)
+	delay := time.Second << minInt(attempts-1, 5)
 	if delay > 30*time.Second {
 		return 30 * time.Second
 	}
 	return delay
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

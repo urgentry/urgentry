@@ -78,13 +78,13 @@ func TestSpikeThrottle_ThrottlesSpike(t *testing.T) {
 	ctx := context.Background()
 
 	// Establish a baseline: 20 events per minute for 10 minutes.
-	for min := 0; min < baselineWindow; min++ {
+	for m := 0; m < baselineWindow; m++ {
 		mu.Lock()
-		fakeMinute = int64(1000 + min)
+		fakeMinute = int64(1000 + m)
 		mu.Unlock()
 		for i := 0; i < 20; i++ {
 			if !st.Allow(ctx, "proj-1") {
-				t.Fatalf("minute %d, event %d: should allow during baseline", min, i)
+				t.Fatalf("minute %d, event %d: should allow during baseline", m, i)
 			}
 		}
 	}
@@ -134,9 +134,9 @@ func TestSpikeThrottle_AllowsLowTraffic(t *testing.T) {
 	ctx := context.Background()
 
 	// Establish a low baseline: 3 events per minute (below minBaselineCount).
-	for min := 0; min < baselineWindow; min++ {
+	for m := 0; m < baselineWindow; m++ {
 		mu.Lock()
-		fakeMinute = int64(1000 + min)
+		fakeMinute = int64(1000 + m)
 		mu.Unlock()
 		for i := 0; i < 3; i++ {
 			st.Allow(ctx, "proj-1")

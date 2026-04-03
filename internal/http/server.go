@@ -166,7 +166,7 @@ func NewServer(role string, cfg config.Config, deps Deps) http.Handler {
 	}
 
 	// Health endpoints (enriched with telemetry when metrics are available)
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		resp := healthResponse{
 			Status:       "ok",
 			Role:         role,
@@ -279,7 +279,7 @@ func NewServer(role string, cfg config.Config, deps Deps) http.Handler {
 	if deps.Metrics != nil {
 		mux.HandleFunc("/metrics", deps.Metrics.Handler())
 	} else {
-		mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
 			httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "no metrics configured"})
 		})
 	}
@@ -311,25 +311,25 @@ func NewServer(role string, cfg config.Config, deps Deps) http.Handler {
 		mux.Handle("POST /api/{project_id}/unreal/{sentry_key}/", ingestChain(ingest.MinidumpHandlerWithDeps(ingestDeps)))
 		mux.Handle("POST /api/{project_id}/otlp/v1/traces/", ingestChain(ingest.OTLPTracesHandler(ingestDeps.Pipeline, ingestDeps.Metrics)))
 		mux.Handle("POST /api/{project_id}/otlp/v1/logs/", ingestChain(ingest.OTLPLogsHandler(ingestDeps.Pipeline, ingestDeps.Metrics)))
-		mux.Handle("OPTIONS /api/{project_id}/store/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/store/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
-		mux.Handle("OPTIONS /api/{project_id}/envelope/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/envelope/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
-		mux.Handle("OPTIONS /api/{project_id}/minidump/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/minidump/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
-		mux.Handle("OPTIONS /api/{project_id}/security/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/security/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
-		mux.Handle("OPTIONS /api/{project_id}/csp-report/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/csp-report/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
-		mux.Handle("OPTIONS /api/{project_id}/otlp/v1/traces/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/otlp/v1/traces/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
-		mux.Handle("OPTIONS /api/{project_id}/otlp/v1/logs/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("OPTIONS /api/{project_id}/otlp/v1/logs/", middleware.IngestCORS(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
 	}
@@ -400,7 +400,7 @@ func OperatorServiceChecks(db *sql.DB, cfg config.Config) []sqlite.OperatorCheck
 		},
 		{
 			Name: "jetstream",
-			Check: func(ctx context.Context) (store.OperatorServiceStatus, error) {
+			Check: func(_ context.Context) (store.OperatorServiceStatus, error) {
 				if !strings.EqualFold(strings.TrimSpace(cfg.AsyncBackend), "jetstream") {
 					return store.OperatorServiceStatus{Name: "jetstream", Status: "skipped", Detail: "sqlite backend"}, nil
 				}

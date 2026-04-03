@@ -40,7 +40,7 @@ type quotaRateLimitRequest struct {
 	MaxTransPerHour  int    `json:"max_transactions_per_hour"`
 }
 
-func handleGetQuotaUsage(catalog controlplane.CatalogStore, quota *sqlite.QuotaStore, auth authFunc) http.HandlerFunc {
+func handleGetQuotaUsage(_ controlplane.CatalogStore, quota *sqlite.QuotaStore, auth authFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return

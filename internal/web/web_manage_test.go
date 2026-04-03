@@ -16,7 +16,7 @@ func TestManagePagesRequireAuthAndRender(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	pages := []struct {
@@ -61,7 +61,7 @@ func TestManageDashboardShowsCounts(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/manage/", sessionToken, csrf, "", nil)
 	body := getBody(t, resp)
@@ -82,7 +82,7 @@ func TestManageStatusShowsGoVersion(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/manage/status/", sessionToken, csrf, "", nil)
 	body := getBody(t, resp)
@@ -104,7 +104,7 @@ func TestManageUsersListsBootstrapUser(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/manage/users/", sessionToken, csrf, "", nil)
 	body := getBody(t, resp)
@@ -123,7 +123,7 @@ func TestManageOrganizationsListsOrg(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/manage/organizations/", sessionToken, csrf, "", nil)
 	body := getBody(t, resp)
@@ -142,7 +142,7 @@ func TestManageSidebarLinkPresentInNav(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/manage/", sessionToken, csrf, "", nil)
 	body := getBody(t, resp)

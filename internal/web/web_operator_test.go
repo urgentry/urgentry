@@ -13,7 +13,7 @@ import (
 )
 
 func TestOperatorPageRequiresSessionAndRendersOverview(t *testing.T) {
-	srv, _, sessionToken, csrf := setupAuthorizedTestServerWithDeps(t, func(db *sql.DB, authz *auth.Authorizer, dataDir string, deps Dependencies) Dependencies {
+	srv, _, sessionToken, csrf := setupAuthorizedTestServerWithDeps(t, func(db *sql.DB, _ *auth.Authorizer, _ string, deps Dependencies) Dependencies {
 		if _, err := db.Exec(
 			`INSERT INTO backfill_runs
 				(id, kind, status, organization_id, project_id, release_version, total_items, processed_items, failed_items, requested_via, last_error, created_at, updated_at)
@@ -78,7 +78,7 @@ func TestOperatorPageRequiresSessionAndRendersOverview(t *testing.T) {
 	defer srv.Close()
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/ops/", "", "", "", nil)
 	if resp.StatusCode != http.StatusSeeOther {

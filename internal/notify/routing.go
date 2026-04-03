@@ -117,7 +117,7 @@ func (e *RoutingEngine) EvaluateAll(ctx context.Context, orgID string, rctx Rout
 // RouteAlert applies routing rules to an alert trigger event, returning
 // delivery actions. If no routing rules match, it returns the alert rule's
 // own actions as a fallback.
-func (e *RoutingEngine) RouteAlert(ctx context.Context, orgID string, trigger alert.TriggerEvent, rctx RoutingContext, fallbackActions []alert.Action) ([]RoutingAction, error) {
+func (e *RoutingEngine) RouteAlert(ctx context.Context, orgID string, _ alert.TriggerEvent, rctx RoutingContext, fallbackActions []alert.Action) ([]RoutingAction, error) {
 	actions, err := e.Evaluate(ctx, orgID, rctx)
 	if err != nil {
 		return nil, err

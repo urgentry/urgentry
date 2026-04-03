@@ -168,7 +168,7 @@ func TestDiscoverSavedQueryAndDashboardFlows(t *testing.T) {
 		WithRelease("1.2.4"))
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/discover/", sessionToken, "", "", nil)
@@ -632,7 +632,7 @@ func TestDiscoverPageShowsOrganizationSharedQueries(t *testing.T) {
 	}
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	favoriteForm := url.Values{
 		"favorite":  {"1"},
@@ -713,7 +713,7 @@ func TestSavedQueryDetailAndCloneFlows(t *testing.T) {
 	}
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	resp := sessionRequest(t, client, http.MethodGet, srv.URL+"/discover/queries/"+shared.ID+"/", sessionToken, "", "", nil)

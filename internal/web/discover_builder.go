@@ -517,7 +517,7 @@ func firstAggregateAlias(selects []discover.SelectItem) string {
 	return ""
 }
 
-func discoverSavedQueryURL(path string, saved sqlite.SavedSearch) string {
+func discoverSavedQueryURL(_ string, saved sqlite.SavedSearch) string {
 	values := url.Values{}
 	values.Set("saved", saved.ID)
 	return savedQueryPath(savedQueryDataset(saved)) + "?" + values.Encode()

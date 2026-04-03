@@ -328,7 +328,7 @@ func TestMaintenanceModeBlocksWritesButAllowsReads(t *testing.T) {
 		t.Fatalf("SetMaintenanceMode: %v", err)
 	}
 
-	loginClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+	loginClient := &http.Client{CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	loginResp, err := loginClient.Post(srv.server.URL+"/login/", "application/x-www-form-urlencoded", strings.NewReader("email="+srv.email+"&password="+srv.pass+"&next=%2Fissues%2F"))
 	if err != nil {
 		t.Fatalf("POST /login/: %v", err)

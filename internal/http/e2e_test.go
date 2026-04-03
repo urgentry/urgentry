@@ -169,7 +169,7 @@ func TestE2E_IngestToRender(t *testing.T) {
 	}
 	client := &http.Client{
 		Jar:           jar,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	loginResp, err := client.Post(srv.URL+"/login/", "application/x-www-form-urlencoded", strings.NewReader("email="+bootstrap.Email+"&password="+bootstrap.Password+"&next=%2Fissues%2F"))
 	if err != nil {

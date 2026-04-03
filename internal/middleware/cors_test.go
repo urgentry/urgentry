@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var noop = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var noop = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 })
 

@@ -39,7 +39,7 @@ func FuzzParse(f *testing.F) {
 	f.Add([]byte("{}\n"))
 	f.Add([]byte("{}\n{}\n"))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		// Must not panic regardless of input
 		_, _ = Parse(data)
 	})

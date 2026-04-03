@@ -189,7 +189,7 @@ func (s *QueryGuardStore) loadPolicy(ctx context.Context, organizationID string,
 	return policy, nil
 }
 
-func (s *QueryGuardStore) insertAudit(ctx context.Context, req QueryGuardRequest, allowed bool, decision QueryGuardDecision) error {
+func (s *QueryGuardStore) insertAudit(ctx context.Context, req QueryGuardRequest, allowed bool, _ QueryGuardDecision) error {
 	action := "query." + string(req.Estimate.Workload) + ".allowed"
 	if !allowed {
 		action = "query." + string(req.Estimate.Workload) + ".denied"

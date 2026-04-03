@@ -36,7 +36,7 @@ func TestMaintenanceBlocksAPIMutations(t *testing.T) {
 			MaintenanceMode:   true,
 			MaintenanceReason: "upgrade window",
 		},
-	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
@@ -65,7 +65,7 @@ func TestMaintenanceBlocksAPIMutations(t *testing.T) {
 func TestMaintenanceAllowsReadsAndAuth(t *testing.T) {
 	handler := Maintenance(&testLifecycleStore{
 		state: &store.InstallState{MaintenanceMode: true},
-	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 

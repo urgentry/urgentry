@@ -135,7 +135,7 @@ func TestOIDCProvider_AuthorizationURL(t *testing.T) {
 		UserInfoEndpoint:      "https://test-issuer.example.com/userinfo",
 	}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(doc)
 	}))

@@ -124,7 +124,7 @@ func TestPipeline_AlertCallbackRunsAsync(t *testing.T) {
 	p := New(proc, 100, 1)
 	var alertCalls atomic.Int32
 	started := make(chan struct{}, 1)
-	p.SetAlertCallback(func(ctx context.Context, projectID string, result issue.ProcessResult) {
+	p.SetAlertCallback(func(_ context.Context, _ string, _ issue.ProcessResult) {
 		alertCalls.Add(1)
 		select {
 		case started <- struct{}{}:
@@ -201,7 +201,7 @@ func TestPipeline_ConfigurationFreezesAfterStart(t *testing.T) {
 	})
 }
 
-func TestPipeline_StartIsIdempotent(t *testing.T) {
+func TestPipeline_StartIsIdempotent(_ *testing.T) {
 	events := store.NewMemoryEventStore()
 	groups := issue.NewMemoryGroupStore()
 	blobs := store.NewMemoryBlobStore()

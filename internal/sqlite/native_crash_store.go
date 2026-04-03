@@ -222,7 +222,7 @@ func (s *NativeCrashStore) IngestMinidump(ctx context.Context, in MinidumpReceip
 	return crash, true, nil
 }
 
-func (s *NativeCrashStore) ProcessStackwalkJob(ctx context.Context, processor *issue.Processor, projectID string, payload []byte) error {
+func (s *NativeCrashStore) ProcessStackwalkJob(ctx context.Context, processor *issue.Processor, _ string, payload []byte) error {
 	if s == nil || s.db == nil {
 		return errors.New("native crash store is not configured")
 	}

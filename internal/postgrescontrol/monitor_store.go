@@ -445,34 +445,34 @@ func canonicalMonitor(monitor *Monitor) *Monitor {
 	if monitor == nil {
 		return nil
 	}
-	copy := *monitor
-	copy.ProjectID = strings.TrimSpace(copy.ProjectID)
-	copy.Slug = strings.TrimSpace(copy.Slug)
-	copy.Status = canonicalMonitorStatus(copy.Status)
-	copy.Environment = canonicalEnvironment(copy.Environment)
-	copy.Config = canonicalMonitorConfig(copy.Config)
-	return &copy
+	cloned := *monitor
+	cloned.ProjectID = strings.TrimSpace(cloned.ProjectID)
+	cloned.Slug = strings.TrimSpace(cloned.Slug)
+	cloned.Status = canonicalMonitorStatus(cloned.Status)
+	cloned.Environment = canonicalEnvironment(cloned.Environment)
+	cloned.Config = canonicalMonitorConfig(cloned.Config)
+	return &cloned
 }
 
 func canonicalCheckIn(checkIn *MonitorCheckIn) *MonitorCheckIn {
 	if checkIn == nil {
 		return nil
 	}
-	copy := *checkIn
-	copy.ProjectID = strings.TrimSpace(copy.ProjectID)
-	copy.MonitorSlug = strings.TrimSpace(copy.MonitorSlug)
-	copy.Status = canonicalCheckInStatus(copy.Status)
-	copy.Environment = canonicalEnvironment(copy.Environment)
-	if copy.CheckInID == "" {
-		copy.CheckInID = generateID()
+	cloned := *checkIn
+	cloned.ProjectID = strings.TrimSpace(cloned.ProjectID)
+	cloned.MonitorSlug = strings.TrimSpace(cloned.MonitorSlug)
+	cloned.Status = canonicalCheckInStatus(cloned.Status)
+	cloned.Environment = canonicalEnvironment(cloned.Environment)
+	if cloned.CheckInID == "" {
+		cloned.CheckInID = generateID()
 	}
-	if copy.ID == "" {
-		copy.ID = generateID()
+	if cloned.ID == "" {
+		cloned.ID = generateID()
 	}
-	if copy.DateCreated.IsZero() {
-		copy.DateCreated = time.Now().UTC()
+	if cloned.DateCreated.IsZero() {
+		cloned.DateCreated = time.Now().UTC()
 	}
-	return &copy
+	return &cloned
 }
 
 func canonicalMonitorConfig(cfg MonitorConfig) MonitorConfig {
@@ -657,7 +657,7 @@ func nextCronOccurrence(after time.Time, expr, timezone string) (time.Time, bool
 	return time.Time{}, false
 }
 
-func parseCronField(raw string, min, max int) (cronField, bool) {
+func parseCronField(raw string, minVal, maxVal int) (cronField, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "*" {
 		return cronField{any: true}, true
@@ -671,12 +671,12 @@ func parseCronField(raw string, min, max int) (cronField, bool) {
 			if err != nil || step <= 0 {
 				return cronField{}, false
 			}
-			for value := min; value <= max; value += step {
+			for value := minVal; value <= maxVal; value += step {
 				field.values[value] = true
 			}
 		default:
 			value, err := strconv.Atoi(part)
-			if err != nil || value < min || value > max {
+			if err != nil || value < minVal || value > maxVal {
 				return cronField{}, false
 			}
 			field.values[value] = true

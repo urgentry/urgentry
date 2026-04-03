@@ -41,7 +41,7 @@ func FuzzParse(f *testing.F) {
 	for _, s := range seeds {
 		f.Add(s)
 	}
-	f.Fuzz(func(t *testing.T, input string) {
+	f.Fuzz(func(_ *testing.T, input string) {
 		// The parser should never panic on any input.
 		_ = Parse(input)
 	})

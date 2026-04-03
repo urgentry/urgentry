@@ -73,7 +73,7 @@ func handleListOrgEvents(db *sql.DB, queries telemetryquery.Service, auth authFu
 
 // handleOrgEventsDiscover executes a discover query for the org events endpoint
 // when field[] parameters are present.
-func handleOrgEventsDiscover(w http.ResponseWriter, r *http.Request, queries telemetryquery.Service, orgSlug string, fields []string, rawQuery, sortField string, limit int) {
+func handleOrgEventsDiscover(w http.ResponseWriter, r *http.Request, queries telemetryquery.Service, orgSlug string, fields []string, _ string, sortField string, limit int) {
 	selects, err := parseDiscoverFields(fields)
 	if err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, err.Error())

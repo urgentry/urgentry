@@ -255,7 +255,7 @@ func mapRelease(row sqlite.Release, orgSlug string, summary sqlite.NativeRelease
 	}
 }
 
-func enrichReleaseDetail(ctx context.Context, db *sql.DB, releases controlplane.ReleaseStore, orgID, version string, rel *Release) {
+func enrichReleaseDetail(ctx context.Context, _ *sql.DB, releases controlplane.ReleaseStore, orgID, version string, rel *Release) {
 	// Commit count and authors
 	commits, err := releases.ListCommits(ctx, orgID, version, 100)
 	if err == nil {

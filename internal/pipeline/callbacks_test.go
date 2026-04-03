@@ -89,7 +89,7 @@ func TestNewAlertCallback_RecordsSlackDeliveryForSlowTransaction(t *testing.T) {
 	deliveryStore := sqlite.NewNotificationDeliveryStore(db)
 	profileStore := sqlite.NewProfileStore(db, store.NewMemoryBlobStore())
 	notifier := notify.NewNotifier(nil, deliveryStore)
-	notifier.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+	notifier.HTTPClient = &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("ok")),

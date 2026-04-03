@@ -161,7 +161,7 @@ func TestCreateReleaseNativeReprocessRequiresSessionCSRF(t *testing.T) {
 
 	form := url.Values{"project_id": {"test-proj"}}
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/releases/backend@2.0.0/native/reprocess", strings.NewReader(form.Encode()))
@@ -296,7 +296,7 @@ func TestUpdateProjectSettings(t *testing.T) {
 		"replay_scrub_selectors":             {".secret"},
 	}
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	resp, err := client.PostForm(srv.URL+"/settings/project", form)
 	if err != nil {
@@ -392,7 +392,7 @@ func TestUpdateProjectSettingsRequiresSessionCSRF(t *testing.T) {
 		"replay_scrub_selectors":             {".secret"},
 	}
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/settings/project", strings.NewReader(form.Encode()))
