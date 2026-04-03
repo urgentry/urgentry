@@ -161,6 +161,19 @@ func handleBulkDeleteDetectors(
 	detectors store.DetectorStore,
 	auth authFunc,
 ) http.HandlerFunc {
+	return bulkDeleteByOrgHandler(catalog, auth, "Failed to delete detectors.", func(r *http.Request, orgID string, ids []string) error {
+		return detectors.BulkDeleteDetectors(r.Context(), orgID, ids)
+	})
+}
+
+// bulkDeleteByOrgHandler is a shared handler factory for bulk-delete endpoints that
+// decode a JSON body with an "ids" field and call deleteFn with the org ID and IDs.
+func bulkDeleteByOrgHandler(
+	catalog controlplane.CatalogStore,
+	auth authFunc,
+	deleteErrMsg string,
+	deleteFn func(r *http.Request, orgID string, ids []string) error,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
@@ -180,8 +193,8 @@ func handleBulkDeleteDetectors(
 			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: ids")
 			return
 		}
-		if err := detectors.BulkDeleteDetectors(r.Context(), org.ID, body.IDs); err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete detectors.")
+		if err := deleteFn(r, org.ID, body.IDs); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, deleteErrMsg)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

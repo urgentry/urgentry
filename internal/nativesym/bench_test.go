@@ -7,7 +7,7 @@ import (
 	nativefixture "urgentry/internal/testfixtures/nativecrash"
 )
 
-func BenchmarkResolverResolveBreakpad(b *testing.B) {
+func BenchmarkResolverResolveBreakpad(b *testing.B) { //nolint:dupl
 	fixture := nativefixture.ByName(b, "apple_multimodule")
 	if len(fixture.Symbols) == 0 {
 		b.Fatal("apple fixture missing symbol source")
@@ -37,7 +37,7 @@ func BenchmarkResolverResolveBreakpad(b *testing.B) {
 	}
 }
 
-func BenchmarkResolverResolveELF(b *testing.B) {
+func BenchmarkResolverResolveELF(b *testing.B) { //nolint:dupl
 	fixture := nativefixture.ByName(b, "linux_elf")
 	if len(fixture.Symbols) == 0 {
 		b.Fatal("linux fixture missing symbol source")

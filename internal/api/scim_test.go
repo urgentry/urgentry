@@ -1,9 +1,7 @@
 package api
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -136,7 +134,7 @@ func TestSCIMRoutesRequireBearerToken(t *testing.T) {
 	ts, _ := newSQLiteAuthorizedServer(t, db, Dependencies{})
 	defer ts.Close()
 
-	resp := doSCIMRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", "", nil)
+	resp := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", "", nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -149,7 +147,7 @@ func TestSCIMRoutesRequireBearerToken(t *testing.T) {
 		t.Fatalf("detail = %q, want bearer-required error", problem.Detail)
 	}
 
-	invalid := doSCIMRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", "gpat_nope", nil)
+	invalid := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", "gpat_nope", nil)
 	if invalid.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("invalid bearer status = %d, want 401", invalid.StatusCode)
 	}
@@ -194,7 +192,7 @@ func TestSCIMRoutesRejectSessionOnlyAndNonAdminPAT(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePersonalAccessToken: %v", err)
 	}
-	limited := doSCIMRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", limitedPAT, nil)
+	limited := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", limitedPAT, nil)
 	if limited.StatusCode != http.StatusForbidden {
 		t.Fatalf("limited PAT status = %d, want 403", limited.StatusCode)
 	}
@@ -222,7 +220,7 @@ func TestSCIMRoutesRejectOtherOrganizationAdminPAT(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePersonalAccessToken: %v", err)
 	}
-	resp := doSCIMRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", pat, nil)
+	resp := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/scim/v2/Users", pat, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", resp.StatusCode)
 	}
@@ -240,7 +238,7 @@ func TestSCIMRoutesRemainUnmountedWithoutUserStore(t *testing.T) {
 	ts := httptest.NewServer(NewRouter(deps))
 	defer ts.Close()
 
-	resp := doSCIMRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/scim/v2/Users", "gpat_test_admin_token", map[string]any{
+	resp := authzJSONRequest(t, ts, http.MethodPost, "/api/0/organizations/test-org/scim/v2/Users", "gpat_test_admin_token", map[string]any{
 		"userName": "missing-store@example.com",
 	})
 	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusMethodNotAllowed {
@@ -249,32 +247,3 @@ func TestSCIMRoutesRemainUnmountedWithoutUserStore(t *testing.T) {
 	resp.Body.Close()
 }
 
-func doSCIMRequest(t *testing.T, ts *httptest.Server, method, path, token string, body any) *http.Response {
-	t.Helper()
-
-	var payload []byte
-	if body != nil {
-		var err error
-		payload, err = json.Marshal(body)
-		if err != nil {
-			t.Fatalf("marshal request: %v", err)
-		}
-	}
-
-	req, err := http.NewRequest(method, ts.URL+path, bytes.NewReader(payload))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
-	return resp
-}

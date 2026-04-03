@@ -14,25 +14,35 @@ import (
 	"urgentry/internal/telemetryquery"
 )
 
-func handleListReplays(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
+// resolveProjectAndOrg resolves the project ID and organization for a request,
+// writing error responses and returning (projectID, orgID, ok).
+func resolveProjectAndOrg(w http.ResponseWriter, r *http.Request, db *sql.DB) (projectID, orgID string, ok bool) {
+	projectID, ok = resolveProjectID(w, r, db)
+	if !ok {
+		return "", "", false
+	}
+	org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "Failed to load organization.")
+		return "", "", false
+	}
+	if org == nil {
+		httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+		return "", "", false
+	}
+	return projectID, org.ID, true
+}
+
+func handleListReplays(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc { //nolint:dupl
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectID(w, r, db)
+		projectID, orgID, ok := resolveProjectAndOrg(w, r, db)
 		if !ok {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load organization.")
-			return
-		}
-		if org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
-		}
-		if !enforceQueryGuard(w, r, guard, org.ID, projectID, sqlite.QueryEstimate{
+		if !enforceQueryGuard(w, r, guard, orgID, projectID, sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadReplays,
 			Limit:    100,
 		}) {
@@ -56,20 +66,11 @@ func handleGetReplay(db *sql.DB, queries telemetryquery.Service, guard sqlite.Qu
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectID(w, r, db)
+		projectID, orgID, ok := resolveProjectAndOrg(w, r, db)
 		if !ok {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load organization.")
-			return
-		}
-		if org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
-		}
-		if !enforceQueryGuard(w, r, guard, org.ID, projectID, sqlite.QueryEstimate{
+		if !enforceQueryGuard(w, r, guard, orgID, projectID, sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadReplays,
 			Limit:    1,
 			Detail:   true,
@@ -93,25 +94,16 @@ func handleGetReplay(db *sql.DB, queries telemetryquery.Service, guard sqlite.Qu
 	}
 }
 
-func handleListProfiles(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc {
+func handleListProfiles(db *sql.DB, queries telemetryquery.Service, guard sqlite.QueryGuard, auth authFunc) http.HandlerFunc { //nolint:dupl
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectID(w, r, db)
+		projectID, orgID, ok := resolveProjectAndOrg(w, r, db)
 		if !ok {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load organization.")
-			return
-		}
-		if org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
-		}
-		if !enforceQueryGuard(w, r, guard, org.ID, projectID, sqlite.QueryEstimate{
+		if !enforceQueryGuard(w, r, guard, orgID, projectID, sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadProfiles,
 			Limit:    100,
 		}) {
@@ -135,20 +127,11 @@ func handleGetProfile(db *sql.DB, queries telemetryquery.Service, guard sqlite.Q
 		if !auth(w, r) {
 			return
 		}
-		projectID, ok := resolveProjectID(w, r, db)
+		projectID, orgID, ok := resolveProjectAndOrg(w, r, db)
 		if !ok {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load organization.")
-			return
-		}
-		if org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
-		}
-		if !enforceQueryGuard(w, r, guard, org.ID, projectID, sqlite.QueryEstimate{
+		if !enforceQueryGuard(w, r, guard, orgID, projectID, sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadProfiles,
 			Limit:    1,
 			Detail:   true,

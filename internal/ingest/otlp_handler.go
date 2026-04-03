@@ -28,8 +28,17 @@ type otlpStatusResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
-// OTLPTracesHandler handles OTLP/HTTP JSON traces for a project.
-func OTLPTracesHandler(pipe *pipeline.Pipeline, met *metrics.Metrics) http.Handler {
+// newOTLPHandler builds a generic OTLP/HTTP JSON handler.  translateFn converts
+// the raw payload to pipeline events; binaryUnsupportedMsg is included in the
+// 415 response for protobuf requests; invalidPayloadMsg is included in the 400
+// response for malformed JSON payloads.
+func newOTLPHandler(
+	pipe *pipeline.Pipeline,
+	met *metrics.Metrics,
+	binaryUnsupportedMsg string,
+	invalidPayloadMsg string,
+	translateFn func([]byte) ([][]byte, error),
+) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentType := otlpResponseContentType(r.Header.Get("Content-Type"))
 		if r.Method != http.MethodPost {
@@ -41,7 +50,7 @@ func OTLPTracesHandler(pipe *pipeline.Pipeline, met *metrics.Metrics) http.Handl
 			return
 		}
 		if contentType == otlpContentTypeProtobuf {
-			writeOTLPStatus(w, contentType, http.StatusUnsupportedMediaType, "binary otlp traces are not supported")
+			writeOTLPStatus(w, contentType, http.StatusUnsupportedMediaType, binaryUnsupportedMsg)
 			return
 		}
 		payload, err := readOTLPBody(w, r)
@@ -52,12 +61,12 @@ func OTLPTracesHandler(pipe *pipeline.Pipeline, met *metrics.Metrics) http.Handl
 			writeOTLPStatus(w, contentType, http.StatusBadRequest, err.Error())
 			return
 		}
-		items, err := trace.TranslateOTLPJSON(payload)
+		items, err := translateFn(payload)
 		if err != nil {
 			if met != nil {
 				met.RecordIngest(len(payload), err)
 			}
-			writeOTLPStatus(w, contentType, http.StatusBadRequest, "invalid otlp trace payload")
+			writeOTLPStatus(w, contentType, http.StatusBadRequest, invalidPayloadMsg)
 			return
 		}
 		projectID := r.PathValue("project_id")
@@ -79,6 +88,15 @@ func OTLPTracesHandler(pipe *pipeline.Pipeline, met *metrics.Metrics) http.Handl
 		}
 		writeOTLPJSON(w, contentType, http.StatusOK, otlpTraceExportResponse{})
 	})
+}
+
+// OTLPTracesHandler handles OTLP/HTTP JSON traces for a project.
+func OTLPTracesHandler(pipe *pipeline.Pipeline, met *metrics.Metrics) http.Handler {
+	return newOTLPHandler(pipe, met,
+		"binary otlp traces are not supported",
+		"invalid otlp trace payload",
+		trace.TranslateOTLPJSON,
+	)
 }
 
 func readOTLPBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {

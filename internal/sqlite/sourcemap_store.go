@@ -83,26 +83,21 @@ func (s *SourceMapStore) GetArtifact(ctx context.Context, artifactID string) (*s
 	return &art, data, nil
 }
 
-// ListByRelease returns all artifacts for a project + release version.
-func (s *SourceMapStore) ListByRelease(ctx context.Context, projectID, releaseVersion string) ([]*sourcemap.Artifact, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, release_version, name, object_key, size, checksum, created_at
-		 FROM artifacts WHERE project_id = ? AND release_version = ?
-		 ORDER BY created_at DESC`,
-		projectID, releaseVersion,
-	)
-	if err != nil {
-		return nil, err
-	}
+// scanArtifactRows scans artifact rows produced by a query whose SELECT list is:
+//
+//	id, <owner_id_col>, release_version, name, object_key, size, checksum, created_at
+//
+// ownerField must point to the artifact field that receives the owner column
+// (either &art.ProjectID or &art.OrganizationID).
+func scanArtifactRows(rows *sql.Rows, ownerField func(*sourcemap.Artifact) *string) ([]*sourcemap.Artifact, error) {
 	defer rows.Close()
-
 	var result []*sourcemap.Artifact
 	for rows.Next() {
 		var art sourcemap.Artifact
 		var blobKey string
 		var size int64
 		var checksum, createdAt sql.NullString
-		if err := rows.Scan(&art.ID, &art.ProjectID, &art.ReleaseID, &art.Name, &blobKey, &size, &checksum, &createdAt); err != nil {
+		if err := rows.Scan(&art.ID, ownerField(&art), &art.ReleaseID, &art.Name, &blobKey, &size, &checksum, &createdAt); err != nil {
 			return nil, err
 		}
 		art.ObjectKey = blobKey
@@ -114,6 +109,20 @@ func (s *SourceMapStore) ListByRelease(ctx context.Context, projectID, releaseVe
 		result = append(result, &art)
 	}
 	return result, rows.Err()
+}
+
+// ListByRelease returns all artifacts for a project + release version.
+func (s *SourceMapStore) ListByRelease(ctx context.Context, projectID, releaseVersion string) ([]*sourcemap.Artifact, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, release_version, name, object_key, size, checksum, created_at
+		 FROM artifacts WHERE project_id = ? AND release_version = ?
+		 ORDER BY created_at DESC`,
+		projectID, releaseVersion,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return scanArtifactRows(rows, func(a *sourcemap.Artifact) *string { return &a.ProjectID })
 }
 
 // DeleteArtifact removes an artifact by ID.
@@ -226,26 +235,7 @@ func (s *SourceMapStore) ListByOrgRelease(ctx context.Context, orgID, releaseVer
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var result []*sourcemap.Artifact
-	for rows.Next() {
-		var art sourcemap.Artifact
-		var blobKey string
-		var size int64
-		var checksum, createdAt sql.NullString
-		if err := rows.Scan(&art.ID, &art.OrganizationID, &art.ReleaseID, &art.Name, &blobKey, &size, &checksum, &createdAt); err != nil {
-			return nil, err
-		}
-		art.ObjectKey = blobKey
-		art.Size = size
-		art.Checksum = nullStr(checksum)
-		if createdAt.Valid {
-			art.CreatedAt = parseTime(createdAt.String)
-		}
-		result = append(result, &art)
-	}
-	return result, rows.Err()
+	return scanArtifactRows(rows, func(a *sourcemap.Artifact) *string { return &a.OrganizationID })
 }
 
 // GetOrgArtifact retrieves an artifact by ID, verifying it belongs to the given org and release.

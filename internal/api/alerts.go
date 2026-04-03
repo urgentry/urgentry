@@ -162,6 +162,12 @@ func handleUpdateAlertRule(catalog controlplane.CatalogStore, alerts controlplan
 
 // handleDeleteAlertRule handles DELETE /api/0/projects/{org_slug}/{proj_slug}/alerts/{rule_id}/.
 func handleDeleteAlertRule(catalog controlplane.CatalogStore, alerts controlplane.AlertStore, auth authFunc) http.HandlerFunc {
+	return deleteAlertRuleHandler(catalog, alerts, auth)
+}
+
+// deleteAlertRuleHandler is the shared implementation for deleting an alert rule
+// by project and rule ID. Used by both the alerts and issue-alert-rules endpoints.
+func deleteAlertRuleHandler(catalog controlplane.CatalogStore, alerts controlplane.AlertStore, auth authFunc) http.HandlerFunc { //nolint:dupl
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return

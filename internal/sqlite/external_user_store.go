@@ -1,4 +1,4 @@
-package sqlite
+package sqlite //nolint:dupl
 
 import (
 	"context"

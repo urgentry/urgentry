@@ -117,7 +117,7 @@ func (s *PreventStore) StartOwnerSync(ctx context.Context, orgSlug, ownerSlug st
 	return rows > 0, nil
 }
 
-func (s *PreventStore) ListRepositoryBranches(ctx context.Context, orgSlug, ownerSlug, repositoryName string) ([]store.PreventRepositoryBranch, error) {
+func (s *PreventStore) ListRepositoryBranches(ctx context.Context, orgSlug, ownerSlug, repositoryName string) ([]store.PreventRepositoryBranch, error) { //nolint:dupl
 	repo, err := s.repositoryByPath(ctx, orgSlug, ownerSlug, repositoryName)
 	if err != nil || repo == nil {
 		return nil, err
@@ -242,7 +242,7 @@ func (s *PreventStore) GetRepositorySyncStatus(ctx context.Context, orgSlug, own
 	}, nil
 }
 
-func (s *PreventStore) ListRepositoryTestSuites(ctx context.Context, orgSlug, ownerSlug, repositoryName string) ([]store.PreventRepositoryTestSuite, error) {
+func (s *PreventStore) ListRepositoryTestSuites(ctx context.Context, orgSlug, ownerSlug, repositoryName string) ([]store.PreventRepositoryTestSuite, error) { //nolint:dupl
 	repo, err := s.repositoryByPath(ctx, orgSlug, ownerSlug, repositoryName)
 	if err != nil || repo == nil {
 		return nil, err

@@ -16,6 +16,7 @@ import (
 	"urgentry/internal/profile"
 	"urgentry/internal/selfhostedops"
 	"urgentry/internal/store"
+	"urgentry/internal/telemetrybridge"
 )
 
 // version returns the embedded build version for backward compatibility.
@@ -128,19 +129,30 @@ func runSelfHosted(args []string) {
 	}
 }
 
-func runSelfHostedPreflight(args []string) {
-	fs := flag.NewFlagSet("self-hosted preflight", flag.ExitOnError)
+type selfHostedFlags struct {
+	controlDSN   string
+	telemetryDSN string
+	backend      telemetrybridge.Backend
+}
+
+func parseSelfHostedFlags(name string, args []string) selfHostedFlags {
+	fs := flag.NewFlagSet("self-hosted "+name, flag.ExitOnError)
 	controlDSN := fs.String("control-dsn", firstNonEmpty(os.Getenv("URGENTRY_CONTROL_DATABASE_URL"), os.Getenv("URGENTRY_DATABASE_URL")), "Postgres DSN for the serious self-hosted control plane")
 	telemetryDSN := fs.String("telemetry-dsn", firstNonEmpty(os.Getenv("URGENTRY_TELEMETRY_DATABASE_URL"), os.Getenv("URGENTRY_DATABASE_URL")), "Postgres DSN for the serious self-hosted telemetry bridge")
 	backendRaw := fs.String("telemetry-backend", firstNonEmpty(os.Getenv("URGENTRY_TELEMETRY_BACKEND"), "postgres"), "telemetry backend: postgres|timescale")
 	if err := fs.Parse(args); err != nil {
-		log.Fatal().Err(err).Msg("parse self-hosted preflight flags")
+		log.Fatal().Err(err).Msgf("parse self-hosted %s flags", name)
 	}
 	backend, err := selfhostedops.ParseTelemetryBackend(*backendRaw)
 	if err != nil {
 		log.Fatal().Err(err).Msg("invalid telemetry backend")
 	}
-	report, err := selfhostedops.RunPreflight(context.Background(), *controlDSN, *telemetryDSN, backend)
+	return selfHostedFlags{controlDSN: *controlDSN, telemetryDSN: *telemetryDSN, backend: backend}
+}
+
+func runSelfHostedPreflight(args []string) {
+	f := parseSelfHostedFlags("preflight", args)
+	report, err := selfhostedops.RunPreflight(context.Background(), f.controlDSN, f.telemetryDSN, f.backend)
 	if err != nil {
 		log.Fatal().Err(err).Msg("self-hosted preflight failed")
 	}
@@ -148,18 +160,8 @@ func runSelfHostedPreflight(args []string) {
 }
 
 func runSelfHostedStatus(args []string) {
-	fs := flag.NewFlagSet("self-hosted status", flag.ExitOnError)
-	controlDSN := fs.String("control-dsn", firstNonEmpty(os.Getenv("URGENTRY_CONTROL_DATABASE_URL"), os.Getenv("URGENTRY_DATABASE_URL")), "Postgres DSN for the serious self-hosted control plane")
-	telemetryDSN := fs.String("telemetry-dsn", firstNonEmpty(os.Getenv("URGENTRY_TELEMETRY_DATABASE_URL"), os.Getenv("URGENTRY_DATABASE_URL")), "Postgres DSN for the serious self-hosted telemetry bridge")
-	backendRaw := fs.String("telemetry-backend", firstNonEmpty(os.Getenv("URGENTRY_TELEMETRY_BACKEND"), "postgres"), "telemetry backend: postgres|timescale")
-	if err := fs.Parse(args); err != nil {
-		log.Fatal().Err(err).Msg("parse self-hosted status flags")
-	}
-	backend, err := selfhostedops.ParseTelemetryBackend(*backendRaw)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid telemetry backend")
-	}
-	status, err := selfhostedops.LoadStatus(context.Background(), *controlDSN, *telemetryDSN, backend)
+	f := parseSelfHostedFlags("status", args)
+	status, err := selfhostedops.LoadStatus(context.Background(), f.controlDSN, f.telemetryDSN, f.backend)
 	if err != nil {
 		log.Fatal().Err(err).Msg("self-hosted status failed")
 	}

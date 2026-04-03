@@ -168,31 +168,9 @@ func handleBulkDeleteWorkflows(
 	workflows store.WorkflowStore,
 	auth authFunc,
 ) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !auth(w, r) {
-			return
-		}
-		org, ok := getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
-		if !ok {
-			return
-		}
-		var body struct {
-			IDs []string `json:"ids"`
-		}
-		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
-			return
-		}
-		if len(body.IDs) == 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing required field: ids")
-			return
-		}
-		if err := workflows.BulkDeleteWorkflows(r.Context(), org.ID, body.IDs); err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete workflows.")
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return bulkDeleteByOrgHandler(catalog, auth, "Failed to delete workflows.", func(r *http.Request, orgID string, ids []string) error {
+		return workflows.BulkDeleteWorkflows(r.Context(), orgID, ids)
+	})
 }
 
 // handleGetWorkflow handles GET /api/0/organizations/{org_slug}/workflows/{workflow_id}/.

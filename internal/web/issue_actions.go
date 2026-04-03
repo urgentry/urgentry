@@ -181,7 +181,16 @@ func (h *Handler) updateIssuePriority(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, referer, http.StatusSeeOther)
 }
 
-func (h *Handler) toggleIssueBookmark(w http.ResponseWriter, r *http.Request) {
+// toggleIssueFlag is the shared implementation for bookmark and subscription toggles.
+// formKey is the form value name ("bookmark" or "subscribe"); unavailableMsg, errMsg,
+// and activityKind configure the user-visible messages; toggleFn performs the store update;
+// enableMsg/disableMsg are the activity log messages.
+func (h *Handler) toggleIssueFlag(
+	w http.ResponseWriter,
+	r *http.Request,
+	formKey, unavailableMsg, errMsg, activityKind, enableMsg, disableMsg string,
+	toggleFn func(ctx context.Context, issueID, userID string, enable bool) error,
+) {
 	if h.authz != nil {
 		if !h.authz.ValidateCSRF(r) {
 			writeWebForbidden(w, r)
@@ -193,7 +202,7 @@ func (h *Handler) toggleIssueBookmark(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if h.issues == nil {
-		writeWebUnavailable(w, r, "Bookmarks unavailable")
+		writeWebUnavailable(w, r, unavailableMsg)
 		return
 	}
 	principal := auth.PrincipalFromContext(r.Context())
@@ -201,66 +210,42 @@ func (h *Handler) toggleIssueBookmark(w http.ResponseWriter, r *http.Request) {
 		writeWebUnauthorized(w, r)
 		return
 	}
-	bookmark := strings.TrimSpace(r.FormValue("bookmark"))
+	val := strings.TrimSpace(r.FormValue(formKey))
 	var enable bool
-	switch bookmark {
+	switch val {
 	case "1", "true", "on":
 		enable = true
-	default:
-		enable = false
 	}
-	if err := h.issues.ToggleIssueBookmark(r.Context(), r.PathValue("id"), principal.User.ID, enable); err != nil {
-		writeWebInternal(w, r, "Failed to update bookmark")
+	if err := toggleFn(r.Context(), r.PathValue("id"), principal.User.ID, enable); err != nil {
+		writeWebInternal(w, r, errMsg)
 		return
 	}
-	h.recordIssueActivityBestEffort(r.Context(), r.PathValue("id"), principal.User.ID, "bookmark", func() string {
-		if enable {
-			return "Bookmarked issue"
-		}
-		return "Bookmark removed"
-	}(), "")
+	activityMsg := disableMsg
+	if enable {
+		activityMsg = enableMsg
+	}
+	h.recordIssueActivityBestEffort(r.Context(), r.PathValue("id"), principal.User.ID, activityKind, activityMsg, "")
 	issueRedirectOrRefresh(w, r, fmt.Sprintf("/issues/%s/", r.PathValue("id")))
 }
 
+func (h *Handler) toggleIssueBookmark(w http.ResponseWriter, r *http.Request) {
+	h.toggleIssueFlag(w, r,
+		"bookmark", "Bookmarks unavailable", "Failed to update bookmark",
+		"bookmark", "Bookmarked issue", "Bookmark removed",
+		func(ctx context.Context, issueID, userID string, enable bool) error {
+			return h.issues.ToggleIssueBookmark(ctx, issueID, userID, enable)
+		},
+	)
+}
+
 func (h *Handler) toggleIssueSubscription(w http.ResponseWriter, r *http.Request) {
-	if h.authz != nil {
-		if !h.authz.ValidateCSRF(r) {
-			writeWebForbidden(w, r)
-			return
-		}
-		if err := h.authz.AuthorizeIssue(r, r.PathValue("id"), auth.ScopeIssueWrite); err != nil {
-			writeWebForbidden(w, r)
-			return
-		}
-	}
-	if h.issues == nil {
-		writeWebUnavailable(w, r, "Subscriptions unavailable")
-		return
-	}
-	principal := auth.PrincipalFromContext(r.Context())
-	if principal == nil || principal.User == nil {
-		writeWebUnauthorized(w, r)
-		return
-	}
-	subscribe := strings.TrimSpace(r.FormValue("subscribe"))
-	var enable bool
-	switch subscribe {
-	case "1", "true", "on":
-		enable = true
-	default:
-		enable = false
-	}
-	if err := h.issues.ToggleIssueSubscription(r.Context(), r.PathValue("id"), principal.User.ID, enable); err != nil {
-		writeWebInternal(w, r, "Failed to update subscription")
-		return
-	}
-	h.recordIssueActivityBestEffort(r.Context(), r.PathValue("id"), principal.User.ID, "subscription", func() string {
-		if enable {
-			return "Subscribed to issue"
-		}
-		return "Unsubscribed from issue"
-	}(), "")
-	issueRedirectOrRefresh(w, r, fmt.Sprintf("/issues/%s/", r.PathValue("id")))
+	h.toggleIssueFlag(w, r,
+		"subscribe", "Subscriptions unavailable", "Failed to update subscription",
+		"subscription", "Subscribed to issue", "Unsubscribed from issue",
+		func(ctx context.Context, issueID, userID string, enable bool) error {
+			return h.issues.ToggleIssueSubscription(ctx, issueID, userID, enable)
+		},
+	)
 }
 
 func (h *Handler) addIssueComment(w http.ResponseWriter, r *http.Request) {

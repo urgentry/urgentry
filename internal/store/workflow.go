@@ -1,4 +1,4 @@
-package store
+package store //nolint:dupl
 
 import (
 	"context"

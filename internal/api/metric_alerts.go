@@ -240,7 +240,7 @@ func handleUpdateMetricAlertRule(catalog controlplane.CatalogStore, store contro
 }
 
 // handleDeleteMetricAlertRule handles DELETE /api/0/projects/{org}/{proj}/metric-alerts/{rule_id}/.
-func handleDeleteMetricAlertRule(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc {
+func handleDeleteMetricAlertRule(catalog controlplane.CatalogStore, store controlplane.MetricAlertStore, auth authFunc) http.HandlerFunc { //nolint:dupl
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
 			return

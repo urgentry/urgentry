@@ -29,26 +29,8 @@ func BenchmarkReplayStoreIngestAndIndex(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		spec := base.Spec().
-			WithIDs(fmt.Sprintf("%032x", i+1), fmt.Sprintf("%032x", i+1)).
-			WithTimestamp(time.Date(2026, time.March, 29, 10, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Second))
-		replayID, err := replays.SaveEnvelopeReplay(ctx, "bench-proj", spec.EventID, spec.Payload())
-		if err != nil {
-			b.Fatalf("SaveEnvelopeReplay %d: %v", i, err)
-		}
-		if err := attachments.SaveAttachment(ctx, &attachmentstore.Attachment{
-			ID:          fmt.Sprintf("att-bench-%04d", i),
-			ProjectID:   "bench-proj",
-			EventID:     replayID,
-			Name:        "segment-1.rrweb",
-			ContentType: "application/json",
-			CreatedAt:   spec.Timestamp,
-		}, base.RecordingPayload()); err != nil {
-			b.Fatalf("SaveAttachment %d: %v", i, err)
-		}
-		if err := replays.IndexReplay(ctx, "bench-proj", replayID); err != nil {
-			b.Fatalf("IndexReplay %d: %v", i, err)
-		}
+		ingestBenchReplay(b, ctx, replays, attachments, base, i,
+			fmt.Sprintf("att-bench-%04d", i), time.Second)
 	}
 }
 
@@ -135,26 +117,8 @@ func newBenchmarkReplayStore(b *testing.B) benchmarkReplayFixture {
 
 	var replayID string
 	for i := 0; i < 24; i++ {
-		spec := base.Spec().
-			WithIDs(fmt.Sprintf("%032x", i+1), fmt.Sprintf("%032x", i+1)).
-			WithTimestamp(time.Date(2026, time.March, 29, 10, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Minute))
-		replayID, err = replays.SaveEnvelopeReplay(ctx, "bench-proj", spec.EventID, spec.Payload())
-		if err != nil {
-			b.Fatalf("SaveEnvelopeReplay %d: %v", i, err)
-		}
-		if err := attachments.SaveAttachment(ctx, &attachmentstore.Attachment{
-			ID:          fmt.Sprintf("att-bench-seed-%02d", i),
-			ProjectID:   "bench-proj",
-			EventID:     replayID,
-			Name:        "segment-1.rrweb",
-			ContentType: "application/json",
-			CreatedAt:   spec.Timestamp,
-		}, base.RecordingPayload()); err != nil {
-			b.Fatalf("SaveAttachment %d: %v", i, err)
-		}
-		if err := replays.IndexReplay(ctx, "bench-proj", replayID); err != nil {
-			b.Fatalf("IndexReplay %d: %v", i, err)
-		}
+		replayID = ingestBenchReplay(b, ctx, replays, attachments, base, i,
+			fmt.Sprintf("att-bench-seed-%02d", i), time.Minute)
 	}
 
 	return benchmarkReplayFixture{
@@ -163,6 +127,43 @@ func newBenchmarkReplayStore(b *testing.B) benchmarkReplayFixture {
 		store:     replays,
 		replayID:  replayID,
 	}
+}
+
+// ingestBenchReplay saves one replay envelope plus its attachment and indexes it.
+// It returns the assigned replay ID. attIDFmt is used as the attachment ID.
+// step is the per-iteration offset added to the base timestamp.
+func ingestBenchReplay(
+	b *testing.B,
+	ctx context.Context,
+	replays *ReplayStore,
+	attachments *AttachmentStore,
+	base replayfixtures.Fixture,
+	i int,
+	attID string,
+	step time.Duration,
+) string {
+	b.Helper()
+	spec := base.Spec().
+		WithIDs(fmt.Sprintf("%032x", i+1), fmt.Sprintf("%032x", i+1)).
+		WithTimestamp(time.Date(2026, time.March, 29, 10, 0, 0, 0, time.UTC).Add(time.Duration(i) * step))
+	replayID, err := replays.SaveEnvelopeReplay(ctx, "bench-proj", spec.EventID, spec.Payload())
+	if err != nil {
+		b.Fatalf("SaveEnvelopeReplay %d: %v", i, err)
+	}
+	if err := attachments.SaveAttachment(ctx, &attachmentstore.Attachment{
+		ID:          attID,
+		ProjectID:   "bench-proj",
+		EventID:     replayID,
+		Name:        "segment-1.rrweb",
+		ContentType: "application/json",
+		CreatedAt:   spec.Timestamp,
+	}, base.RecordingPayload()); err != nil {
+		b.Fatalf("SaveAttachment %d: %v", i, err)
+	}
+	if err := replays.IndexReplay(ctx, "bench-proj", replayID); err != nil {
+		b.Fatalf("IndexReplay %d: %v", i, err)
+	}
+	return replayID
 }
 
 func seedReplayTestProjectFromBench(b *testing.B, db *sql.DB, orgID, projectID string) {

@@ -202,30 +202,7 @@ func handleUpdateIssueAlertRule(catalog controlplane.CatalogStore, alerts contro
 
 // handleDeleteIssueAlertRule handles DELETE /api/0/projects/{org_slug}/{proj_slug}/rules/{rule_id}/.
 func handleDeleteIssueAlertRule(catalog controlplane.CatalogStore, alerts controlplane.AlertStore, auth authFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !auth(w, r) {
-			return
-		}
-		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
-		if !ok {
-			return
-		}
-
-		existing, err := alerts.GetRule(r.Context(), r.PathValue("rule_id"))
-		if err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to load alert rule.")
-			return
-		}
-		if existing == nil || existing.ProjectID != projectID {
-			httputil.WriteError(w, http.StatusNotFound, "Alert rule not found.")
-			return
-		}
-		if err := alerts.DeleteRule(r.Context(), existing.ID); err != nil {
-			httputil.WriteError(w, http.StatusInternalServerError, "Failed to delete alert rule.")
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return deleteAlertRuleHandler(catalog, alerts, auth)
 }
 
 // normalizeMatchType normalises actionMatch / filterMatch to a valid value.

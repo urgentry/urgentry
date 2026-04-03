@@ -11,6 +11,19 @@ func TestDefaultUsageLedgerPolicyValidate(t *testing.T) {
 	}
 }
 
+func assertUsageLedgerWindow(t *testing.T, entry UsageLedgerEntry, wantKind UsageWindowKind, wantStart, wantEnd time.Time) {
+	t.Helper()
+	if got := entry.WindowKind; got != wantKind {
+		t.Fatalf("WindowKind = %q, want %q", got, wantKind)
+	}
+	if got := entry.Window.Start; !got.Equal(wantStart) {
+		t.Fatalf("Window.Start = %s, want %s", got, wantStart)
+	}
+	if got := entry.Window.End; !got.Equal(wantEnd) {
+		t.Fatalf("Window.End = %s, want %s", got, wantEnd)
+	}
+}
+
 func TestBuildUsageLedgerEntryUsesDailyWindowForQueries(t *testing.T) {
 	policy := DefaultUsageLedgerPolicy()
 	account := Account{ID: "acct_1", Plan: PlanTeam}
@@ -25,15 +38,11 @@ func TestBuildUsageLedgerEntryUsesDailyWindowForQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildEntry() error = %v", err)
 	}
-	if got, want := entry.WindowKind, UsageWindowDaily; got != want {
-		t.Fatalf("WindowKind = %q, want %q", got, want)
-	}
-	if got, want := entry.Window.Start, time.Date(2026, time.March, 30, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("Window.Start = %s, want %s", got, want)
-	}
-	if got, want := entry.Window.End, time.Date(2026, time.March, 31, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("Window.End = %s, want %s", got, want)
-	}
+	assertUsageLedgerWindow(t, entry,
+		UsageWindowDaily,
+		time.Date(2026, time.March, 30, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, time.March, 31, 0, 0, 0, 0, time.UTC),
+	)
 }
 
 func TestBuildUsageLedgerEntryUsesMonthlyWindowForEvents(t *testing.T) {
@@ -50,15 +59,11 @@ func TestBuildUsageLedgerEntryUsesMonthlyWindowForEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildEntry() error = %v", err)
 	}
-	if got, want := entry.WindowKind, UsageWindowMonthly; got != want {
-		t.Fatalf("WindowKind = %q, want %q", got, want)
-	}
-	if got, want := entry.Window.Start, time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("Window.Start = %s, want %s", got, want)
-	}
-	if got, want := entry.Window.End, time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Fatalf("Window.End = %s, want %s", got, want)
-	}
+	assertUsageLedgerWindow(t, entry,
+		UsageWindowMonthly,
+		time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC),
+	)
 }
 
 func TestBuildUsageLedgerEntryRejectsWrongSurfaceMapping(t *testing.T) {

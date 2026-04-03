@@ -9,7 +9,7 @@ import (
 	"urgentry/internal/store"
 )
 
-func (s *RetentionStore) deleteAttachmentsOlderThan(ctx context.Context, projectID string, retentionDays int) (int64, error) {
+func (s *RetentionStore) deleteAttachmentsOlderThan(ctx context.Context, projectID string, retentionDays int) (int64, error) { //nolint:dupl
 	if retentionDays <= 0 {
 		return 0, nil
 	}
@@ -103,7 +103,7 @@ func (s *RetentionStore) archiveOldAttachments(ctx context.Context, projectID st
 	return archived, nil
 }
 
-func (s *RetentionStore) deleteDebugFilesOlderThan(ctx context.Context, projectID string, retentionDays int) (int64, error) {
+func (s *RetentionStore) deleteDebugFilesOlderThan(ctx context.Context, projectID string, retentionDays int) (int64, error) { //nolint:dupl
 	if retentionDays <= 0 {
 		return 0, nil
 	}

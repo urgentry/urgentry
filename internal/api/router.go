@@ -516,7 +516,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/viewed-by/", handleListReplayViewedBy(deps.DB, queries, queryGuard, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 
 	// Notification actions
-	if deps.NotificationActions != nil {
+	if deps.NotificationActions != nil { //nolint:dupl
 		mux.Handle("GET /api/0/organizations/{org_slug}/notifications/actions/", handleListNotificationActions(control.Catalog, deps.NotificationActions, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/notifications/actions/", handleCreateNotificationAction(control.Catalog, deps.NotificationActions, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("GET /api/0/organizations/{org_slug}/notifications/actions/{action_id}/", handleGetNotificationAction(control.Catalog, deps.NotificationActions, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
@@ -531,7 +531,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	}
 
 	// Service hooks
-	if deps.Hooks != nil {
+	if deps.Hooks != nil { //nolint:dupl
 		mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/hooks/", handleListHooks(control.Catalog, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
 		mux.Handle("POST /api/0/projects/{org_slug}/{proj_slug}/hooks/", handleCreateHook(control.Catalog, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
 		mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/hooks/{hook_id}/", handleGetHook(control.Catalog, deps.Hooks, withAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
@@ -565,7 +565,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	mux.Handle("DELETE /api/0/organizations/{org_slug}/spike-protections/", handleDisableSpikeProtection(deps.DB, control.Catalog, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 
 	// Detectors
-	if deps.Detectors != nil {
+	if deps.Detectors != nil { //nolint:dupl
 		mux.Handle("GET /api/0/organizations/{org_slug}/detectors/", handleListDetectors(control.Catalog, deps.Detectors, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/detectors/", handleCreateDetector(control.Catalog, deps.Detectors, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("PUT /api/0/organizations/{org_slug}/detectors/", handleBulkUpdateDetectors(control.Catalog, deps.Detectors, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
@@ -576,7 +576,7 @@ func RegisterRoutes(mux *http.ServeMux, deps Dependencies) {
 	}
 
 	// Workflows
-	if deps.Workflows != nil {
+	if deps.Workflows != nil { //nolint:dupl
 		mux.Handle("GET /api/0/organizations/{org_slug}/workflows/", handleListWorkflows(control.Catalog, deps.Workflows, withAuth(auth.Policy{Scope: auth.ScopeOrgRead, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("POST /api/0/organizations/{org_slug}/workflows/", handleCreateWorkflow(control.Catalog, deps.Workflows, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 		mux.Handle("PUT /api/0/organizations/{org_slug}/workflows/", handleBulkUpdateWorkflows(control.Catalog, deps.Workflows, withAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
