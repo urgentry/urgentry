@@ -163,9 +163,8 @@ func handleUpdateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
 			return
 		}
-		if strings.TrimSpace(body.Slug) != "" && strings.TrimSpace(body.Slug) != existing.Slug {
-			httputil.WriteError(w, http.StatusBadRequest, "Slug changes are not supported.")
-			return
+		if slug := strings.TrimSpace(body.Slug); slug != "" {
+			existing.Slug = slug
 		}
 		existing.Status = normalizeMonitorStatus(body.Status)
 		if body.IsMuted != nil && *body.IsMuted {
@@ -285,9 +284,8 @@ func handleUpdateOrgMonitor(catalog controlplane.CatalogStore, monitors controlp
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
 			return
 		}
-		if slug := monitorRequestSlug(body); slug != "" && slug != existing.Slug {
-			httputil.WriteError(w, http.StatusBadRequest, "Slug changes are not supported.")
-			return
+		if slug := monitorRequestSlug(body); slug != "" {
+			existing.Slug = slug
 		}
 		existing.Status = monitorRequestStatus(body)
 		if strings.TrimSpace(body.Environment) != "" {

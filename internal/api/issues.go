@@ -289,10 +289,7 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 			httputil.WriteError(w, http.StatusBadRequest, "Invalid status value.")
 			return
 		}
-		if body.HasSeen != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "hasSeen updates are not supported.")
-			return
-		}
+		// hasSeen is accepted silently — it's a per-user UI state marker.
 
 		patch := store.IssuePatch{}
 		if body.Status != "" {

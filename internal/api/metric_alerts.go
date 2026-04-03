@@ -471,14 +471,21 @@ func findOrgMetricAlertRule(w http.ResponseWriter, r *http.Request, catalog cont
 func metricFromAggregate(aggregate string) string {
 	value := strings.ToLower(strings.TrimSpace(aggregate))
 	switch {
-	case strings.Contains(value, "p95"):
+	case strings.Contains(value, "p50"), strings.Contains(value, "p75"),
+		strings.Contains(value, "p95"), strings.Contains(value, "p99"),
+		strings.Contains(value, "percentile"):
 		return "p95_latency"
 	case strings.Contains(value, "failure_rate"):
 		return "failure_rate"
 	case strings.Contains(value, "apdex"):
 		return "apdex"
+	case strings.Contains(value, "count_unique"), strings.Contains(value, "count("):
+		return "error_count"
 	case strings.Contains(value, "transaction"):
 		return "transaction_count"
+	case strings.Contains(value, "avg"), strings.Contains(value, "sum"),
+		strings.Contains(value, "max"), strings.Contains(value, "min"):
+		return "custom_metric"
 	default:
 		return "error_count"
 	}
