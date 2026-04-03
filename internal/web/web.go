@@ -53,6 +53,8 @@ type Handler struct {
 	dashboards      analyticsservice.DashboardStore
 	snapshots       analyticsservice.SnapshotStore
 	reportSchedules analyticsservice.ReportScheduleStore
+	admin          controlplane.AdminStore
+	oidcConfigs    auth.OIDCConfigStore
 	operators       store.OperatorStore
 	operatorAudits  store.OperatorAuditStore
 	queryGuard      sqlite.QueryGuard
@@ -77,6 +79,7 @@ type Dependencies struct {
 	DataDir        string
 	Auth           *auth.Authorizer
 	Control        controlplane.Services
+	OIDCConfigs    auth.OIDCConfigStore // optional: nil disables OIDC settings page
 	Operators      store.OperatorStore
 	OperatorAudits store.OperatorAuditStore
 	QueryGuard     sqlite.QueryGuard
@@ -173,6 +176,11 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"settings-project-environments.html",
 		"settings-project-retention.html",
 		"settings-project-filters.html",
+		"settings-org.html",
+		"settings-org-members.html",
+		"settings-org-teams.html",
+		"settings-org-auth.html",
+		"settings-org-audit-log.html",
 		"analytics-snapshot.html",
 		"performance.html",
 		"performance-queues.html",
@@ -219,6 +227,8 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		dashboards:      analytics.Dashboards,
 		snapshots:       analytics.Snapshots,
 		reportSchedules: analytics.ReportSchedules,
+		admin:          control.Admin,
+		oidcConfigs:    deps.OIDCConfigs,
 		operators:       deps.Operators,
 		operatorAudits:  deps.OperatorAudits,
 		queryGuard:      deps.QueryGuard,
@@ -355,6 +365,11 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /settings/project/{slug}/environments/{$}", wrap(http.HandlerFunc(h.projectSettingsEnvironmentsPage)))
 	mux.Handle("GET /settings/project/{slug}/retention/{$}", wrap(http.HandlerFunc(h.projectSettingsRetentionPage)))
 	mux.Handle("GET /settings/project/{slug}/filters/{$}", wrap(http.HandlerFunc(h.projectSettingsFiltersPage)))
+	mux.Handle("GET /settings/org/{$}", wrap(http.HandlerFunc(h.orgSettingsPage)))
+	mux.Handle("GET /settings/org/members/{$}", wrap(http.HandlerFunc(h.orgMembersPage)))
+	mux.Handle("GET /settings/org/teams/{$}", wrap(http.HandlerFunc(h.orgTeamsPage)))
+	mux.Handle("GET /settings/org/auth/{$}", wrap(http.HandlerFunc(h.orgAuthPage)))
+	mux.Handle("GET /settings/org/audit-log/{$}", wrap(http.HandlerFunc(h.orgAuditLogPage)))
 	mux.Handle("POST /settings/environment", wrap(http.HandlerFunc(h.setEnvironment)))
 	mux.Handle("POST /settings/time-range", wrap(http.HandlerFunc(h.setTimeRangeAction)))
 	mux.Handle("POST /settings/project", wrap(http.HandlerFunc(h.updateProjectSettings)))

@@ -1,0 +1,86 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Organization Settings</h1>
+</div>
+
+{{template "org-settings-nav" .}}
+
+<div class="settings-section">
+  <div class="section-header">OIDC / SSO</div>
+  {{if .OIDC.Configured}}
+  <table class="settings-table">
+    <tr>
+      <td class="settings-label">Status</td>
+      <td>
+        {{if .OIDC.Enabled}}
+        <span class="issue-status-badge active">enabled</span>
+        {{else}}
+        <span class="issue-status-badge">disabled</span>
+        {{end}}
+      </td>
+    </tr>
+    <tr>
+      <td class="settings-label">Issuer</td>
+      <td class="mono">{{.OIDC.Issuer}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Client ID</td>
+      <td class="mono">{{.OIDC.ClientID}}</td>
+    </tr>
+    <tr>
+      <td class="settings-label">Scopes</td>
+      <td class="mono">{{.OIDC.Scopes}}</td>
+    </tr>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No OIDC provider configured for this organization.</div>
+  </div>
+  {{end}}
+</div>
+
+{{template "org-settings-styles" .}}
+{{end}}
+
+{{define "org-settings-nav"}}
+<nav class="org-settings-nav">
+  <a href="/settings/org/" class="{{if eq .ActiveTab "general"}}active{{end}}">General</a>
+  <a href="/settings/org/members/" class="{{if eq .ActiveTab "members"}}active{{end}}">Members</a>
+  <a href="/settings/org/teams/" class="{{if eq .ActiveTab "teams"}}active{{end}}">Teams</a>
+  <a href="/settings/org/auth/" class="{{if eq .ActiveTab "auth"}}active{{end}}">Auth</a>
+  <a href="/settings/org/audit-log/" class="{{if eq .ActiveTab "audit-log"}}active{{end}}">Audit Log</a>
+</nav>
+{{end}}
+
+{{define "org-settings-styles"}}
+<style>
+.org-settings-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.org-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.org-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.org-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+.text-muted {
+  color: var(--text-secondary, #9CA0B0);
+}
+</style>
+{{end}}
