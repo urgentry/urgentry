@@ -94,8 +94,11 @@ bench-pr:
 	go test ./internal/envelope ./internal/grouping ./internal/normalize ./internal/domain -run '^$$' -bench . -benchmem -count=5 -cpu 1 -benchtime=500ms
 
 ## bench: Broad scheduled benchmark suite (all packages, single pass)
+## Pipeline shutdown benchmarks are capped at 100 iterations to prevent
+## multi-minute calibration stalls from low-ns/op + expensive setup/teardown.
 bench:
-	go test -run '^$$' -bench=. -benchmem ./...
+	go test -run '^$$' -bench=. -benchmem $$(go list ./... | grep -v /internal/pipeline)
+	go test -run '^$$' -bench=. -benchmem -benchtime=100x ./internal/pipeline
 
 ## selfhosted-bench: Run the serious self-hosted performance eval lane
 selfhosted-bench:
