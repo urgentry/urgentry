@@ -55,8 +55,8 @@ func DefaultExportContract() ExportContract {
 			{Surface: ExportSurfaceEvents, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite, ExportModeCutoverDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
 			{Surface: ExportSurfaceLogs, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite, ExportModeCutoverDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
 			{Surface: ExportSurfaceTraces, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite, ExportModeCutoverDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
-			{Surface: ExportSurfaceReplay, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
-			{Surface: ExportSurfaceProfile, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
+			{Surface: ExportSurfaceReplay, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite, ExportModeCutoverDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
+			{Surface: ExportSurfaceProfile, Modes: []ExportMode{ExportModeSnapshot, ExportModeShadowDualWrite, ExportModeCutoverDualWrite}, RequiresCursorCheckpoint: true, RequiresIdempotencyKey: true, VerifyShadowReads: true},
 		},
 	}
 }

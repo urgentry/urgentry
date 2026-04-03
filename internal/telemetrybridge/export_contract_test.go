@@ -14,8 +14,14 @@ func TestExportContractSupportsCutoverForEvents(t *testing.T) {
 	}
 }
 
-func TestExportContractKeepsReplayOutOfCutoverMode(t *testing.T) {
-	if DefaultExportContract().Supports(ExportSurfaceReplay, ExportModeCutoverDualWrite) {
-		t.Fatal("Supports(replay, cutover_dual_write) = true, want false")
+func TestExportContractSupportsReplayCutover(t *testing.T) {
+	if !DefaultExportContract().Supports(ExportSurfaceReplay, ExportModeCutoverDualWrite) {
+		t.Fatal("Supports(replay, cutover_dual_write) = false, want true")
+	}
+}
+
+func TestExportContractSupportsProfileCutover(t *testing.T) {
+	if !DefaultExportContract().Supports(ExportSurfaceProfile, ExportModeCutoverDualWrite) {
+		t.Fatal("Supports(profile, cutover_dual_write) = false, want true")
 	}
 }

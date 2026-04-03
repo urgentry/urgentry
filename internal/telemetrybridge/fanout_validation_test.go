@@ -177,9 +177,9 @@ func TestExportContractSupportsMethod(t *testing.T) {
 		t.Fatal("events should support cutover dual write")
 	}
 
-	// Profile does NOT support cutover
-	if contract.Supports(ExportSurfaceProfile, ExportModeCutoverDualWrite) {
-		t.Fatal("profile should not support cutover dual write")
+	// Profile now supports cutover
+	if !contract.Supports(ExportSurfaceProfile, ExportModeCutoverDualWrite) {
+		t.Fatal("profile should support cutover dual write")
 	}
 
 	// Unknown surface
