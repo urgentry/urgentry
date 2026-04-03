@@ -1,4 +1,4 @@
-.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint bench selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench
+.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench
 
 # Default binary name
 BINARY := urgentry
@@ -89,9 +89,14 @@ lint:
 	@command -v golangci-lint >/dev/null 2>&1 || (echo "golangci-lint not installed — run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)" && exit 1)
 	golangci-lint run ./...
 
-## bench-pr: Short deterministic PR benchmark lane (~30s, stable for benchstat)
+## bench-pr: Short deterministic PR benchmark lane (~60s, stable for benchstat)
 bench-pr:
-	go test ./internal/envelope ./internal/grouping ./internal/normalize ./internal/domain -run '^$$' -bench . -benchmem -count=5 -cpu 1 -benchtime=500ms
+	go test ./internal/envelope ./internal/grouping ./internal/normalize ./internal/domain ./internal/http ./internal/telemetryquery -run '^$$' -bench . -benchmem -count=5 -cpu 1 -benchtime=500ms
+
+## bench-budget: Run bench-pr and enforce ns/op, B/op, and allocs/op budgets
+bench-budget:
+	$(MAKE) bench-pr > test-results/bench-pr-latest.txt 2>&1 || true
+	bash scripts/check-bench-budget.sh test-results/bench-pr-latest.txt
 
 ## bench: Broad scheduled benchmark suite (all packages, single pass)
 ## Pipeline shutdown benchmarks are capped at 100 iterations to prevent
