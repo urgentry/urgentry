@@ -1,17 +1,41 @@
 version: "2"
 linters:
   enable:
+    # Core (already enabled)
     - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
+    # Added: catch real bugs and code smells
+    - revive          # unused params, stutter, builtin redefs, style
+    - gocritic        # appendAssign bugs, if-else chains, style
+    - unconvert       # unnecessary type conversions
+    - usestdlibvars   # use http.MethodGet instead of "GET" etc.
+    - fatcontext      # nested contexts in loops (zero cost, future-proofing)
+    - dupl            # duplicate code fragments
   settings:
     errcheck:
       exclude-functions:
         - (net/http.ResponseWriter).Write
         - (*encoding/json.Encoder).Encode
         - (io).Copy
+    revive:
+      rules:
+        - name: exported
+          disabled: true     # too noisy for this codebase size
+        - name: unused-parameter
+          severity: warning
+        - name: redefines-builtin-id
+          severity: warning
+        - name: increment-decrement
+          severity: warning
+    gocritic:
+      enabled-checks:
+        - ifElseChain
+        - sloppyLen
+    dupl:
+      threshold: 150         # lines — avoids noise from short similar blocks
   exclusions:
     generated: lax
     presets:
@@ -25,8 +49,8 @@ linters:
       - builtin$
       - examples$
 issues:
-  max-issues-per-linter: 20
-  max-same-issues: 5
+  max-issues-per-linter: 50
+  max-same-issues: 10
 formatters:
   exclusions:
     generated: lax

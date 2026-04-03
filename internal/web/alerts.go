@@ -684,7 +684,7 @@ func (h *Handler) alertDetailPage(w http.ResponseWriter, r *http.Request) {
 		ID:           rule.ID,
 		ProjectID:    rule.ProjectID,
 		Name:         rule.Name,
-		Status:       string(rule.Status),
+		Status:       rule.Status,
 		CreatedAt:    rule.CreatedAt.Format(time.RFC3339),
 		Trigger:      summary,
 		TriggerLabel: trigLabel,

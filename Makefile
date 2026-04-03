@@ -1,4 +1,4 @@
-.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench
+.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench
 
 # Default binary name
 BINARY := urgentry
@@ -83,11 +83,17 @@ test-cover:
 	@echo "HTML report: go tool cover -html=coverage.out"
 
 ## lint: Run linters (requires golangci-lint)
+## Runs errcheck, govet, staticcheck, unused, revive, gocritic, unconvert,
+## usestdlibvars, fatcontext, and dupl via golangci-lint.
 lint:
 	go vet ./...
-	staticcheck ./...
 	@command -v golangci-lint >/dev/null 2>&1 || (echo "golangci-lint not installed — run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)" && exit 1)
 	golangci-lint run ./...
+
+## lint-full: Full lint + vulnerability check (for CI and pre-release)
+lint-full: lint
+	@command -v govulncheck >/dev/null 2>&1 || (echo "govulncheck not installed — run: go install golang.org/x/vuln/cmd/govulncheck@latest" && exit 1)
+	govulncheck ./...
 
 ## bench-pr: Short deterministic PR benchmark lane (~60s, stable for benchstat)
 bench-pr:

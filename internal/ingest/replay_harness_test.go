@@ -66,7 +66,7 @@ func TestReplayFixtureCorpusManifestFidelity(t *testing.T) {
 					t.Fatalf("expected privacy policy version on manifest: %+v", record.Manifest)
 				}
 			}
-			payloadText := string(record.Manifest.RequestURL) + replayTimelineText(record.Timeline)
+			payloadText := record.Manifest.RequestURL + replayTimelineText(record.Timeline)
 			for _, forbidden := range fixture.Expected.PageExcludes {
 				if strings.Contains(payloadText, forbidden) {
 					t.Fatalf("replay corpus leaked %q into canonical replay text: %s", forbidden, payloadText)

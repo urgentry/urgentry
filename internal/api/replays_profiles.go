@@ -341,7 +341,7 @@ func mapProfileRecord(item *sharedstore.ProfileRecord) Profile {
 func mapProfileBreakdowns(items []sharedstore.ProfileBreakdown) []ProfileBreakdown {
 	result := make([]ProfileBreakdown, 0, len(items))
 	for _, item := range items {
-		result = append(result, ProfileBreakdown(item))
+		result = append(result, item)
 	}
 	return result
 }
