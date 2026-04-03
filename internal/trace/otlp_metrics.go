@@ -87,7 +87,7 @@ func TranslateOTLPMetricsJSON(payload []byte) ([][]byte, error) {
 	return results, nil
 }
 
-func translateMetric(metric otlpMetric, resourceAttrs map[string]any) ([][]byte, error) {
+func translateMetric(metric otlpMetric, _ map[string]any) ([][]byte, error) {
 	switch {
 	case metric.Gauge != nil:
 		return translateDataPoints(metric.Name, metric.Unit, "g", metric.Gauge.DataPoints)
