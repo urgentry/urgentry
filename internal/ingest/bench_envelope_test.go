@@ -10,6 +10,7 @@ import (
 
 	"urgentry/internal/middleware"
 	"urgentry/internal/pipeline"
+	"urgentry/internal/store"
 )
 
 // buildEnvelope constructs a raw Sentry envelope from a header line and
@@ -105,9 +106,10 @@ func BenchmarkEnvelopeHandler_Transaction(b *testing.B) {
 }
 
 func BenchmarkEnvelopeHandler_MultiItem(b *testing.B) {
-	// No pipeline — attachment-only items don't need the queue, and this
-	// avoids filling the queue across iterations.
-	handler := EnvelopeHandler(nil)
+	// No pipeline — attachment-only items don't need the queue. Use a blob
+	// store so the benchmark measures attachment handling without falling into
+	// the missing-storage debug-log path.
+	handler := EnvelopeHandlerWithDeps(IngestDeps{BlobStore: store.NewMemoryBlobStore()})
 	body := multiItemEnvelope()
 
 	b.ReportAllocs()

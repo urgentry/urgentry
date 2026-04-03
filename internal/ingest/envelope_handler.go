@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"urgentry/internal/alert"
@@ -23,6 +24,8 @@ import (
 )
 
 const maxEnvelopeBodySize = 10 << 20 // 10 MB
+
+var missingAttachmentStorageProjects sync.Map
 
 // IngestDeps holds optional dependencies for the envelope handler.
 // All fields may be nil (graceful degradation).
@@ -41,10 +44,10 @@ type IngestDeps struct {
 	SessionStore    *sqlite.ReleaseHealthStore
 	OutcomeStore    *sqlite.OutcomeStore
 	MonitorStore    controlplane.MonitorStore
-	SamplingRules    *sqlite.SamplingRuleStore
-	MetricBuckets    *sqlite.MetricBucketStore
-	SpikeThrottle    *pipeline.SpikeThrottle
-	Metrics          *metrics.Metrics
+	SamplingRules   *sqlite.SamplingRuleStore
+	MetricBuckets   *sqlite.MetricBucketStore
+	SpikeThrottle   *pipeline.SpikeThrottle
+	Metrics         *metrics.Metrics
 }
 
 // EnvelopeHandler handles POST /api/{project_id}/envelope/.
@@ -613,7 +616,13 @@ func saveAttachment(ctx context.Context, as attachment.Store, bs store.BlobStore
 
 	if as == nil {
 		if bs == nil {
-			l.Debug().Str("project_id", projectID).Msg("envelope: attachment received but no storage configured")
+			projectKey := strings.TrimSpace(projectID)
+			if projectKey == "" {
+				projectKey = "<unknown>"
+			}
+			if _, loaded := missingAttachmentStorageProjects.LoadOrStore(projectKey, struct{}{}); !loaded {
+				l.Debug().Str("project_id", projectID).Msg("envelope: attachment received but no storage configured")
+			}
 			return
 		}
 

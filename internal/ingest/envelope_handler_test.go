@@ -17,6 +17,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
+	"urgentry/internal/envelope"
 	"urgentry/internal/issue"
 	"urgentry/internal/pipeline"
 	"urgentry/internal/sqlite"
@@ -669,6 +673,34 @@ func TestEnvelopeHandlerPersistsAttachmentMetadataAndBlob(t *testing.T) {
 	}
 	if string(payload) != "attachment-bytes" {
 		t.Fatalf("payload = %q, want %q", payload, "attachment-bytes")
+	}
+}
+
+func TestSaveAttachmentLogsMissingStorageOnlyOncePerProject(t *testing.T) {
+	const projectID = "project-log-once"
+
+	missingAttachmentStorageProjects.Delete(projectID)
+	t.Cleanup(func() { missingAttachmentStorageProjects.Delete(projectID) })
+
+	var buf bytes.Buffer
+	previousLogger := log.Logger
+	log.Logger = zerolog.New(&buf)
+	t.Cleanup(func() { log.Logger = previousLogger })
+
+	item := envelope.Item{
+		Header: envelope.ItemHeader{
+			Type:        "attachment",
+			Filename:    "note.txt",
+			ContentType: "text/plain",
+		},
+		Payload: []byte("attachment-bytes"),
+	}
+
+	saveAttachment(context.Background(), nil, nil, projectID, "evt-1", item)
+	saveAttachment(context.Background(), nil, nil, projectID, "evt-2", item)
+
+	if got := strings.Count(buf.String(), "attachment received but no storage configured"); got != 1 {
+		t.Fatalf("missing-storage log count = %d, want 1; logs=%s", got, buf.String())
 	}
 }
 
