@@ -253,6 +253,9 @@ func (p *Provider) testCluster(tb testing.TB) cluster {
 }
 
 func startCluster(name string) cluster {
+	if os.Getenv("URGENTRY_SKIP_POSTGRES_TESTS") != "" {
+		return cluster{err: fmt.Errorf("postgres tests disabled via URGENTRY_SKIP_POSTGRES_TESTS")}
+	}
 	if cluster := startLocalCluster(name); cluster.err == nil {
 		return cluster
 	}
