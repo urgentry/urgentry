@@ -470,6 +470,7 @@ func findOrgMetricAlertRule(w http.ResponseWriter, r *http.Request, catalog cont
 
 func metricFromAggregate(aggregate string) string {
 	value := strings.ToLower(strings.TrimSpace(aggregate))
+	// Check function prefix first (most specific), then field contents.
 	switch {
 	case strings.Contains(value, "p50"), strings.Contains(value, "p75"),
 		strings.Contains(value, "p95"), strings.Contains(value, "p99"),
@@ -479,13 +480,15 @@ func metricFromAggregate(aggregate string) string {
 		return "failure_rate"
 	case strings.Contains(value, "apdex"):
 		return "apdex"
-	case strings.Contains(value, "count_unique"), strings.Contains(value, "count("):
-		return "error_count"
-	case strings.Contains(value, "transaction"):
-		return "transaction_count"
-	case strings.Contains(value, "avg"), strings.Contains(value, "sum"),
-		strings.Contains(value, "max"), strings.Contains(value, "min"):
+	case strings.HasPrefix(value, "avg("), strings.HasPrefix(value, "sum("),
+		strings.HasPrefix(value, "max("), strings.HasPrefix(value, "min("):
 		return "custom_metric"
+	case strings.HasPrefix(value, "count_unique("):
+		return "error_count"
+	case strings.HasPrefix(value, "count(") && strings.Contains(value, "transaction"):
+		return "transaction_count"
+	case strings.HasPrefix(value, "count("):
+		return "error_count"
 	default:
 		return "error_count"
 	}
