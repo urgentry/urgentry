@@ -97,6 +97,7 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			SamplingRules:   input.samplingRules,
 			SpikeThrottle:   pipeline.NewSpikeThrottle(input.db),
 			Metrics:         input.metrics,
+			WALMonitor:      ingest.NewWALMonitorFromEnv(input.dataDir),
 		},
 		API: api.Dependencies{
 			DB:                  input.db,

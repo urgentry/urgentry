@@ -48,6 +48,7 @@ type IngestDeps struct {
 	MetricBuckets   *sqlite.MetricBucketStore
 	SpikeThrottle   *pipeline.SpikeThrottle
 	Metrics         *metrics.Metrics
+	WALMonitor      *WALMonitor
 }
 
 // EnvelopeHandler handles POST /api/{project_id}/envelope/.
@@ -64,6 +65,13 @@ func EnvelopeHandlerWithDeps(deps IngestDeps) http.Handler {
 
 		if r.Method != http.MethodPost {
 			httputil.WriteError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+
+		// Circuit breaker: shed load when the SQLite WAL exceeds the size limit.
+		if deps.WALMonitor.WALSizeExceeded() {
+			w.Header().Set("Retry-After", "30")
+			httputil.WriteError(w, http.StatusServiceUnavailable, "WAL size limit exceeded, retry later")
 			return
 		}
 
