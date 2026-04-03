@@ -165,6 +165,69 @@ func TestParseComparisonValue(t *testing.T) {
 	}
 }
 
+func TestToSQL_AllQualifiers(t *testing.T) {
+	f := Filter{
+		Status:          "unresolved",
+		NegatedStatuses: []string{"resolved"},
+		Level:           "error",
+		NegLevel:        "debug",
+		Environment:     "production",
+		NegEnv:          "staging",
+		Release:         "1.0.0",
+		NegRelease:      "0.9.0",
+		EventType:       "error",
+		NegEventType:    "transaction",
+		Assigned:        "alice@example.com",
+		NegAssigned:     "bob@example.com",
+		Platform:        "python",
+		NegPlatform:     "javascript",
+		FirstSeen:       ">2024-01-01",
+		LastSeen:        "<2024-06-01",
+		TimesSeen:       ">10",
+		Bookmarked:      "me",
+		HasFields:       []string{"assignee"},
+		NotHasFields:    []string{"release"},
+		Tags:            []TagFilter{{Key: "browser", Value: "Chrome"}},
+		NegTags:         []TagFilter{{Key: "os", Value: "Windows"}},
+		Terms:           []string{"crash"},
+	}
+
+	sc := ToSQL(f, SQLite, "g", escapeLike)
+
+	// Verify all qualifiers produce clauses.
+	expectedFragments := []string{
+		"g.status = ?",                           // is:
+		"g.status != ?",                          // !is:
+		"LOWER(COALESCE(g.level, '')) = ?",       // level:
+		"LOWER(COALESCE(g.level, '')) != ?",      // !level:
+		"e.environment = ?",                      // environment:
+		"NOT EXISTS",                             // !environment: or !platform: or !tag
+		"e.release = ?",                          // release:
+		"LOWER(COALESCE(e.event_type, 'error'))", // event.type:
+		"LOWER(COALESCE(g.assignee, '')) = ?",    // assigned:
+		"LOWER(COALESCE(e.platform, '')) = ?",    // platform:
+		"g.first_seen > ?",                       // firstSeen:
+		"g.last_seen < ?",                        // lastSeen:
+		"g.times_seen > ?",                       // times_seen:
+		"COALESCE(g.assignee, '') != ''",         // has:assignee
+		"g.resolved_in_release IS NULL",          // !has:release
+		"jt.key = ?",                             // tag filter
+		"g.title LIKE ?",                         // free text
+	}
+
+	joined := strings.Join(sc.Clauses, " AND ")
+	for _, frag := range expectedFragments {
+		if !strings.Contains(joined, frag) {
+			t.Errorf("missing clause fragment %q in:\n%s", frag, joined)
+		}
+	}
+
+	// Sanity check arg count — each qualifier produces at least 1 arg.
+	if len(sc.Args) < 15 {
+		t.Errorf("expected at least 15 args, got %d: %v", len(sc.Args), sc.Args)
+	}
+}
+
 func TestToSQL_MultipleFilters(t *testing.T) {
 	f := Parse("is:unresolved level:error has:assignee browser.name:Chrome connection")
 	sc := ToSQL(f, SQLite, "g", escapeLike)
