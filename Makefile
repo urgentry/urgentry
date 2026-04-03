@@ -101,9 +101,12 @@ bench-budget:
 ## bench: Broad scheduled benchmark suite (all packages, single pass)
 ## Pipeline shutdown benchmarks are capped at 100 iterations to prevent
 ## multi-minute calibration stalls from low-ns/op + expensive setup/teardown.
+## Output is persisted to test-results/bench-broad-TIMESTAMP.txt for benchstat.
 bench:
-	go test -run '^$$' -bench=. -benchmem $$(go list ./... | grep -v /internal/pipeline)
-	go test -run '^$$' -bench=. -benchmem -benchtime=100x ./internal/pipeline
+	mkdir -p test-results
+	{ go test -run '^$$' -bench=. -benchmem $$(go list ./... | grep -v /internal/pipeline) && \
+	  go test -run '^$$' -bench=. -benchmem -benchtime=100x ./internal/pipeline; } \
+	  2>&1 | tee test-results/bench-broad-$$(date +%Y%m%d-%H%M%S).txt
 
 ## selfhosted-bench: Run the serious self-hosted performance eval lane
 selfhosted-bench:
