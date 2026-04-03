@@ -453,6 +453,38 @@ func (s *GroupStore) ListIssueActivity(ctx context.Context, groupID string, limi
 	return items, rows.Err()
 }
 
+// BatchIssueWorkflowStates loads bookmark/subscription/merge metadata for multiple issues and a user.
+func (s *GroupStore) BatchIssueWorkflowStates(ctx context.Context, groupIDs []string, userID string) (map[string]sharedstore.IssueWorkflowState, error) {
+	result := make(map[string]sharedstore.IssueWorkflowState, len(groupIDs))
+	if len(groupIDs) == 0 || strings.TrimSpace(userID) == "" {
+		return result, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT g.id,
+			EXISTS(SELECT 1 FROM issue_bookmarks WHERE group_id = g.id AND user_id = $1),
+			EXISTS(SELECT 1 FROM issue_subscriptions WHERE group_id = g.id AND user_id = $1),
+			COALESCE(g.merged_into_group_id, ''),
+			COALESCE(g.substatus, ''),
+			COALESCE(g.resolved_in_release, '')
+		FROM groups g WHERE g.id = ANY($2)`, userID, groupIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var bookmarked, subscribed bool
+		var state sharedstore.IssueWorkflowState
+		if err := rows.Scan(&id, &bookmarked, &subscribed, &state.MergedIntoGroupID, &state.ResolutionSubstatus, &state.ResolvedInRelease); err != nil {
+			return nil, err
+		}
+		state.Bookmarked = bookmarked
+		state.Subscribed = subscribed
+		result[id] = state
+	}
+	return result, rows.Err()
+}
+
 // GetIssueWorkflowState loads bookmark, subscription, and merge metadata.
 func (s *GroupStore) GetIssueWorkflowState(ctx context.Context, groupID, userID string) (sharedstore.IssueWorkflowState, error) {
 	var state sharedstore.IssueWorkflowState
