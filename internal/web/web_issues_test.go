@@ -423,5 +423,136 @@ func TestAssignAction(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Issue Detail Tab Routes
+// ---------------------------------------------------------------------------
+
+func TestIssueTabRoutes(t *testing.T) {
+	srv, db := setupTestServer(t)
+	defer srv.Close()
+
+	insertGroup(t, db, "grp-tabrt-1", "TabRouteError: test", "main.go", "error", "unresolved")
+	insertEvent(t, db, "evt-tabrt-1", "grp-tabrt-1", "TabRouteError: test", "error", "tab route test")
+
+	tabs := []string{"events", "activity", "similar", "merged", "tags", "replays"}
+	for _, tab := range tabs {
+		t.Run(tab, func(t *testing.T) {
+			url := srv.URL + "/issues/grp-tabrt-1/" + tab + "/"
+			resp, err := http.Get(url)
+			if err != nil {
+				t.Fatalf("GET %s: %v", url, err)
+			}
+			body := getBody(t, resp)
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("tab %s: status = %d, want 200; body: %s", tab, resp.StatusCode, body)
+			}
+			if len(body) < 100 {
+				t.Errorf("tab %s: body suspiciously short", tab)
+			}
+		})
+	}
+}
+
+func TestIssueTabRoutes_NotFound(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	defer srv.Close()
+
+	tabs := []string{"events", "activity", "similar", "merged", "tags", "replays"}
+	for _, tab := range tabs {
+		t.Run(tab, func(t *testing.T) {
+			url := srv.URL + "/issues/nonexistent-id/" + tab + "/"
+			resp, err := http.Get(url)
+			if err != nil {
+				t.Fatalf("GET %s: %v", url, err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusNotFound {
+				t.Errorf("tab %s: status = %d, want 404", tab, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestIssueEventsTabContent(t *testing.T) {
+	srv, db := setupTestServer(t)
+	defer srv.Close()
+
+	insertGroup(t, db, "grp-evttab-1", "EventTabError", "main.go", "error", "unresolved")
+	insertEvent(t, db, "evt-evttab-1", "grp-evttab-1", "EventTabError", "error", "event tab test")
+	insertEvent(t, db, "evt-evttab-2", "grp-evttab-1", "EventTabError", "error", "event tab test 2")
+
+	resp, err := http.Get(srv.URL + "/issues/grp-evttab-1/events/")
+	if err != nil {
+		t.Fatalf("GET /issues/grp-evttab-1/events/: %v", err)
+	}
+	body := getBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+	if !strings.Contains(body, "EventTabError") {
+		t.Errorf("expected issue title in events tab; got body: %s", body)
+	}
+}
+
+func TestIssueSimilarTabContent(t *testing.T) {
+	srv, db := setupTestServer(t)
+	defer srv.Close()
+
+	insertGroup(t, db, "grp-simtab-1", "SimilarTabError: test input", "main.go", "error", "unresolved")
+	insertGroup(t, db, "grp-simtab-2", "SimilarTabError: test input", "utils.go", "error", "unresolved")
+	insertEvent(t, db, "evt-simtab-1", "grp-simtab-1", "SimilarTabError: test input", "error", "similar test")
+	insertEvent(t, db, "evt-simtab-2", "grp-simtab-2", "SimilarTabError: test input", "error", "similar test 2")
+
+	resp, err := http.Get(srv.URL + "/issues/grp-simtab-1/similar/")
+	if err != nil {
+		t.Fatalf("GET /issues/grp-simtab-1/similar/: %v", err)
+	}
+	body := getBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+	if !strings.Contains(body, "SimilarTabError") {
+		t.Errorf("expected issue title in similar tab; got body: %s", body)
+	}
+}
+
+func TestIssueListErrorsPage(t *testing.T) {
+	srv, db := setupTestServer(t)
+	defer srv.Close()
+
+	insertGroup(t, db, "grp-errlist-1", "ErrorListIssue", "main.go", "error", "unresolved")
+
+	resp, err := http.Get(srv.URL + "/issues/errors/")
+	if err != nil {
+		t.Fatalf("GET /issues/errors/: %v", err)
+	}
+	body := getBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200; body: %s", resp.StatusCode, body)
+	}
+	_ = db
+}
+
+func TestIssueListWarningsPage(t *testing.T) {
+	srv, db := setupTestServer(t)
+	defer srv.Close()
+
+	insertGroup(t, db, "grp-warnlist-1", "WarnListIssue", "main.go", "warning", "unresolved")
+
+	resp, err := http.Get(srv.URL + "/issues/warnings/")
+	if err != nil {
+		t.Fatalf("GET /issues/warnings/: %v", err)
+	}
+	body := getBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200; body: %s", resp.StatusCode, body)
+	}
+	_ = db
+}
+
 // Suppress unused import warnings.
 var _ = store.ErrNotFound

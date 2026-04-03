@@ -140,6 +140,12 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"release-detail.html",
 		"issue-list.html",
 		"issue-detail.html",
+		"issue-events-tab.html",
+		"issue-activity-tab.html",
+		"issue-similar-tab.html",
+		"issue-merged-tab.html",
+		"issue-tags-tab.html",
+		"issue-replays-tab.html",
 		"event-detail.html",
 		"alerts.html",
 		"alert-detail.html",
@@ -275,7 +281,15 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /profiles/{id}/{$}", wrap(http.HandlerFunc(h.profileDetailPage)))
 	mux.Handle("GET /traces/{trace_id}/{$}", wrap(http.HandlerFunc(h.traceDetailPage)))
 	mux.Handle("GET /issues/{$}", wrap(http.HandlerFunc(h.issueListPage)))
+	mux.Handle("GET /issues/errors/{$}", wrap(http.HandlerFunc(h.issueListErrorsPage)))
+	mux.Handle("GET /issues/warnings/{$}", wrap(http.HandlerFunc(h.issueListWarningsPage)))
 	mux.Handle("GET /issues/{id}/{$}", wrap(http.HandlerFunc(h.issueDetailPage)))
+	mux.Handle("GET /issues/{id}/events/{$}", wrap(http.HandlerFunc(h.issueEventsTab)))
+	mux.Handle("GET /issues/{id}/activity/{$}", wrap(http.HandlerFunc(h.issueActivityTab)))
+	mux.Handle("GET /issues/{id}/similar/{$}", wrap(http.HandlerFunc(h.issueSimilarTab)))
+	mux.Handle("GET /issues/{id}/merged/{$}", wrap(http.HandlerFunc(h.issueMergedTab)))
+	mux.Handle("GET /issues/{id}/tags/{$}", wrap(http.HandlerFunc(h.issueTagsTab)))
+	mux.Handle("GET /issues/{id}/replays/{$}", wrap(http.HandlerFunc(h.issueReplaysTab)))
 	mux.Handle("POST /issues/{id}/status", wrap(http.HandlerFunc(h.updateIssueStatus)))
 	mux.Handle("POST /issues/{id}/assign", wrap(http.HandlerFunc(h.updateIssueAssignee)))
 	mux.Handle("POST /issues/{id}/priority", wrap(http.HandlerFunc(h.updateIssuePriority)))

@@ -73,6 +73,17 @@
       </div>
     </div>
 
+    <!-- Tab navigation -->
+    <nav class="issue-tabs" aria-label="Issue detail tabs">
+      <a href="/issues/{{.Issue.ID}}/" class="issue-tab issue-tab-active">Details</a>
+      <a href="/issues/{{.Issue.ID}}/events/" class="issue-tab">Events</a>
+      <a href="/issues/{{.Issue.ID}}/activity/" class="issue-tab">Activity</a>
+      <a href="/issues/{{.Issue.ID}}/similar/" class="issue-tab">Similar Issues</a>
+      <a href="/issues/{{.Issue.ID}}/merged/" class="issue-tab">Merged Issues</a>
+      <a href="/issues/{{.Issue.ID}}/tags/" class="issue-tab">Tags</a>
+      <a href="/issues/{{.Issue.ID}}/replays/" class="issue-tab">Replays</a>
+    </nav>
+
     <!-- Event Chart + Tag Distribution -->
     {{if .ChartPoints}}
     <div class="chart-tag-row">

@@ -1,0 +1,86 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="detail-layout">
+  <div class="detail-main">
+    <div class="detail-header">
+      <div class="detail-breadcrumb">
+        <a href="/issues/">Issues</a> <span class="bc-sep">/</span>
+        <a href="/issues/{{.Issue.ID}}/" class="short-id mono">{{.Issue.ShortID}}</a>
+      </div>
+      <h1 class="detail-title">{{.Issue.ExcType}}</h1>
+      {{if .Issue.ExcValue}}<p class="detail-subtitle">{{.Issue.ExcValue}}</p>{{end}}
+      <div class="detail-meta-row">
+        <span class="status-pill status-{{.Issue.Status}}">{{.Issue.StatusLabel}}</span>
+        <span class="detail-level level-{{.Issue.Level}}">{{.Issue.Level}}</span>
+      </div>
+    </div>
+
+    <!-- Tab navigation -->
+    <nav class="issue-tabs" aria-label="Issue detail tabs">
+      {{range .Tabs}}
+      <a href="{{.URL}}" class="issue-tab{{if .Active}} issue-tab-active{{end}}">{{.Label}}</a>
+      {{end}}
+    </nav>
+
+    <!-- Tag distribution -->
+    {{if .TagDistribution}}
+    <div class="detail-section">
+      <h3 class="section-header">Tag Distribution</h3>
+      <div class="section-body">
+        <div class="tag-distribution">
+          {{range .TagDistribution}}
+          <div class="tag-dist-row">
+            <span class="tag-dist-key">{{.Key}}</span>
+            <div class="tag-dist-bar-wrap">
+              <div class="tag-dist-bar" style="width:{{.Percent}}%; background: hsl({{.Hue}}, 60%, 50%);">
+                <span class="tag-dist-value">{{.Percent}}% {{.Value}}</span>
+              </div>
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+    {{end}}
+
+    <!-- Tag facets -->
+    <div class="detail-section">
+      <h3 class="section-header">Tag Breakdown</h3>
+      <div class="section-body">
+        {{if .TagFacets}}
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>Value</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .TagFacets}}
+            <tr>
+              <td class="mono">{{.Key}}</td>
+              <td>{{.Value}}</td>
+              <td class="mono">{{.Count}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No tag data available for this issue.</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-item">
+        <span class="sidebar-label">Tag keys</span>
+        <span class="sidebar-value">{{len .TagFacets}}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}
