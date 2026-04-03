@@ -266,7 +266,7 @@ func writeProfileQueryError(w http.ResponseWriter, err error) bool {
 		httputil.WriteAPIError(w, httputil.APIError{
 			Status: http.StatusTooManyRequests,
 			Code:   "profile_query_too_large",
-			Detail: "Profile query exceeds Tiny-mode limits.",
+			Detail: "Profile query exceeds resource limits. Try a narrower time range or fewer functions.",
 		})
 	case strings.Contains(err.Error(), "not query-ready"):
 		httputil.WriteAPIError(w, httputil.APIError{
