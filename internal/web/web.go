@@ -177,6 +177,11 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"performance.html",
 		"performance-queues.html",
 		"performance-spans.html",
+		"performance-summary.html",
+		"explore.html",
+		"insights.html",
+		"insights-http.html",
+		"insights-database.html",
 		"quota.html",
 		"metrics.html",
 	}
@@ -275,9 +280,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /discover/queries/{id}/reports", wrap(http.HandlerFunc(h.createDiscoverQueryReport)))
 	mux.Handle("POST /discover/queries/{id}/reports/{report_id}/delete", wrap(http.HandlerFunc(h.deleteDiscoverQueryReport)))
 	mux.Handle("GET /metrics/{$}", wrap(http.HandlerFunc(h.metricsPage)))
+	mux.Handle("GET /explore/{$}", wrap(http.HandlerFunc(h.explorePage)))
+	mux.Handle("GET /insights/{$}", wrap(http.HandlerFunc(h.insightsPage)))
+	mux.Handle("GET /insights/http/{$}", wrap(http.HandlerFunc(h.insightsHTTPPage)))
+	mux.Handle("GET /insights/database/{$}", wrap(http.HandlerFunc(h.insightsDatabasePage)))
 	mux.Handle("GET /performance/{$}", wrap(http.HandlerFunc(h.performancePage)))
 	mux.Handle("GET /performance/queues/{$}", wrap(http.HandlerFunc(h.performanceQueuesPage)))
 	mux.Handle("GET /performance/spans/{$}", wrap(http.HandlerFunc(h.performanceSpansPage)))
+	mux.Handle("GET /performance/summary/{$}", wrap(http.HandlerFunc(h.performanceSummaryPage)))
 	mux.Handle("GET /logs/starters/{slug}/{$}", wrap(http.HandlerFunc(h.discoverStarterPage)))
 	mux.Handle("GET /logs/{$}", wrap(http.HandlerFunc(h.logsPage)))
 	mux.HandleFunc("GET /analytics/snapshots/{token}/{$}", h.analyticsSnapshotPage)

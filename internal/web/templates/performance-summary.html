@@ -1,0 +1,104 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Transaction Summary</h1>
+  <div class="page-actions">
+    <a href="/performance/" class="btn btn-sm">Transactions</a>
+    <a href="/performance/queues/" class="btn btn-sm">Queues</a>
+    <a href="/performance/spans/" class="btn btn-sm">Spans</a>
+  </div>
+</div>
+
+{{if .TransactionName}}
+<div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+  <div class="section-header" style="font-size: 0.8rem; color: var(--muted, #6b7280); margin-bottom: 0.25rem;">Transaction</div>
+  <div class="mono" style="font-size: 1rem; font-weight: 600;">{{.TransactionName}}</div>
+</div>
+{{end}}
+
+{{if .Error}}
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+<div class="metrics-grid" style="margin-bottom: 1.25rem;">
+  <div class="metric-card">
+    <div class="metric-label">Count</div>
+    <div class="metric-value">{{if .Count}}{{.Count}}{{else}}0{{end}}</div>
+    <div class="metric-sub">Last 24h</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">p50 Latency</div>
+    <div class="metric-value">{{if .P50}}{{.P50}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">p95 Latency</div>
+    <div class="metric-value">{{if .P95}}{{.P95}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Max Latency</div>
+    <div class="metric-value">{{if .MaxDuration}}{{.MaxDuration}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Avg Latency</div>
+    <div class="metric-value">{{if .Avg}}{{.Avg}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Apdex</div>
+    <div class="metric-value">
+      {{if .Apdex}}<span class="apdex-score apdex-{{.ApdexRank}}" title="{{.ApdexRank}}">{{.Apdex}}</span>{{else}}-{{end}}
+    </div>
+  </div>
+</div>
+
+{{if .Spans}}
+<div class="card">
+  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Span Breakdown (last 24h)</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Op</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Avg (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Total (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Spans}}
+      <tr>
+        <td><span class="mono span-op">{{.Op}}</span></td>
+        <td><span class="mono span-desc">{{.Description}}</span></td>
+        <td>{{.Count}}</td>
+        <td>{{.AvgMS}}</td>
+        <td>{{.P95MS}}</td>
+        <td>{{.TotalMS}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+{{if not .Error}}
+<div class="card">
+  <div class="empty-state" style="padding: 2rem 1rem;">
+    <div class="empty-text">No span data found for this transaction in the last 24 hours.</div>
+  </div>
+</div>
+{{end}}
+{{end}}
+
+<style>
+  .apdex-score { font-weight: 600; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  .apdex-excellent { color: #166534; background: #dcfce7; }
+  .apdex-good { color: #3b6f10; background: #ecfccb; }
+  .apdex-fair { color: #854d0e; background: #fef9c3; }
+  .apdex-poor { color: #9a3412; background: #ffedd5; }
+  .apdex-unacceptable { color: #991b1b; background: #fee2e2; }
+  .span-op { font-size: 0.85em; padding: 0.1em 0.35em; background: var(--tag-bg, #f3f0eb); border-radius: 3px; }
+  .span-desc { font-size: 0.85em; word-break: break-all; }
+</style>
+{{end}}

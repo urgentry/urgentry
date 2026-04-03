@@ -1,0 +1,78 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Explore</h1>
+</div>
+
+<div class="explore-grid">
+  <a href="/discover/" class="explore-card">
+    <div class="explore-icon">&#128269;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Discover</div>
+      <div class="explore-card-desc">Query and explore events, errors, and transactions with a flexible query builder.</div>
+    </div>
+  </a>
+  <a href="/logs/" class="explore-card">
+    <div class="explore-icon">&#128221;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Logs</div>
+      <div class="explore-card-desc">Search and filter structured log events from your services.</div>
+    </div>
+  </a>
+  <a href="/traces/" class="explore-card">
+    <div class="explore-icon">&#128336;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Traces</div>
+      <div class="explore-card-desc">Inspect distributed traces and spans to understand request flows.</div>
+    </div>
+  </a>
+  <a href="/profiles/" class="explore-card">
+    <div class="explore-icon">&#128200;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Profiles</div>
+      <div class="explore-card-desc">Continuous profiling data showing where your application spends CPU and memory.</div>
+    </div>
+  </a>
+</div>
+
+<style>
+  .explore-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+  .explore-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: 8px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .explore-card:hover {
+    border-color: var(--accent, #7c6b52);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .explore-icon {
+    font-size: 1.75rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .explore-card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  .explore-card-desc {
+    font-size: 0.85rem;
+    color: var(--muted, #6b7280);
+    line-height: 1.4;
+  }
+</style>
+{{end}}

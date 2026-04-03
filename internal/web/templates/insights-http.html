@@ -1,0 +1,57 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">HTTP Performance</h1>
+  <div class="page-actions">
+    <a href="/insights/" class="btn btn-sm">Insights</a>
+    <a href="/insights/http/" class="btn btn-sm btn-active">HTTP</a>
+    <a href="/insights/database/" class="btn btn-sm">Database</a>
+  </div>
+</div>
+
+{{if .Error}}
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+<div class="card">
+  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Top Transactions by p95 Latency (last 24h)</div>
+  {{if .Rows}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Transaction</th>
+        <th>Count</th>
+        <th>p50 (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Avg (ms)</th>
+        <th>Error Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Rows}}
+      <tr>
+        <td><a href="/performance/summary/?transaction={{.Transaction}}">{{.Transaction}}</a></td>
+        <td>{{.Count}}</td>
+        <td>{{if .P50}}{{.P50}}{{else}}-{{end}}</td>
+        <td>{{if .P95}}{{.P95}}{{else}}-{{end}}</td>
+        <td>{{if .Avg}}{{.Avg}}{{else}}-{{end}}</td>
+        <td>{{if .ErrorRate}}<span class="error-rate-badge">{{.ErrorRate}}</span>{{else}}-{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 2rem 1rem;">
+    <div class="empty-text">No transaction data captured yet. Send transaction events to see HTTP performance insights.</div>
+  </div>
+  {{end}}
+</div>
+
+<style>
+  .btn-active { background: var(--accent-bg, #e8dcc7); font-weight: 600; }
+  .error-rate-badge { font-size: 0.85em; font-weight: 500; }
+</style>
+{{end}}
