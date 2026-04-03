@@ -41,7 +41,9 @@ func TestBehavioralTagExtraction(t *testing.T) {
 		t.Fatal("no issues after ingest")
 	}
 	var first struct{ ID string }
-	json.Unmarshal(issues[0], &first)
+	if err := json.Unmarshal(issues[0], &first); err != nil {
+		t.Fatalf("unmarshal first issue: %v", err)
+	}
 
 	rec := evalGET(t, handler, pat, "/api/0/issues/"+first.ID+"/")
 	if !strings.Contains(rec.Body.String(), "browser") {
@@ -71,7 +73,9 @@ func TestBehavioralBreadcrumbPreservation(t *testing.T) {
 		t.Fatal("no issues after ingest")
 	}
 	var first struct{ ID string }
-	json.Unmarshal(issues[0], &first)
+	if err := json.Unmarshal(issues[0], &first); err != nil {
+		t.Fatalf("unmarshal first issue: %v", err)
+	}
 
 	rec := evalGET(t, handler, pat, "/api/0/issues/"+first.ID+"/events/latest/")
 	body := rec.Body.String()
