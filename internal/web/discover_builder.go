@@ -231,7 +231,8 @@ func applyDiscoverBuilderState(base discover.Query, dataset discover.Dataset, st
 		}
 		base.Select = aggregates
 	case "table":
-		if len(aggregates) > 0 || len(groupBy) > 0 {
+		switch {
+		case len(aggregates) > 0 || len(groupBy) > 0:
 			selects := make([]discover.SelectItem, 0, len(groupBy)+len(aggregates))
 			for _, field := range groupBy {
 				base.GroupBy = append(base.GroupBy, discover.Expression{Field: field})
@@ -246,10 +247,10 @@ func applyDiscoverBuilderState(base discover.Query, dataset discover.Dataset, st
 					return discover.Query{}, err
 				}
 			}
-			base.Select = append(selects, aggregates...)
-		} else if len(columns) > 0 {
+			base.Select = append(selects, aggregates...) //nolint:gocritic // intentional: building base.Select from selects+aggregates
+		case len(columns) > 0:
 			base.Select = discoverFieldSelects(columns)
-		} else if strings.TrimSpace(state.OrderBy) != "" {
+		case strings.TrimSpace(state.OrderBy) != "":
 			base.Select = discoverFieldSelects(defaultDiscoverFields(dataset))
 		}
 	default:

@@ -294,11 +294,12 @@ func estimateCost(query Query) CostEstimate {
 	}
 	projectCount := 1
 	if query.Scope.Kind == ScopeKindOrganization {
-		if len(query.Scope.ProjectIDs) > 0 {
+		switch {
+		case len(query.Scope.ProjectIDs) > 0:
 			projectCount = len(query.Scope.ProjectIDs)
-		} else if query.Dataset == DatasetLogs || query.Dataset == DatasetTransactions {
+		case query.Dataset == DatasetLogs || query.Dataset == DatasetTransactions:
 			projectCount = 3
-		} else {
+		default:
 			projectCount = 1
 		}
 	}

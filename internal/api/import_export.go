@@ -68,10 +68,6 @@ func handleImportWithLimit(db *sql.DB, importExport *sqlite.ImportExportStore, a
 	}
 }
 
-func decodeImportPayload(w http.ResponseWriter, r *http.Request, v any) error {
-	return decodeImportPayloadWithLimit(w, r, v, maxOrganizationImportBodySize)
-}
-
 func decodeImportPayloadWithLimit(w http.ResponseWriter, r *http.Request, v any, maxBytes int64) error {
 	if r.Body == nil {
 		return errors.New("empty request body")

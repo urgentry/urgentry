@@ -693,7 +693,9 @@ func backfillInsertQuery(run *BackfillRun) (string, []any) {
 			                OR COALESCE(active.project_id, '') = ?
 			           )
 			 )`
-		args := append(baseArgs,
+		args := make([]any, len(baseArgs), len(baseArgs)+6)
+		copy(args, baseArgs)
+		args = append(args,
 			string(BackfillKindTelemetryRebuild),
 			run.OrganizationID,
 			string(BackfillStatusPending),
@@ -736,7 +738,9 @@ func backfillInsertQuery(run *BackfillRun) (string, []any) {
 			                 OR ? <= COALESCE(active.ended_before, ''))
 			           )
 			 )`
-		args := append(baseArgs,
+		args := make([]any, len(baseArgs), len(baseArgs)+12)
+		copy(args, baseArgs)
+		args = append(args,
 			string(BackfillKindNativeReprocess),
 			run.OrganizationID,
 			string(BackfillStatusPending),

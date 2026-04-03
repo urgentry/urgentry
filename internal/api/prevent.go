@@ -722,13 +722,14 @@ func sortPreventTestResults(items []store.PreventRepositoryTestResult, stats map
 	if field == "" {
 		field = "-RUNS_FAILED"
 	}
-	if strings.HasPrefix(field, "-") {
+	switch {
+	case strings.HasPrefix(field, "-"):
 		field = strings.TrimPrefix(field, "-")
 		desc = true
-	} else if strings.HasPrefix(field, "+") {
+	case strings.HasPrefix(field, "+"):
 		field = strings.TrimPrefix(field, "+")
 		desc = false
-	} else {
+	default:
 		desc = false
 	}
 	field = strings.ToUpper(field)

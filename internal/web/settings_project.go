@@ -3,7 +3,6 @@ package web
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	sharedstore "urgentry/internal/store"
 )
@@ -343,20 +342,3 @@ func (h *Handler) projectSettingsFiltersPage(w http.ResponseWriter, r *http.Requ
 	h.render(w, "settings-project-filters.html", data)
 }
 
-// projectSettingsNavURL returns the URL for a project settings sub-page.
-func projectSettingsNavURL(slug, tab string) string {
-	return fmt.Sprintf("/settings/project/%s/%s/", slug, tab)
-}
-
-// projectSettingsNavActive is a helper used in templates to build nav classes.
-func projectSettingsNavActive(current, tab string) string {
-	if current == tab {
-		return "active"
-	}
-	return ""
-}
-
-// projectSettingsBreadcrumb returns a short label for the active tab.
-func projectSettingsBreadcrumb(tab string) string {
-	return strings.Title(strings.ReplaceAll(tab, "-", " ")) //nolint:staticcheck
-}

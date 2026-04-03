@@ -388,7 +388,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/ui/searches/clone/{id}", wrap(http.HandlerFunc(h.cloneSearch)))
 	mux.Handle("DELETE /api/ui/searches/{id}", wrap(http.HandlerFunc(h.deleteSearch)))
 	mux.Handle("GET /api/ui/environments", wrap(http.HandlerFunc(h.listEnvironments)))
-	mux.Handle("POST /api/0/projects/{org}/{proj}/star/", wrap(http.HandlerFunc(handleToggleStarProject(h))))
+	mux.Handle("POST /api/0/projects/{org}/{proj}/star/", wrap(handleToggleStarProject(h)))
 	mux.Handle("GET /api/search", wrap(api.HandleSearch(h.webStore)))
 }
 
