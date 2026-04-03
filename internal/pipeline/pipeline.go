@@ -503,6 +503,14 @@ func (p *Pipeline) processItem(ctx context.Context, item Item) error {
 	if p.metrics != nil {
 		p.metrics.RecordProcessing(duration, result.IsNewGroup, result.IsRegression)
 	}
+
+	// Run performance issue detection for transaction events after processing.
+	if result.EventType == "transaction" {
+		if evt, err := normalize.Normalize(item.RawEvent); err == nil {
+			detectPerformanceIssues(evt)
+		}
+	}
+
 	if p.projectionCallback != nil {
 		p.projectionCallback(ctx, item.ProjectID, result.EventType)
 	}
