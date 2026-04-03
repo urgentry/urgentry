@@ -291,13 +291,15 @@ func estimateCost(query Query) CostEstimate {
 		score += 4
 	case DatasetTransactions:
 		score += 4
+	case DatasetSpans:
+		score += 5 // spans are the most expensive dataset
 	}
 	projectCount := 1
 	if query.Scope.Kind == ScopeKindOrganization {
 		switch {
 		case len(query.Scope.ProjectIDs) > 0:
 			projectCount = len(query.Scope.ProjectIDs)
-		case query.Dataset == DatasetLogs || query.Dataset == DatasetTransactions:
+		case query.Dataset == DatasetLogs || query.Dataset == DatasetTransactions || query.Dataset == DatasetSpans:
 			projectCount = 3
 		default:
 			projectCount = 1
@@ -314,11 +316,11 @@ func estimateCost(query Query) CostEstimate {
 	if query.Limit > 50 {
 		score += query.Limit / 25
 	}
-	if query.TimeRange == nil && query.Scope.Kind == ScopeKindOrganization && (query.Dataset == DatasetLogs || query.Dataset == DatasetTransactions) {
+	if query.TimeRange == nil && query.Scope.Kind == ScopeKindOrganization && (query.Dataset == DatasetLogs || query.Dataset == DatasetTransactions || query.Dataset == DatasetSpans) {
 		return CostEstimate{
 			Class:  CostClassReject,
 			Score:  score + 10,
-			Reason: "organization-scoped logs and transactions queries require an explicit bounded time range",
+			Reason: "organization-scoped logs, transactions, and spans queries require an explicit bounded time range",
 		}
 	}
 	switch {

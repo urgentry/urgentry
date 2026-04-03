@@ -72,6 +72,20 @@ var datasetCatalog = map[Dataset]map[string]fieldSpec{
 		"duration.ms": {Type: valueTypeNumber, Measure: true},
 		"count":       {Type: valueTypeNumber, Measure: true},
 	},
+	DatasetSpans: {
+		"project":       {Type: valueTypeString, Groupable: true, Searchable: true},
+		"project.id":    {Type: valueTypeString, Groupable: true},
+		"timestamp":     {Type: valueTypeTimestamp, Groupable: true},
+		"trace.id":      {Type: valueTypeString, Groupable: true, Searchable: true},
+		"span.id":       {Type: valueTypeString, Groupable: true},
+		"parent.span_id": {Type: valueTypeString, Groupable: true},
+		"transaction":   {Type: valueTypeString, Groupable: true, Searchable: true},
+		"op":            {Type: valueTypeString, Groupable: true, Searchable: true},
+		"description":   {Type: valueTypeString, Searchable: true},
+		"status":        {Type: valueTypeEnum, Groupable: true, Searchable: true},
+		"duration.ms":   {Type: valueTypeNumber, Measure: true},
+		"count":         {Type: valueTypeNumber, Measure: true},
+	},
 }
 
 var aggregateCatalog = map[string]struct {
@@ -84,12 +98,14 @@ var aggregateCatalog = map[string]struct {
 			DatasetIssues:       {},
 			DatasetLogs:         {},
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args: 0,
 	},
 	"avg": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -97,6 +113,7 @@ var aggregateCatalog = map[string]struct {
 	"p50": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -104,6 +121,7 @@ var aggregateCatalog = map[string]struct {
 	"p95": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -111,6 +129,7 @@ var aggregateCatalog = map[string]struct {
 	"max": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -118,6 +137,7 @@ var aggregateCatalog = map[string]struct {
 	"min": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -125,6 +145,7 @@ var aggregateCatalog = map[string]struct {
 	"p75": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -132,6 +153,7 @@ var aggregateCatalog = map[string]struct {
 	"p99": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -139,6 +161,7 @@ var aggregateCatalog = map[string]struct {
 	"sum": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",
@@ -148,6 +171,7 @@ var aggregateCatalog = map[string]struct {
 			DatasetIssues:       {},
 			DatasetLogs:         {},
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "",
@@ -155,12 +179,14 @@ var aggregateCatalog = map[string]struct {
 	"failure_rate": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args: 0,
 	},
 	"apdex": {
 		Datasets: map[Dataset]struct{}{
 			DatasetTransactions: {},
+			DatasetSpans:        {},
 		},
 		Args:  1,
 		Field: "duration.ms",

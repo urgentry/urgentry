@@ -16,6 +16,7 @@ const (
 	DatasetIssues       Dataset = "issues"
 	DatasetLogs         Dataset = "logs"
 	DatasetTransactions Dataset = "transactions"
+	DatasetSpans        Dataset = "spans"
 )
 
 type ScopeKind string
