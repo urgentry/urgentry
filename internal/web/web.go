@@ -167,6 +167,12 @@ func NewHandlerWithDeps(deps Dependencies) *Handler {
 		"settings-account-notifications.html",
 		"settings-account-api.html",
 		"settings-account-close.html",
+		"settings-project-general.html",
+		"settings-project-keys.html",
+		"settings-project-ownership.html",
+		"settings-project-environments.html",
+		"settings-project-retention.html",
+		"settings-project-filters.html",
 		"analytics-snapshot.html",
 		"performance.html",
 		"performance-queues.html",
@@ -333,6 +339,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /settings/account/api/create", wrap(http.HandlerFunc(h.createAccountAPIToken)))
 	mux.Handle("POST /settings/account/api/{token_id}/revoke", wrap(http.HandlerFunc(h.revokeAccountAPIToken)))
 	mux.Handle("GET /settings/account/close/{$}", wrap(http.HandlerFunc(h.accountClosePage)))
+	mux.Handle("GET /settings/project/{slug}/general/{$}", wrap(http.HandlerFunc(h.projectSettingsGeneralPage)))
+	mux.Handle("GET /settings/project/{slug}/keys/{$}", wrap(http.HandlerFunc(h.projectSettingsKeysPage)))
+	mux.Handle("GET /settings/project/{slug}/ownership/{$}", wrap(http.HandlerFunc(h.projectSettingsOwnershipPage)))
+	mux.Handle("GET /settings/project/{slug}/environments/{$}", wrap(http.HandlerFunc(h.projectSettingsEnvironmentsPage)))
+	mux.Handle("GET /settings/project/{slug}/retention/{$}", wrap(http.HandlerFunc(h.projectSettingsRetentionPage)))
+	mux.Handle("GET /settings/project/{slug}/filters/{$}", wrap(http.HandlerFunc(h.projectSettingsFiltersPage)))
 	mux.Handle("POST /settings/environment", wrap(http.HandlerFunc(h.setEnvironment)))
 	mux.Handle("POST /settings/time-range", wrap(http.HandlerFunc(h.setTimeRangeAction)))
 	mux.Handle("POST /settings/project", wrap(http.HandlerFunc(h.updateProjectSettings)))

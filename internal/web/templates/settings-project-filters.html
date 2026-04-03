@@ -1,0 +1,87 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">{{.ProjectName}} — Settings</h1>
+</div>
+
+{{template "project-settings-nav" .}}
+
+<div class="settings-section">
+  <div class="section-header">Inbound Data Filters</div>
+  <p style="color: var(--text-secondary, #9CA0B0); font-size: 14px; margin: 0 0 16px;">
+    Inbound filters drop matching events before they are stored. Changes take effect immediately for new events.
+  </p>
+
+  {{if .InboundFilters}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Filter</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .InboundFilters}}
+      <tr>
+        <td>{{.Label}}</td>
+        <td>
+          {{if .Enabled}}
+          <span class="issue-status-badge active">enabled</span>
+          {{else}}
+          <span class="issue-status-badge disabled">disabled</span>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No inbound filters available.</div>
+  </div>
+  {{end}}
+</div>
+
+{{template "project-settings-nav-styles" .}}
+{{end}}
+
+{{define "project-settings-nav"}}
+<nav class="project-settings-nav">
+  <a href="/settings/project/{{.ProjectSlug}}/general/" class="{{if eq .ActiveTab "general"}}active{{end}}">General</a>
+  <a href="/settings/project/{{.ProjectSlug}}/keys/" class="{{if eq .ActiveTab "keys"}}active{{end}}">Keys &amp; DSN</a>
+  <a href="/settings/project/{{.ProjectSlug}}/ownership/" class="{{if eq .ActiveTab "ownership"}}active{{end}}">Ownership</a>
+  <a href="/settings/project/{{.ProjectSlug}}/environments/" class="{{if eq .ActiveTab "environments"}}active{{end}}">Environments</a>
+  <a href="/settings/project/{{.ProjectSlug}}/retention/" class="{{if eq .ActiveTab "retention"}}active{{end}}">Retention</a>
+  <a href="/settings/project/{{.ProjectSlug}}/filters/" class="{{if eq .ActiveTab "filters"}}active{{end}}">Filters</a>
+</nav>
+{{end}}
+
+{{define "project-settings-nav-styles"}}
+<style>
+.project-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.project-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.project-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.project-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+</style>
+{{end}}
