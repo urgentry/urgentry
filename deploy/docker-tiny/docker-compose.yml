@@ -1,0 +1,30 @@
+# Urgentry Tiny Mode — single-container Docker Compose.
+#
+# Usage:
+#   cd apps/urgentry/deploy/docker-tiny
+#   docker compose up -d
+#
+# Then open http://localhost:8080
+# Check logs for bootstrap admin credentials: docker compose logs urgentry
+
+services:
+  urgentry:
+    build:
+      context: ../..
+      dockerfile: deploy/docker-tiny/Dockerfile
+    image: urgentry:tiny
+    ports:
+      - "8080:8080"
+    volumes:
+      - urgentry_data:/data
+    environment:
+      URGENTRY_DATA_DIR: /data
+      URGENTRY_HTTP_ADDR: ":8080"
+      # Optional: set bootstrap credentials (auto-generated if not set)
+      # URGENTRY_BOOTSTRAP_EMAIL: admin@example.com
+      # URGENTRY_BOOTSTRAP_PASSWORD: changeme
+      # URGENTRY_BOOTSTRAP_PAT: gpat_your_token
+    restart: unless-stopped
+
+volumes:
+  urgentry_data:

@@ -1,0 +1,23 @@
+# Urgentry Tiny Mode on Render
+# Deploy: connect your GitHub repo and Render auto-detects this file.
+
+services:
+  - type: web
+    name: urgentry
+    runtime: docker
+    dockerfilePath: ./apps/urgentry/deploy/docker-tiny/Dockerfile
+    dockerContext: ./apps/urgentry
+    healthCheckPath: /readyz
+    disk:
+      name: urgentry-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: URGENTRY_DATA_DIR
+        value: /data
+      - key: URGENTRY_HTTP_ADDR
+        value: ":8080"
+      - key: URGENTRY_BOOTSTRAP_EMAIL
+        value: admin@example.com
+      - key: URGENTRY_BOOTSTRAP_PASSWORD
+        generateValue: true

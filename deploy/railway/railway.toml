@@ -1,0 +1,11 @@
+[build]
+dockerfilePath = "deploy/docker-tiny/Dockerfile"
+
+[deploy]
+healthcheckPath = "/readyz"
+healthcheckTimeout = 10
+restartPolicyType = "ALWAYS"
+
+[[services]]
+name = "urgentry"
+port = 8080
