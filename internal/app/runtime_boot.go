@@ -132,11 +132,21 @@ func (s *runtimeState) bootAPI(ctx context.Context) (*bool, error) {
 
 	completed := true
 	if bootstrap != nil && bootstrap.Created {
-		log.Info().
-			Str("email", bootstrap.Email).
-			Str("password_hint", maskSecret(bootstrap.Password)).
-			Str("pat_hint", maskSecret(bootstrap.PAT)).
-			Msg("bootstrap owner account created — retrieve credentials from your secret store, not from logs")
+		// Show full credentials when auto-generated (no env vars set) so the
+		// user can actually log in on first run. When credentials come from
+		// env vars the user already knows them, so we mask.
+		userSupplied := s.cfg.BootstrapPassword != "" || s.cfg.BootstrapPAT != ""
+		if userSupplied {
+			log.Info().
+				Str("email", bootstrap.Email).
+				Msg("bootstrap owner account created")
+		} else {
+			log.Info().
+				Str("email", bootstrap.Email).
+				Str("password", bootstrap.Password).
+				Str("pat", bootstrap.PAT).
+				Msg("bootstrap owner account created — save these credentials, they are shown only once")
+		}
 	}
 	return &completed, nil
 }
