@@ -20,6 +20,9 @@ services:
     environment:
       URGENTRY_DATA_DIR: /data
       URGENTRY_HTTP_ADDR: ":8080"
+      # REQUIRED for correct DSN display — set to your public URL:
+      # URGENTRY_BASE_URL: https://sentry.example.com
+      #
       # Optional: set bootstrap credentials (auto-generated if not set)
       # URGENTRY_BOOTSTRAP_EMAIL: admin@example.com
       # URGENTRY_BOOTSTRAP_PASSWORD: changeme

@@ -14,18 +14,29 @@ For solo developers, small teams, and evaluation.
 | [Railway](railway/) | 5 minutes | Free trial / $5/mo | Persistent volume | Included |
 | [Render](render/) | 5 minutes | Free tier / $7/mo | Persistent disk | Included |
 
-### Quick Start — Direct Binary
+### Quick Start — Deploy to a Server
+
+```bash
+# One command: builds, uploads, configures systemd, starts
+bash scripts/deploy-server.sh root@myserver.com \
+  --base-url https://sentry.example.com \
+  --email admin@example.com \
+  --password changeme
+```
+
+### Quick Start — Local Binary
 
 ```bash
 curl -fsSL https://urgentry.dev/install.sh | sh
-urgentry serve
-# Open http://localhost:8080
+URGENTRY_BASE_URL=http://localhost:8080 urgentry serve
 ```
 
 ### Quick Start — Docker
 
 ```bash
-docker run -p 8080:8080 -v urgentry-data:/data ghcr.io/ehmo/urgentry:latest serve
+docker run -p 8080:8080 -v urgentry-data:/data \
+  -e URGENTRY_BASE_URL=http://localhost:8080 \
+  ghcr.io/ehmo/urgentry:latest serve
 ```
 
 ### Quick Start — Fly.io
