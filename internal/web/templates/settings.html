@@ -149,38 +149,38 @@
 <!-- Data -->
 <div class="settings-section">
   <div class="section-header">Data</div>
-  <table class="settings-table settings-summary-table">
-    <tr>
-      <td class="settings-label">Total Events</td>
-      <td>{{.EventCount}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Total Issues</td>
-      <td>{{.GroupCount}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Database Size</td>
-      <td>{{.DBSize}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Event Retention</td>
-      <td>{{.EventRetentionDays}} days</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Attachment Retention</td>
-      <td>{{.AttachmentRetentionDays}} days</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Debug File Retention</td>
-      <td>{{.DebugRetentionDays}} days</td>
-    </tr>
+  <dl class="summary-list">
+    <div class="summary-row">
+      <dt class="summary-term">Total Events</dt>
+      <dd class="summary-value">{{.EventCount}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Total Issues</dt>
+      <dd class="summary-value">{{.GroupCount}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Database Size</dt>
+      <dd class="summary-value">{{.DBSize}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Event Retention</dt>
+      <dd class="summary-value">{{.EventRetentionDays}} days</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Attachment Retention</dt>
+      <dd class="summary-value">{{.AttachmentRetentionDays}} days</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Debug File Retention</dt>
+      <dd class="summary-value">{{.DebugRetentionDays}} days</dd>
+    </div>
     {{range .TelemetryPolicies}}
-    <tr>
-      <td class="settings-label">{{.Label}}</td>
-      <td>{{.RetentionDays}} days · {{.StorageTier}}{{if gt .ArchiveDays 0}} · archive {{.ArchiveDays}} days{{end}}</td>
-    </tr>
+    <div class="summary-row">
+      <dt class="summary-term">{{.Label}}</dt>
+      <dd class="summary-value">{{.RetentionDays}} days · {{.StorageTier}}{{if gt .ArchiveDays 0}} · archive {{.ArchiveDays}} days{{end}}</dd>
+    </div>
     {{end}}
-  </table>
+  </dl>
 </div>
 
 <div class="settings-section">
@@ -366,23 +366,35 @@ function copyDSN() {
   color: var(--text-secondary, #9CA0B0);
   width: 180px;
 }
-.settings-summary-table {
-  width: min(100%, 780px);
-  table-layout: fixed;
-}
-.settings-summary-table td {
-  padding: 12px 0;
-  vertical-align: top;
-}
-.settings-summary-table .settings-label {
-  width: 240px;
-  padding-right: 24px;
-}
-.settings-summary-table td:last-child {
-  color: var(--text-primary, #F5F6FA);
-}
 .settings-form {
   margin-bottom: 16px;
+}
+.summary-list {
+  width: min(100%, 760px);
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.summary-row:last-child {
+  border-bottom: none;
+}
+.summary-term {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #9CA0B0);
+}
+.summary-value {
+  margin: 0;
+  color: var(--text-primary, #F5F6FA);
 }
 .settings-form-grid {
   display: grid;

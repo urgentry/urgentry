@@ -10,28 +10,28 @@
 <div class="manage-body">
   <div class="settings-section">
     <div class="section-header">Overview</div>
-    <table class="settings-table settings-summary-table">
-      <tr>
-        <td class="settings-label">Organizations</td>
-        <td>{{.OrgCount}}</td>
-      </tr>
-      <tr>
-        <td class="settings-label">Projects</td>
-        <td>{{.ProjectCount}}</td>
-      </tr>
-      <tr>
-        <td class="settings-label">Users</td>
-        <td>{{.UserCount}}</td>
-      </tr>
-      <tr>
-        <td class="settings-label">Database Size</td>
-        <td>{{.DBSizeFmt}}</td>
-      </tr>
-      <tr>
-        <td class="settings-label">Uptime</td>
-        <td>{{.Uptime}}</td>
-      </tr>
-    </table>
+    <dl class="summary-list">
+      <div class="summary-row">
+        <dt class="summary-term">Organizations</dt>
+        <dd class="summary-value">{{.OrgCount}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Projects</dt>
+        <dd class="summary-value">{{.ProjectCount}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Users</dt>
+        <dd class="summary-value">{{.UserCount}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Database Size</dt>
+        <dd class="summary-value">{{.DBSizeFmt}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Uptime</dt>
+        <dd class="summary-value">{{.Uptime}}</dd>
+      </div>
+    </dl>
   </div>
 
   <div class="settings-section">
@@ -115,19 +115,31 @@
   color: var(--text-secondary, #9CA0B0);
   width: 220px;
 }
-.settings-summary-table {
-  width: min(100%, 780px);
-  table-layout: fixed;
+.summary-list {
+  width: min(100%, 760px);
+  display: grid;
+  gap: 0;
+  margin: 0;
 }
-.settings-summary-table td {
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 20px;
   padding: 12px 0;
-  vertical-align: top;
+  border-bottom: 1px solid var(--border, #2e2e3e);
 }
-.settings-summary-table .settings-label {
-  width: 240px;
-  padding-right: 24px;
+.summary-row:last-child {
+  border-bottom: none;
 }
-.settings-summary-table td:last-child {
+.summary-term {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #9CA0B0);
+}
+.summary-value {
+  margin: 0;
   color: var(--text-primary, #F5F6FA);
 }
 </style>
