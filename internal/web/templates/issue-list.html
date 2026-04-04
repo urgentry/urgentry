@@ -87,6 +87,7 @@
         <th class="col-users">Users</th>
         <th class="col-priority">Priority</th>
         <th class="col-assignee">Assignee</th>
+        <th class="col-actions"></th>
       </tr>
     </thead>
     <tbody>
@@ -103,23 +104,6 @@
                 {{if .Culprit}}<span class="issue-culprit-text">{{.Culprit}}</span>{{end}}
                 {{if .Release}}<span class="issue-release">{{.Release}}</span>{{end}}
               </div>
-            </div>
-            <div class="issue-row-actions">
-              {{if ne .Status "resolved"}}
-              <button class="action-btn action-resolve" title="Resolve" aria-label="Resolve issue"
-                      hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"resolve"}'
-                      hx-swap="none" onclick="event.stopPropagation()">&#10003;</button>
-              {{end}}
-              {{if ne .Status "ignored"}}
-              <button class="action-btn action-ignore" title="Ignore" aria-label="Ignore issue"
-                      hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"ignore"}'
-                      hx-swap="none" onclick="event.stopPropagation()">&#10005;</button>
-              {{end}}
-              {{if or (eq .Status "resolved") (eq .Status "ignored")}}
-              <button class="action-btn action-reopen" title="Reopen" aria-label="Reopen issue"
-                      hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"reopen"}'
-                      hx-swap="none" onclick="event.stopPropagation()">&#8634;</button>
-              {{end}}
             </div>
           </div>
         </td>
@@ -152,6 +136,25 @@
                      onkeydown="if(event.key==='Enter'){assignTo(this, '{{.ID}}'); event.stopPropagation();}">
               <button onclick="assignTo(this.previousElementSibling, '{{.ID}}')" class="btn-sm">Assign</button>
             </div>
+          </div>
+        </td>
+        <td class="col-actions" onclick="event.stopPropagation()">
+          <div class="issue-row-actions">
+            {{if ne .Status "resolved"}}
+            <button class="action-btn action-resolve" title="Resolve" aria-label="Resolve issue"
+                    hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"resolve"}'
+                    hx-swap="none">&#10003;</button>
+            {{end}}
+            {{if ne .Status "ignored"}}
+            <button class="action-btn action-ignore" title="Ignore" aria-label="Ignore issue"
+                    hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"ignore"}'
+                    hx-swap="none">&#10005;</button>
+            {{end}}
+            {{if or (eq .Status "resolved") (eq .Status "ignored")}}
+            <button class="action-btn action-reopen" title="Reopen" aria-label="Reopen issue"
+                    hx-post="/issues/{{.ID}}/status" hx-vals='{"action":"reopen"}'
+                    hx-swap="none">&#8634;</button>
+            {{end}}
           </div>
         </td>
       </tr>

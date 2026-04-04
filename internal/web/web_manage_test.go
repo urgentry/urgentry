@@ -149,7 +149,7 @@ func TestManageSidebarLinkPresentInNav(t *testing.T) {
 	if !strings.Contains(body, "/manage/") {
 		t.Errorf("expected /manage/ link in nav sidebar")
 	}
-	if !strings.Contains(body, "Manage") {
-		t.Errorf("expected 'Manage' text in nav sidebar")
+	if !strings.Contains(body, `aria-label="Admin"`) {
+		t.Errorf("expected Admin nav item in sidebar")
 	}
 }

@@ -302,7 +302,8 @@ func (h *Handler) mergeIssue(w http.ResponseWriter, r *http.Request) {
 	}
 	target := strings.TrimSpace(r.FormValue("target_issue_id"))
 	if target == "" {
-		writeWebBadRequest(w, r, "Target issue is required")
+		// Redirect back rather than showing a raw error page.
+		issueRedirectOrRefresh(w, r, fmt.Sprintf("/issues/%s/", r.PathValue("id")))
 		return
 	}
 	if err := h.issues.MergeIssue(r.Context(), r.PathValue("id"), target, principal.User.ID); err != nil {

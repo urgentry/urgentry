@@ -5,7 +5,7 @@
 
 <div class="event-nav">
   <span>Event <strong class="mono">{{.Event.ShortEventID}}</strong></span>
-  <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID">&#128203;</button>
+  <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
   <span class="text-tertiary">&middot; {{.Event.TimeAgo}}</span>
   <span style="margin-left: auto;">
     <button class="btn btn-sm" id="raw-json-toggle" onclick="document.getElementById('raw-json').classList.toggle('visible'); this.textContent = this.textContent === 'Raw JSON' ? 'Hide JSON' : 'Raw JSON';">Raw JSON</button>
@@ -68,7 +68,7 @@
           {{if $frame.Module}}<span class="frame-module">({{$frame.Module}})</span>{{end}}
           <span class="frame-line">line {{$frame.LineNo}}{{if $frame.ColNo}}:{{$frame.ColNo}}{{end}}</span>
           {{if $frame.MappedFrom}}<span class="frame-mapped">{{$frame.MappedFrom}}</span>{{end}}
-          <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{$frame.File}}:{{$frame.LineNo}} in {{$frame.Function}}', this)" title="Copy frame path">&#128203;</button>
+          <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{$frame.File}}:{{$frame.LineNo}} in {{$frame.Function}}', this)" title="Copy frame path"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
         </div>
         <div class="frame-code" {{if $frame.Collapsed}}style="display:none"{{end}}>
           {{if $frame.HasContext}}
@@ -120,7 +120,7 @@
           <span class="frame-func">{{.Function}}</span>
           <span class="frame-line">line {{.LineNo}}</span>
           {{if .MappedFrom}}<span class="frame-mapped">{{.MappedFrom}}</span>{{end}}
-          <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path">&#128203;</button>
+          <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
         </div>
         <div class="frame-code">
           {{range .CodeLines}}

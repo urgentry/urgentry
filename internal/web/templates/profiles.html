@@ -5,36 +5,36 @@
   <h1 class="page-title">Profiles</h1>
 </div>
 
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
-  <div class="section-header" style="padding: 0 0 0.5rem;">{{.Guide.Title}}</div>
+<div class="card guide-card">
+  <div class="section-header section-header-tight">{{.Guide.Title}}</div>
   <div class="empty-text">{{.Guide.Body}}</div>
-  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
+  <ul class="guide-list">
     {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
   </ul>
-  <div style="margin-top:0.9rem;">
+  <div class="guide-actions">
     <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
   </div>
 </div>
 
-<div class="card" style="margin-bottom: 1rem;">
-  <form method="get" class="settings-form" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
-    <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+<div class="card card-gap">
+  <form method="get" class="filter-form profile-filter-form">
+    <label class="profile-filter-field">
       <span>Transaction</span>
       <input type="text" name="transaction" value="{{.Filters.Transaction}}" placeholder="checkout">
     </label>
-    <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+    <label class="profile-filter-field">
       <span>Release</span>
       <input type="text" name="release" value="{{.Filters.Release}}" placeholder="backend@1.2.3">
     </label>
-    <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+    <label class="profile-filter-field">
       <span>Environment</span>
       <input type="text" name="environment" value="{{.Filters.Environment}}" placeholder="production">
     </label>
-    <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+    <label class="profile-filter-field">
       <span>Start</span>
       <input type="text" name="start" value="{{.Filters.Start}}" placeholder="2026-03-29T09:00:00Z">
     </label>
-    <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+    <label class="profile-filter-field">
       <span>End</span>
       <input type="text" name="end" value="{{.Filters.End}}" placeholder="2026-03-29T11:00:00Z">
     </label>
@@ -43,36 +43,36 @@
   </form>
 </div>
 
-<div class="card">
-  <table class="issue-table" style="width: 100%;">
+<div class="card table-card">
+  <table class="profile-table">
     <thead>
       <tr>
-        <th style="padding: 0.75rem 1rem;">Profile</th>
-        <th style="padding: 0.75rem 1rem;">Transaction</th>
-        <th style="padding: 0.75rem 1rem;">Trace</th>
-        <th style="padding: 0.75rem 1rem;">Release</th>
-        <th style="padding: 0.75rem 1rem;">Duration</th>
-        <th style="padding: 0.75rem 1rem;">Seen</th>
+        <th>Profile</th>
+        <th>Transaction</th>
+        <th>Trace</th>
+        <th>Release</th>
+        <th>Duration</th>
+        <th>Seen</th>
       </tr>
     </thead>
     <tbody>
       {{if .Profiles}}
         {{range .Profiles}}
         <tr>
-          <td style="padding: 0.75rem 1rem;">
+          <td class="profile-title-cell">
             <a href="/profiles/{{.ID}}/">{{.Title}}</a>
-            {{if .Summary}}<div class="detail-subtitle" style="margin: 0.35rem 0 0; font-size: 0.8rem;">{{.Summary}}</div>{{end}}
+            {{if .Summary}}<div class="detail-subtitle profile-summary">{{.Summary}}</div>{{end}}
           </td>
-          <td style="padding: 0.75rem 1rem;">{{.Transaction}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.TraceID}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.Release}}</td>
-          <td style="padding: 0.75rem 1rem;">{{.Duration}}</td>
-          <td style="padding: 0.75rem 1rem;" class="{{.TimeClass}}">{{.TimeAgo}}</td>
+          <td>{{.Transaction}}</td>
+          <td class="mono">{{.TraceID}}</td>
+          <td class="mono">{{.Release}}</td>
+          <td>{{.Duration}}</td>
+          <td class="{{.TimeClass}}">{{.TimeAgo}}</td>
         </tr>
         {{end}}
       {{else}}
         <tr>
-          <td colspan="6" style="padding: 2rem 1rem; text-align: center; color: #9CA0B0;">No profiles captured yet.</td>
+          <td colspan="6" class="table-empty-cell">No profiles captured yet.</td>
         </tr>
       {{end}}
     </tbody>

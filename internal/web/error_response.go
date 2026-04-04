@@ -48,5 +48,22 @@ func writeWebInternal(w http.ResponseWriter, r *http.Request, message string) {
 func webErrorHTML(status int, message string) string {
 	statusText := html.EscapeString(http.StatusText(status))
 	body := html.EscapeString(message)
-	return "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>" + statusText + " - Urgentry</title><style>body{margin:0;background:#f4efe5;color:#1f1710;font:16px/1.5 Inter,system-ui,sans-serif}main{max-width:42rem;margin:10vh auto;padding:2rem}section{background:#fffaf1;border:1px solid #e8dcc7;border-radius:18px;padding:2rem;box-shadow:0 20px 60px rgba(56,38,18,.08)}small{display:inline-block;margin-bottom:.75rem;color:#8c6d47;text-transform:uppercase;letter-spacing:.08em;font-weight:700}h1{margin:.2rem 0 1rem;font-size:2rem;line-height:1.1}p{margin:0;color:#4a3728}a{display:inline-block;margin-top:1.25rem;color:#7a3d00;text-decoration:none;font-weight:600}</style></head><body><main><section><small>Urgentry</small><h1>" + statusText + "</h1><p>" + body + "</p><a href=\"javascript:history.back()\">Go back</a></section></main></body></html>"
+	// Use the forest & gold dark theme to match the rest of the app.
+	return "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>" + statusText + " - Urgentry</title><style>" +
+		":root{--bg:#1a1208;--surface:#231a0d;--surface2:#2c2010;--border:#3d2e18;--text:#f0e6d0;--text-muted:#9a8060;--accent:#c8922a;--accent-hover:#e0a840}" +
+		"*{box-sizing:border-box}" +
+		"body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 'Space Grotesk',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}" +
+		"main{width:100%;max-width:480px;padding:2rem}" +
+		"section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem;box-shadow:0 24px 64px rgba(0,0,0,.5)}" +
+		"small{display:inline-block;margin-bottom:.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;font-size:.7rem;font-weight:700}" +
+		"h1{margin:.25rem 0 1rem;font-size:1.75rem;line-height:1.15;color:var(--text)}" +
+		"p{margin:0;color:var(--text-muted);font-size:.925rem}" +
+		"a{display:inline-block;margin-top:1.5rem;color:var(--accent);text-decoration:none;font-weight:600;font-size:.9rem}" +
+		"a:hover{color:var(--accent-hover);text-decoration:underline}" +
+		"</style></head><body><main><section>" +
+		"<small>Urgentry</small>" +
+		"<h1>" + statusText + "</h1>" +
+		"<p>" + body + "</p>" +
+		"<a href=\"javascript:history.back()\">&#8592; Go back</a>" +
+		"</section></main></body></html>"
 }

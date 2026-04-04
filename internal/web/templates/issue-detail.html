@@ -9,7 +9,7 @@
       <div class="detail-breadcrumb">
         <a href="/issues/">Issues</a> <span class="bc-sep">/</span>
         <span class="short-id mono">{{.Issue.ShortID}}</span>
-        <button class="copy-btn" onclick="copyToClipboard('{{.Issue.ShortID}}', this)" title="Copy short ID">&#128203;</button>
+        <button class="copy-btn" onclick="copyToClipboard('{{.Issue.ShortID}}', this)" title="Copy short ID"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
       </div>
       <h1 class="detail-title">{{.Issue.ExcType}}</h1>
       {{if .Issue.ExcValue}}<p class="detail-subtitle">{{.Issue.ExcValue}}</p>{{end}}
@@ -50,7 +50,7 @@
           <button class="btn" type="submit">{{if .Workflow.Subscribed}}Unsubscribe{{else}}Subscribe{{end}}</button>
         </form>
         <form method="POST" action="/issues/{{.Issue.ID}}/status" style="display:inline">
-          <select name="action" class="filter-select" onchange="if(this.value) this.form.submit()">
+          <select name="action" class="filter-select" onchange="if(this.value){var f=this.form;var t=urgentryCSRFToken();if(t){var i=f.querySelector('input[name=_csrf]');if(!i){i=document.createElement('input');i.type='hidden';i.name='_csrf';f.appendChild(i);}i.value=t;}if(f.requestSubmit){f.requestSubmit();}else{f.submit();}}">
             <option value="">More actions...</option>
             <option value="resolve">Resolve</option>
             <option value="resolve_next">Resolve in next release</option>
@@ -126,7 +126,7 @@
     <div class="detail-event-nav">
       <span class="detail-event-info">
         Event <strong class="mono">{{.Event.ShortEventID}}</strong>
-        <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID">&#128203;</button>
+        <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
         &middot; {{.Event.TimeAgo}}
       </span>
       <div class="detail-event-nav-btns">
@@ -188,7 +188,7 @@
                     <span class="frame-in">in</span>
                     <span class="frame-func">{{.Function}}</span>
                     <span class="frame-line">at line {{.LineNo}}</span>
-                    <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path">&#128203;</button>
+                    <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
                   </div>
                   {{if .CodeLines}}
                   <div class="frame-code">
@@ -215,7 +215,7 @@
                 <span class="frame-func">{{.Function}}</span>
                 <span class="frame-line">at line {{.LineNo}}</span>
                 {{if .InApp}}<span class="inapp-badge">In App</span>{{end}}
-                <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path">&#128203;</button>
+                <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
               </div>
               {{if .CodeLines}}
               <div class="frame-code">
@@ -248,7 +248,7 @@
               <span class="frame-func">{{.Function}}</span>
               <span class="frame-line">at line {{.LineNo}}</span>
               {{if .InApp}}<span class="inapp-badge">In App</span>{{end}}
-              <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path">&#128203;</button>
+              <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
             </div>
             {{if .CodeLines}}
             <div class="frame-code">
@@ -591,7 +591,8 @@
     <div class="sidebar-card">
       <h4 class="sidebar-card-title">Merge</h4>
       <form method="POST" action="/issues/{{.Issue.ID}}/merge" class="merge-form" style="display:flex; gap:8px; flex-direction:column;">
-        <input type="text" name="target_issue_id" placeholder="Merge into issue id">
+        <label class="detail-label" for="merge-target-{{.Issue.ID}}">Target issue ID</label>
+        <input id="merge-target-{{.Issue.ID}}" type="text" name="target_issue_id" placeholder="Merge into issue id" autocomplete="off" required>
         <button class="btn btn-sm" type="submit">Merge</button>
       </form>
       {{if .Workflow.MergedIntoGroupID}}

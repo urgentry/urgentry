@@ -240,13 +240,13 @@ func TestBaseTemplateContainsEnvSelector(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-	if !strings.Contains(body, `id="globalEnvSelector"`) {
-		t.Fatal("expected global environment selector in page body")
+	if !strings.Contains(body, `class="topbar-btn"`) {
+		t.Fatal("expected global environment button in page body")
 	}
 	if !strings.Contains(body, `setGlobalEnvironment`) {
 		t.Fatal("expected setGlobalEnvironment JS function in page body")
 	}
-	if !strings.Contains(body, `All Environments`) {
-		t.Fatal("expected 'All Environments' option in page body")
+	if !strings.Contains(body, `>production</button>`) {
+		t.Fatal("expected rendered production environment button in page body")
 	}
 }

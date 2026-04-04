@@ -1,270 +1,248 @@
 {{template "base.html" .}}
 
 {{define "content"}}
-<div class="page-header">
-  <h1 class="page-title">Dashboard{{if .Environment}} <span class="count">({{.Environment}})</span>{{end}}</h1>
-</div>
-
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
-  <div class="section-header" style="padding: 0 0 0.5rem;">{{.Guide.Title}}</div>
+<div class="card guide-card">
+  <div class="section-header section-header-tight">{{.Guide.Title}}</div>
   <div class="empty-text">{{.Guide.Body}}</div>
-  {{if .Guide.Steps}}
-  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
-    {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  <ul class="guide-list">
+    {{range .Guide.Steps}}<li>{{.}}</li>{{end}}
   </ul>
-  {{end}}
-  {{if .Guide.ActionURL}}
-  <div style="margin-top:0.9rem;">
+  <div class="guide-actions">
     <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
-    <a href="/dashboards/" class="btn btn-sm">Open dashboards</a>
   </div>
-  {{end}}
 </div>
 
-{{if .FirstEventMetric}}
-<!-- Time-to-First-Event (Beyond Sentry) -->
-<div class="first-event-metric">
-  <span class="metric-icon">&#9201;</span>
-  <span>{{.FirstEventMetric}}</span>
-</div>
-{{end}}
-
-<!-- Traffic Light Banner -->
+<!-- Status Banner — the single opinion -->
 <div class="traffic-banner {{.BannerColor}}">
   <span class="banner-icon">{{.BannerIcon}}</span>
   <span class="banner-text">{{.BannerText}}</span>
 </div>
 
-<!-- Metric Cards -->
+<!-- Metrics Grid -->
 <div class="metrics-grid">
-  <div class="metric-card">
-    <div class="metric-label">Events (24h)</div>
-    <div class="metric-value">{{.TotalEvents}}</div>
-    <div class="metric-trend {{if .EventsTrendClass}}{{.EventsTrendClass}}{{else}}neutral{{end}}">{{if .EventsTrend}}{{.EventsTrend}}{{else}}Unavailable{{end}}</div>
-  </div>
-  <div class="metric-card">
+  <div class="metric-card red">
     <div class="metric-label">Errors</div>
     <div class="metric-value">{{.TotalErrors}}</div>
-    <div class="metric-trend {{if .ErrorsTrendClass}}{{.ErrorsTrendClass}}{{else}}neutral{{end}}">{{if .ErrorsTrend}}{{.ErrorsTrend}}{{else}}Unavailable{{end}}</div>
+    <div class="metric-trend {{if .ErrorsTrendClass}}{{.ErrorsTrendClass}}{{else}}neutral{{end}}">{{if .ErrorsTrend}}{{.ErrorsTrend}}{{else}}—{{end}}</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card gold">
+    <div class="metric-label">Events (24h)</div>
+    <div class="metric-value">{{.TotalEvents}}</div>
+    <div class="metric-trend {{if .EventsTrendClass}}{{.EventsTrendClass}}{{else}}neutral{{end}}">{{if .EventsTrend}}{{.EventsTrend}}{{else}}—{{end}}</div>
+  </div>
+  <div class="metric-card green">
     <div class="metric-label">Users Affected</div>
     <div class="metric-value">{{.UsersAffected}}</div>
-    <div class="metric-trend {{if .UsersTrendClass}}{{.UsersTrendClass}}{{else}}neutral{{end}}">{{if .UsersTrend}}{{.UsersTrend}}{{else}}Unavailable{{end}}</div>
+    <div class="metric-trend {{if .UsersTrendClass}}{{.UsersTrendClass}}{{else}}neutral{{end}}">{{if .UsersTrend}}{{.UsersTrend}}{{else}}—{{end}}</div>
   </div>
-  <div class="metric-card">
-    <div class="metric-label">{{if .LatencyLabel}}{{.LatencyLabel}}{{else}}Recent latency{{end}}</div>
-    <div class="metric-value">{{if .LatencyValue}}{{.LatencyValue}}{{else}}Unavailable{{end}}</div>
+  <div class="metric-card blue">
+    <div class="metric-label">{{if .LatencyLabel}}{{.LatencyLabel}}{{else}}P95 Latency{{end}}</div>
+    <div class="metric-value">{{if .LatencyValue}}{{.LatencyValue}}{{else}}—{{end}}</div>
     <div class="metric-trend neutral">{{if .LatencyHint}}{{.LatencyHint}}{{else}}No transactions yet{{end}}</div>
   </div>
 </div>
 
 {{if .StarterViews}}
-<div class="card" style="padding: 1rem; margin-top: 1.25rem;">
-  <div class="section-header" style="padding: 0 0 0.75rem;">Starter Views</div>
-  <div class="metrics-grid" style="align-items:start;">
+<div class="card guide-card dashboard-starter-card">
+  <div class="section-header section-header-tight">Starter Views</div>
+  <div class="starter-view-grid">
     {{range .StarterViews}}
-    <div class="metric-card">
-      <div class="metric-label">{{.Dataset}}</div>
-      <div class="activity-text" style="margin-bottom:0.4rem;">{{.Name}}</div>
-      <div class="empty-text">{{.Description}}</div>
-      <div style="margin-top:0.85rem;">
-        <a href="{{.OpenURL}}" class="btn btn-sm">Open view</a>
-      </div>
-    </div>
+    <a href="{{.OpenURL}}" class="starter-view-card">
+      <span class="starter-view-name">{{.Name}}</span>
+      <span class="starter-view-description">{{.Description}}</span>
+    </a>
     {{end}}
   </div>
 </div>
 {{end}}
 
 {{if .QueryWidgets}}
-<div class="burning-issues" style="margin-top: 1.25rem;">
-  <div class="section-header">Saved Query Widgets</div>
-  <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+<div class="panel dashboard-widget-panel">
+  <div class="panel-header">
+    <span class="panel-title">Saved Query Widgets</span>
+    <span class="panel-meta">issue searches</span>
+  </div>
+  <div class="query-widget-grid">
     {{range .QueryWidgets}}
-    <a href="{{.URL}}" class="metric-card" style="display:block; text-decoration:none;">
-      <div class="metric-label">{{.Name}}</div>
-      <div class="metric-value" style="font-size: 1.4rem;">{{.Count}}</div>
-      <div class="metric-trend neutral">{{if .Query}}{{.Query}}{{else}}All issues{{end}}{{if .Environment}} · {{.Environment}}{{end}}</div>
+    <a href="{{.URL}}" class="query-widget-card">
+      <span class="query-widget-count">{{.Count}}</span>
+      <span class="query-widget-name">{{.Name}}</span>
+      {{if .Query}}<span class="query-widget-query">{{.Query}}</span>{{end}}
     </a>
     {{end}}
   </div>
 </div>
 {{end}}
 
-<div class="metrics-grid" style="align-items:start; margin-top: 1.25rem;">
-  <div class="card" style="padding: 1rem;">
-    <div class="section-header" style="padding: 0 0 1rem;">Recent Transactions</div>
-    {{if .RecentTraces}}
-    <div class="activity-feed">
-      {{range .RecentTraces}}
-      <div class="activity-row" style="align-items:flex-start; gap:0.75rem;">
-        <span class="activity-icon" style="background: #5ba4f5;"></span>
-        <div style="display:flex; flex:1; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
-          <div style="flex:1;">
-            <a href="{{.URL}}" class="activity-text">{{.Transaction}}</a>
-            <div class="empty-text" style="padding-top:0.25rem;">{{.Duration}} · {{.Status}} · {{.Environment}}{{if .Release}} · {{.Release}}{{end}}</div>
-          </div>
-          <span class="activity-time">{{.TimeAgo}}</span>
-        </div>
-      </div>
-      {{end}}
+<!-- Two Column: Issues + Activity -->
+<div class="two-col">
+  <!-- Burning Issues -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Issue watchlist</span>
     </div>
-    {{else}}
-    <div class="empty-state" style="padding: 0;">
-      <div class="empty-text">No transactions yet.</div>
-    </div>
-    {{end}}
-  </div>
-
-  <div class="card" style="padding: 1rem;">
-    <div class="section-header" style="padding: 0 0 1rem;">Recent Logs</div>
-    {{if .RecentLogs}}
-    <div class="activity-feed">
-      {{range .RecentLogs}}
-      <div class="activity-row" style="align-items:flex-start; gap:0.75rem;">
-        <span class="activity-icon" style="background: {{.LevelColor}};"></span>
-        <div style="display:flex; flex:1; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
-          <div style="flex:1;">
-            <a href="{{.URL}}" class="activity-text">{{.Title}}</a>
-            <div class="empty-text" style="padding-top:0.25rem;">{{.Logger}} · {{.Level}} · {{.Environment}}{{if .Summary}} · {{.Summary}}{{end}}</div>
-          </div>
-          <span class="activity-time">{{.TimeAgo}}</span>
-        </div>
-      </div>
-      {{end}}
-    </div>
-    {{else}}
-    <div class="empty-state" style="padding: 0;">
-      <div class="empty-text">No logs yet.</div>
-    </div>
-    {{end}}
-  </div>
-</div>
-
-<div class="metrics-grid" style="align-items:start; margin-top: 1.25rem;">
-  <div class="card" style="padding: 1rem;">
-    <div class="section-header" style="padding: 0 0 1rem;">Recent Releases</div>
-    {{if .RecentReleases}}
-    <div class="activity-feed">
-      {{range .RecentReleases}}
-      <div class="activity-row" style="align-items:flex-start; gap:0.75rem;">
-        <span class="activity-icon" style="background: #16a34a;"></span>
-        <div style="display:flex; flex:1; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
-          <div style="flex:1;">
-            <a href="/releases/{{.Version}}/" class="activity-text">{{.Version}}</a>
-            <div class="empty-text" style="padding-top:0.25rem;">{{.CrashFreeRate}} crash free · {{.SessionCount}} sessions · {{.EventCount}} events</div>
-          </div>
-          <span class="activity-time">{{.LastSeen}}</span>
-        </div>
-      </div>
-      {{end}}
-    </div>
-    {{else}}
-    <div class="empty-state" style="padding: 0;">
-      <div class="empty-text">No releases yet.</div>
-    </div>
-    {{end}}
-  </div>
-
-  <div class="card" style="padding: 1rem;">
-    <div class="section-header" style="padding: 0 0 1rem;">Recent Replays</div>
-    {{if .RecentReplays}}
-    <div class="activity-feed">
-      {{range .RecentReplays}}
-      <div class="activity-row" style="align-items:flex-start; gap:0.75rem;">
-        <span class="activity-icon" style="background: #a855f7;"></span>
-        <div style="display:flex; flex:1; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
-          <div style="flex:1;">
-            <a href="/replays/{{.ID}}/" class="activity-text">{{.Title}}</a>
-            <div class="empty-text" style="padding-top:0.25rem;">{{.Summary}}</div>
-          </div>
-          <span class="activity-time">{{.TimeAgo}}</span>
-        </div>
-      </div>
-      {{end}}
-    </div>
-    {{else}}
-    <div class="empty-state" style="padding: 0;">
-      <div class="empty-text">No replays yet.</div>
-    </div>
-    {{end}}
-  </div>
-</div>
-
-<div class="metrics-grid" style="align-items:start; margin-top: 1.25rem;">
-  <div class="card" style="padding: 1rem;">
-    <div class="section-header" style="padding: 0 0 1rem;">Recent Profiles</div>
-    {{if .RecentProfiles}}
-    <div class="activity-feed">
-      {{range .RecentProfiles}}
-      <div class="activity-row" style="align-items:flex-start; gap:0.75rem;">
-        <span class="activity-icon" style="background: #0f766e;"></span>
-        <div style="display:flex; flex:1; align-items:flex-start; justify-content:space-between; gap:0.75rem;">
-          <div style="flex:1;">
-            <a href="/profiles/{{.ID}}/" class="activity-text">{{.Title}}</a>
-            <div class="empty-text" style="padding-top:0.25rem;">{{.Summary}}</div>
-          </div>
-          <span class="activity-time">{{.TimeAgo}}</span>
-        </div>
-      </div>
-      {{end}}
-    </div>
-    {{else}}
-    <div class="empty-state" style="padding: 0;">
-      <div class="empty-text">No profiles yet.</div>
-    </div>
-    {{end}}
-  </div>
-
-  <div class="burning-issues" style="margin-top: 0;">
-    <div class="section-header">Issue watchlist</div>
     {{range $i, $issue := .BurningIssues}}
-    <a href="/issues/{{$issue.ID}}/" class="burning-row">
-      <span class="burning-rank">{{inc $i}}</span>
-      <span class="burning-title">{{$issue.Title}}</span>
-      <span class="burning-change">&#9650; {{$issue.Change}}%</span>
+    <a href="/issues/{{$issue.ID}}/" class="table-row dashboard-row-link">
+      <span class="severity-dot {{if gt $issue.Change 50}}critical{{else if gt $issue.Change 20}}warning{{else}}info{{end}}"></span>
+      <span class="col-grow dashboard-row-title">{{$issue.Title}}</span>
+      <span class="dashboard-row-meta mono">&#9650; {{$issue.Change}}%</span>
     </a>
     {{end}}
     {{if not .BurningIssues}}
-    <div class="empty-state" style="padding: 24px;">
+    <div class="empty-state panel-empty-sm">
       <div class="empty-text">No burning issues right now.</div>
     </div>
     {{end}}
+    <div class="panel-footer">
+      <a href="/issues/">View all issues <span class="panel-link-arrow">&#8594;</span></a>
+    </div>
+  </div>
+
+  <!-- Activity Timeline -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Activity</span>
+      <span class="panel-meta">last 24h</span>
+    </div>
+    <div class="activity-list">
+      {{range .RecentActivity}}
+      <div class="activity-item">
+        <div class="activity-badge" style="background: {{.Color}}22; color: {{.Color}};">
+          <span class="dashboard-badge-dot">&#9679;</span>
+        </div>
+        <div class="activity-content">
+          <div class="activity-text">{{.Text}}</div>
+          <div class="activity-time">{{.TimeAgo}}</div>
+        </div>
+      </div>
+      {{end}}
+      {{if not .RecentActivity}}
+      <div class="empty-state panel-empty-sm">
+        <div class="empty-text">No recent activity.</div>
+      </div>
+      {{end}}
+    </div>
   </div>
 </div>
 
 {{if .ErrorBudget}}
-<!-- Error Budget (Beyond Sentry) -->
-<div class="error-budget">
-  <div class="error-budget-header">
-    <span class="error-budget-label">Error Budget</span>
-    <span class="error-budget-value">{{.ErrorBudget.Label}}</span>
+<!-- Error Budget -->
+<div class="panel dashboard-budget-panel">
+  <div class="panel-header">
+    <span class="panel-title">Error Budget</span>
+    <span class="panel-meta">{{.ErrorBudget.Label}}</span>
   </div>
-  <div class="error-budget-bar">
-    <div class="error-budget-fill {{if .ErrorBudget.IsOver}}over{{else}}under{{end}}" style="width: {{.ErrorBudget.FillWidth}}%"></div>
-  </div>
-  <div class="error-budget-detail">
-    <span>{{.ErrorBudget.ErrorEvents}} errors / {{.ErrorBudget.TotalEvents}} events</span>
-    <span>Target: {{printf "%.1f" .ErrorBudget.TargetPct}}%</span>
+  <div class="dashboard-budget-body">
+    <div class="progress-bar dashboard-budget-track">
+      <div class="dashboard-budget-fill" style="width:{{.ErrorBudget.FillWidth}}%;background:{{if .ErrorBudget.IsOver}}var(--error){{else}}var(--success){{end}};"></div>
+    </div>
+    <div class="dashboard-budget-meta">
+      <span>{{.ErrorBudget.ErrorEvents}} errors / {{.ErrorBudget.TotalEvents}} events</span>
+      <span>Target: {{printf "%.1f" .ErrorBudget.TargetPct}}%</span>
+    </div>
   </div>
 </div>
 {{end}}
 
-<!-- Recent Activity -->
-<div class="activity-feed">
-  <div class="section-header">Recent Activity</div>
-  {{range .RecentActivity}}
-  <div class="activity-row">
-    <span class="activity-time">{{.TimeAgo}}</span>
-    <span class="activity-icon" style="background: {{.Color}};"></span>
-    <span class="activity-text">{{.Text}}</span>
+<div class="dashboard-surface-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Recent Transactions</span>
+    </div>
+    {{if .RecentTraces}}
+    {{range .RecentTraces}}
+    <a href="{{.URL}}" class="dashboard-list-row">
+      <span class="dashboard-list-main">{{.Transaction}}</span>
+      <span class="dashboard-list-sub">{{.Duration}}</span>
+      <span class="activity-time">{{.TimeAgo}}</span>
+    </a>
+    {{end}}
+    {{else}}
+    <div class="empty-state panel-empty-sm"><div class="empty-text">No transactions yet.</div></div>
+    {{end}}
+    <div class="panel-footer">
+      <a href="/performance/">View all <span class="panel-link-arrow">&#8594;</span></a>
+    </div>
   </div>
-  {{end}}
-  {{if not .RecentActivity}}
-  <div class="empty-state" style="padding: 24px;">
-    <div class="empty-text">No recent activity.</div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Recent Logs</span>
+    </div>
+    {{if .RecentLogs}}
+    {{range .RecentLogs}}
+    <a href="{{.URL}}" class="dashboard-list-row">
+      <span class="dashboard-list-main">{{.Title}}</span>
+      <span class="dashboard-list-sub">{{if .Logger}}{{.Logger}}{{else}}{{.Summary}}{{end}}</span>
+      <span class="activity-time">{{.TimeAgo}}</span>
+    </a>
+    {{end}}
+    {{else}}
+    <div class="empty-state panel-empty-sm"><div class="empty-text">No recent logs.</div></div>
+    {{end}}
+    <div class="panel-footer">
+      <a href="/logs/">View all <span class="panel-link-arrow">&#8594;</span></a>
+    </div>
   </div>
-  {{end}}
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Recent Releases</span>
+    </div>
+    {{if .RecentReleases}}
+    {{range .RecentReleases}}
+    <a href="/releases/{{.Version}}/" class="dashboard-list-row">
+      <span class="dashboard-list-main">{{.Version}}</span>
+      <span class="dashboard-list-sub">{{.CrashFreeRate}} crash free</span>
+      <span class="activity-time">{{.LastSeen}}</span>
+    </a>
+    {{end}}
+    {{else}}
+    <div class="empty-state panel-empty-sm"><div class="empty-text">No releases yet.</div></div>
+    {{end}}
+    <div class="panel-footer">
+      <a href="/releases/">View all <span class="panel-link-arrow">&#8594;</span></a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Recent Replays</span>
+    </div>
+    {{if .RecentReplays}}
+    {{range .RecentReplays}}
+    <a href="{{.URL}}" class="dashboard-list-row">
+      <span class="dashboard-list-main">{{.Title}}</span>
+      <span class="dashboard-list-sub">{{if .Summary}}{{.Summary}}{{else}}{{.User}}{{end}}</span>
+      <span class="activity-time">{{.TimeAgo}}</span>
+    </a>
+    {{end}}
+    {{else}}
+    <div class="empty-state panel-empty-sm"><div class="empty-text">No replays yet.</div></div>
+    {{end}}
+    <div class="panel-footer">
+      <a href="/replays/">View all <span class="panel-link-arrow">&#8594;</span></a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Recent Profiles</span>
+    </div>
+    {{if .RecentProfiles}}
+    {{range .RecentProfiles}}
+    <a href="/profiles/{{.ID}}/" class="dashboard-list-row">
+      <span class="dashboard-list-main">{{.Title}}</span>
+      <span class="dashboard-list-sub">{{if .Summary}}{{.Summary}}{{else}}{{.Transaction}}{{end}}</span>
+      <span class="activity-time">{{.TimeAgo}}</span>
+    </a>
+    {{end}}
+    {{else}}
+    <div class="empty-state panel-empty-sm"><div class="empty-text">No profiles yet.</div></div>
+    {{end}}
+    <div class="panel-footer">
+      <a href="/profiles/">View all <span class="panel-link-arrow">&#8594;</span></a>
+    </div>
+  </div>
 </div>
 {{end}}

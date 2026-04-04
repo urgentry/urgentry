@@ -6,8 +6,9 @@
   <title>{{if .Title}}{{.Title}} — {{end}}Urgentry</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css?v=20">
   <script src="https://unpkg.com/htmx.org@2.0.0"></script>
   <script>
     // Apply saved theme immediately (before paint) to avoid flash.
@@ -37,27 +38,30 @@
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
-  <div class="shell">
+  <div class="layout">
     {{template "sidebar" .}}
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="main">
-      <header class="header">
+      <header class="topbar">
         <button class="mobile-menu-btn" aria-label="Toggle navigation" onclick="toggleSidebar()">&#9776;</button>
-        <span class="header-project">Urgentry</span>
-        {{if .Environments}}
-        <select class="env-selector-global" id="globalEnvSelector" onchange="setGlobalEnvironment(this.value)" aria-label="Select environment">
-          <option value=""{{if eq .Environment ""}} selected{{end}}>All Environments</option>
-          {{range .Environments}}
-          <option value="{{.}}"{{if eq . $.Environment}} selected{{end}}>{{.}}</option>
-          {{end}}
-        </select>
-        {{end}}
-        <div class="header-search" onclick="togglePalette()" style="cursor:pointer">
-          <input type="text" placeholder="Search issues, logs, transactions... (  /  )" id="search-input" readonly style="cursor:pointer">
-          <span class="header-kbd cmd-k-hint">&#8984;K</span>
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <span>Home</span>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">{{if .Title}}{{.Title}}{{else}}Overview{{end}}</span>
+        </nav>
+        <div class="search-box" onclick="togglePalette()">
+          <i data-feather="search" class="search-icon" style="width:14px;height:14px;"></i>
+          <input type="text" placeholder="Search..." id="search-input" readonly style="cursor:pointer" aria-label="Search events, issues, transactions">
+          <kbd>⌘K</kbd>
         </div>
-        <div class="header-actions">
-          <select class="filter-select header-timerange" id="globalTimeRange" aria-label="Time range" title="Time range" onchange="setTimeRange(this.value)">
+        <div class="topbar-right">
+          {{if .Environments}}
+          {{range .Environments}}
+          <button class="topbar-btn{{if eq . $.Environment}} active{{end}}" onclick="setGlobalEnvironment('{{.}}')">{{.}}</button>
+          {{end}}
+          <div class="topbar-divider"></div>
+          {{end}}
+          <select class="filter-select" id="globalTimeRange" aria-label="Time range" onchange="setTimeRange(this.value)">
             <option value="1h">Last 1 hour</option>
             <option value="24h">Last 24 hours</option>
             <option value="7d">Last 7 days</option>
@@ -65,12 +69,12 @@
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>
           </select>
-          <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode" title="Toggle theme">&#9789;</button>
-          <span class="header-kbd">?</span>
         </div>
       </header>
       <div class="content" id="main-content">
-        {{template "content" .}}
+        <div class="content-inner">
+          {{template "content" .}}
+        </div>
       </div>
     </div>
   </div>
@@ -514,8 +518,9 @@
     function updateThemeIcon(theme) {
       var btn = document.getElementById('themeToggle');
       if (!btn) return;
-      // Moon for dark, sun for light
-      btn.innerHTML = theme === 'light' ? '&#9788;' : '&#9789;';
+      var icon = theme === 'light' ? 'sun' : 'moon';
+      btn.innerHTML = '<i data-feather="' + icon + '"></i><span class="nav-label">Theme</span>';
+      if (typeof feather !== 'undefined') feather.replace();
     }
 
     // Set correct icon on load
@@ -554,71 +559,86 @@
           if (form) form.style.display = 'none';
         });
     })();
+
+    // Initialize Feather Icons
+    if (typeof feather !== 'undefined') feather.replace();
   </script>
 </body>
 </html>
 
 {{define "sidebar"}}
-<nav class="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon">U</div>
-    <span class="logo-text">Urgentry</span>
-  </div>
-  <div class="sidebar-nav">
-    <a href="/" class="{{if eq .Nav "dashboard"}}active{{end}}">
-      <span class="nav-icon">&#9632;</span> Overview
+<nav class="sidebar" role="navigation" aria-label="Main navigation">
+  <a href="/" class="sidebar-logo" aria-label="Urgentry home">
+    <span class="logo-icon">U</span>
+  </a>
+  <div class="sidebar-divider"></div>
+  <a href="/" class="nav-item {{if eq .Nav "dashboard"}}active{{end}}" aria-label="Overview">
+    <i data-feather="grid"></i>
+    <span class="nav-label">Overview</span>
+  </a>
+  <a href="/issues/" class="nav-item {{if eq .Nav "issues"}}active{{end}}" aria-label="Issues">
+    <i data-feather="alert-circle"></i>
+    <span class="nav-label">Issues</span>
+  </a>
+  <a href="/feedback/" class="nav-item {{if eq .Nav "feedback"}}active{{end}}" aria-label="Feedback">
+    <i data-feather="message-square"></i>
+    <span class="nav-label">Feedback</span>
+  </a>
+  <a href="/performance/" class="nav-item {{if eq .Nav "performance"}}active{{end}}" aria-label="Performance">
+    <i data-feather="activity"></i>
+    <span class="nav-label">Performance</span>
+  </a>
+  <div class="sidebar-divider"></div>
+  <a href="/discover/" class="nav-item {{if eq .Nav "discover"}}active{{end}}" aria-label="Discover">
+    <i data-feather="compass"></i>
+    <span class="nav-label">Discover</span>
+  </a>
+  <a href="/dashboards/" class="nav-item {{if eq .Nav "dashboards"}}active{{end}}" aria-label="Dashboards">
+    <i data-feather="bar-chart-2"></i>
+    <span class="nav-label">Dashboards</span>
+  </a>
+  <a href="/alerts/" class="nav-item {{if eq .Nav "alerts"}}active{{end}}" aria-label="Alerts">
+    <i data-feather="bell"></i>
+    <span class="nav-label">Alerts</span>
+  </a>
+  <a href="/releases/" class="nav-item {{if eq .Nav "releases"}}active{{end}}" aria-label="Releases">
+    <i data-feather="package"></i>
+    <span class="nav-label">Releases</span>
+  </a>
+  <a href="/monitors/" class="nav-item {{if eq .Nav "monitors"}}active{{end}}" aria-label="Crons">
+    <i data-feather="clock"></i>
+    <span class="nav-label">Crons</span>
+  </a>
+  <div class="sidebar-divider"></div>
+  <a href="/logs/" class="nav-item {{if eq .Nav "logs"}}active{{end}}" aria-label="Logs">
+    <i data-feather="file-text"></i>
+    <span class="nav-label">Logs</span>
+  </a>
+  <a href="/metrics/" class="nav-item {{if eq .Nav "metrics"}}active{{end}}" aria-label="Metrics">
+    <i data-feather="trending-up"></i>
+    <span class="nav-label">Metrics</span>
+  </a>
+  <a href="/replays/" class="nav-item {{if eq .Nav "replays"}}active{{end}}" aria-label="Replays">
+    <i data-feather="play-circle"></i>
+    <span class="nav-label">Replays</span>
+  </a>
+  <a href="/profiles/" class="nav-item {{if eq .Nav "profiles"}}active{{end}}" aria-label="Profiles">
+    <i data-feather="cpu"></i>
+    <span class="nav-label">Profiles</span>
+  </a>
+  <div class="sidebar-bottom">
+    <div class="sidebar-divider"></div>
+    <button class="nav-item" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
+      <i data-feather="moon"></i>
+      <span class="nav-label">Theme</span>
+    </button>
+    <a href="/settings/" class="nav-item {{if eq .Nav "settings"}}active{{end}}" aria-label="Settings">
+      <i data-feather="settings"></i>
+      <span class="nav-label">Settings</span>
     </a>
-
-    <div class="nav-section-label">Errors</div>
-    <a href="/issues/" class="{{if eq .Nav "issues"}}active{{end}}">
-      <span class="nav-icon">&#9888;</span> Issues
-    </a>
-    <a href="/feedback/" class="{{if eq .Nav "feedback"}}active{{end}}">
-      <span class="nav-icon">&#9993;</span> Feedback
-    </a>
-    <a href="/alerts/" class="{{if eq .Nav "alerts"}}active{{end}}">
-      <span class="nav-icon">&#9883;</span> Alerts
-    </a>
-
-    <div class="nav-section-label">Performance</div>
-    <a href="/performance/" class="{{if eq .Nav "performance"}}active{{end}}">
-      <span class="nav-icon">&#9201;</span> Transactions
-    </a>
-    <a href="/replays/" class="{{if eq .Nav "replays"}}active{{end}}">
-      <span class="nav-icon">&#9199;</span> Replays
-    </a>
-    <a href="/profiles/" class="{{if eq .Nav "profiles"}}active{{end}}">
-      <span class="nav-icon">&#128200;</span> Profiles
-    </a>
-    <a href="/monitors/" class="{{if eq .Nav "monitors"}}active{{end}}">
-      <span class="nav-icon">&#9711;</span> Crons
-    </a>
-
-    <div class="nav-section-label">Explore</div>
-    <a href="/discover/" class="{{if eq .Nav "discover"}}active{{end}}">
-      <span class="nav-icon">&#128269;</span> Discover
-    </a>
-    <a href="/logs/" class="{{if eq .Nav "logs"}}active{{end}}">
-      <span class="nav-icon">&#128221;</span> Logs
-    </a>
-    <a href="/metrics/" class="{{if eq .Nav "metrics"}}active{{end}}">
-      <span class="nav-icon">&#128200;</span> Metrics
-    </a>
-    <a href="/dashboards/" class="{{if eq .Nav "dashboards"}}active{{end}}">
-      <span class="nav-icon">&#128202;</span> Dashboards
-    </a>
-
-    <div class="nav-section-label">Releases</div>
-    <a href="/releases/" class="{{if eq .Nav "releases"}}active{{end}}">
-      <span class="nav-icon">&#9650;</span> Releases
-    </a>
-
-    <div class="nav-section-label">Admin</div>
-    <a href="/settings/" class="{{if eq .Nav "settings"}}active{{end}}">
-      <span class="nav-icon">&#9881;</span> Settings
-    </a>
-    <a href="/manage/" class="{{if eq .Nav "manage"}}active{{end}}">
-      <span class="nav-icon">&#9965;</span> Admin
+    <a href="/manage/" class="nav-item {{if eq .Nav "manage"}}active{{end}}" aria-label="Admin">
+      <i data-feather="shield"></i>
+      <span class="nav-label">Admin</span>
     </a>
   </div>
 </nav>

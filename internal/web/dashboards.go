@@ -147,8 +147,13 @@ func (h *Handler) createDashboard(w http.ResponseWriter, r *http.Request) {
 		writeWebBadRequest(w, r, "Invalid form")
 		return
 	}
+	title := strings.TrimSpace(r.PostForm.Get("title"))
+	if title == "" {
+		writeWebBadRequest(w, r, "Dashboard name is required.")
+		return
+	}
 	dashboard, err := h.dashboards.CreateDashboard(r.Context(), scope.OrganizationSlug, userID, sqlite.DashboardInput{
-		Title:       strings.TrimSpace(r.PostForm.Get("title")),
+		Title:       title,
 		Description: strings.TrimSpace(r.PostForm.Get("description")),
 		Visibility:  sqlite.DashboardVisibility(strings.TrimSpace(r.PostForm.Get("visibility"))),
 		Config:      encodeDashboardConfigFromForm(r.PostForm),
