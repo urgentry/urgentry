@@ -11,6 +11,8 @@ import (
 type metricsPageData struct {
 	Title          string
 	Nav            string
+	Environment    string
+	Environments   []string
 	Error          string
 	Metrics        []sqlite.MetricSummary
 	MetricNames    []string
@@ -58,6 +60,8 @@ func (h *Handler) metricsPage(w http.ResponseWriter, r *http.Request) {
 	h.render(w, "metrics.html", metricsPageData{
 		Title:          "Metrics",
 		Nav:            "metrics",
+		Environment:    readSelectedEnvironment(r),
+		Environments:   h.loadEnvironments(ctx),
 		Metrics:        summaries,
 		MetricNames:    names,
 		SelectedMetric: selectedMetric,

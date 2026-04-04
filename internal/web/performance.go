@@ -19,6 +19,8 @@ import (
 type performancePageData struct {
 	Title        string
 	Nav          string
+	Environment  string
+	Environments []string
 	Throughput   string
 	OverallP50   string
 	OverallP95   string
@@ -128,8 +130,10 @@ func (h *Handler) performancePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := performancePageData{
-		Title: "Performance",
-		Nav:   "performance",
+		Title:        "Performance",
+		Nav:          "performance",
+		Environment:  readSelectedEnvironment(r),
+		Environments: h.loadEnvironments(r.Context()),
 	}
 
 	timeRange := "24h"
