@@ -561,27 +561,28 @@
 {{define "sidebar"}}
 <nav class="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-icon">G</div>
+    <div class="logo-icon">U</div>
     <span class="logo-text">Urgentry</span>
   </div>
   <div class="sidebar-nav">
     <a href="/" class="{{if eq .Nav "dashboard"}}active{{end}}">
-      <span class="nav-icon">&#9632;</span> Dashboard
+      <span class="nav-icon">&#9632;</span> Overview
     </a>
-    <a href="/discover/" class="{{if eq .Nav "discover"}}active{{end}}">
-      <span class="nav-icon">&#128269;</span> Discover
+
+    <div class="nav-section-label">Errors</div>
+    <a href="/issues/" class="{{if eq .Nav "issues"}}active{{end}}">
+      <span class="nav-icon">&#9888;</span> Issues
     </a>
+    <a href="/feedback/" class="{{if eq .Nav "feedback"}}active{{end}}">
+      <span class="nav-icon">&#9993;</span> Feedback
+    </a>
+    <a href="/alerts/" class="{{if eq .Nav "alerts"}}active{{end}}">
+      <span class="nav-icon">&#9883;</span> Alerts
+    </a>
+
+    <div class="nav-section-label">Performance</div>
     <a href="/performance/" class="{{if eq .Nav "performance"}}active{{end}}">
-      <span class="nav-icon">&#9201;</span> Performance
-    </a>
-    <a href="/dashboards/" class="{{if eq .Nav "dashboards"}}active{{end}}">
-      <span class="nav-icon">&#128202;</span> Dashboards
-    </a>
-    <a href="/metrics/" class="{{if eq .Nav "metrics"}}active{{end}}">
-      <span class="nav-icon">&#128200;</span> Metrics
-    </a>
-    <a href="/logs/" class="{{if eq .Nav "logs"}}active{{end}}">
-      <span class="nav-icon">&#128221;</span> Logs
+      <span class="nav-icon">&#9201;</span> Transactions
     </a>
     <a href="/replays/" class="{{if eq .Nav "replays"}}active{{end}}">
       <span class="nav-icon">&#9199;</span> Replays
@@ -589,32 +590,35 @@
     <a href="/profiles/" class="{{if eq .Nav "profiles"}}active{{end}}">
       <span class="nav-icon">&#128200;</span> Profiles
     </a>
-    <a href="/issues/" class="{{if eq .Nav "issues"}}active{{end}}">
-      <span class="nav-icon">&#9888;</span> Issues
+    <a href="/monitors/" class="{{if eq .Nav "monitors"}}active{{end}}">
+      <span class="nav-icon">&#9711;</span> Crons
     </a>
-    <a href="/issues/" class="{{if eq .Nav "events"}}active{{end}}">
-      <span class="nav-icon">&#9679;</span> Events
+
+    <div class="nav-section-label">Explore</div>
+    <a href="/discover/" class="{{if eq .Nav "discover"}}active{{end}}">
+      <span class="nav-icon">&#128269;</span> Discover
     </a>
+    <a href="/logs/" class="{{if eq .Nav "logs"}}active{{end}}">
+      <span class="nav-icon">&#128221;</span> Logs
+    </a>
+    <a href="/metrics/" class="{{if eq .Nav "metrics"}}active{{end}}">
+      <span class="nav-icon">&#128200;</span> Metrics
+    </a>
+    <a href="/dashboards/" class="{{if eq .Nav "dashboards"}}active{{end}}">
+      <span class="nav-icon">&#128202;</span> Dashboards
+    </a>
+
+    <div class="nav-section-label">Releases</div>
     <a href="/releases/" class="{{if eq .Nav "releases"}}active{{end}}">
       <span class="nav-icon">&#9650;</span> Releases
     </a>
-    <a href="/alerts/" class="{{if eq .Nav "alerts"}}active{{end}}">
-      <span class="nav-icon">&#9883;</span> Alerts
-    </a>
-    <a href="/monitors/" class="{{if eq .Nav "monitors"}}active{{end}}">
-      <span class="nav-icon">&#9711;</span> Monitors
-    </a>
-    <a href="/feedback/" class="{{if eq .Nav "feedback"}}active{{end}}">
-      <span class="nav-icon">&#9993;</span> Feedback
-    </a>
-    <a href="/ops/" class="{{if eq .Nav "ops"}}active{{end}}">
-      <span class="nav-icon">&#9874;</span> Operator
-    </a>
-    <a href="/manage/" class="{{if eq .Nav "manage"}}active{{end}}">
-      <span class="nav-icon">&#9965;</span> Manage
-    </a>
+
+    <div class="nav-section-label">Admin</div>
     <a href="/settings/" class="{{if eq .Nav "settings"}}active{{end}}">
       <span class="nav-icon">&#9881;</span> Settings
+    </a>
+    <a href="/manage/" class="{{if eq .Nav "manage"}}active{{end}}">
+      <span class="nav-icon">&#9965;</span> Admin
     </a>
   </div>
 </nav>
