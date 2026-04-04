@@ -3,6 +3,8 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -213,7 +215,7 @@ func (h *Handler) settingsPage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if len(keys) > 0 && currentProject != nil && currentProject.ID != "" {
-		dsn = fmt.Sprintf("http://%s@localhost:8080/api/%s/store/", keys[0].PublicKey, currentProject.ID)
+		dsn = projectStoreDSN(r, keys[0].PublicKey, currentProject.ID)
 	}
 
 	auditSource := overview.AuditLogs
@@ -302,6 +304,40 @@ func (h *Handler) settingsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.render(w, "settings.html", data)
+}
+
+func projectStoreDSN(r *http.Request, publicKey, projectID string) string {
+	publicKey = strings.TrimSpace(publicKey)
+	projectID = strings.TrimSpace(projectID)
+	if publicKey == "" || projectID == "" {
+		return ""
+	}
+	base := strings.TrimSpace(os.Getenv("URGENTRY_BASE_URL"))
+	if base == "" && r != nil {
+		scheme := "http"
+		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
+			scheme = forwarded
+		} else if r.TLS != nil {
+			scheme = "https"
+		}
+		if host := strings.TrimSpace(r.Host); host != "" {
+			base = scheme + "://" + host
+		}
+	}
+	if base == "" {
+		base = "http://localhost:8080"
+	}
+	u, err := url.Parse(base)
+	if err != nil || strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Host) == "" {
+		return fmt.Sprintf("http://%s@localhost:8080/api/%s/store/", publicKey, projectID)
+	}
+	u.User = url.User(publicKey)
+	basePath := strings.TrimRight(u.Path, "/")
+	u.Path = basePath + "/api/" + projectID + "/store/"
+	u.RawPath = ""
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
 }
 
 func (h *Handler) updateProjectSettings(w http.ResponseWriter, r *http.Request) {

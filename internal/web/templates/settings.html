@@ -149,7 +149,7 @@
 <!-- Data -->
 <div class="settings-section">
   <div class="section-header">Data</div>
-  <table class="settings-table">
+  <table class="settings-table settings-summary-table">
     <tr>
       <td class="settings-label">Total Events</td>
       <td>{{.EventCount}}</td>
@@ -365,6 +365,21 @@ function copyDSN() {
   font-weight: 500;
   color: var(--text-secondary, #9CA0B0);
   width: 180px;
+}
+.settings-summary-table {
+  width: min(100%, 780px);
+  table-layout: fixed;
+}
+.settings-summary-table td {
+  padding: 12px 0;
+  vertical-align: top;
+}
+.settings-summary-table .settings-label {
+  width: 240px;
+  padding-right: 24px;
+}
+.settings-summary-table td:last-child {
+  color: var(--text-primary, #F5F6FA);
 }
 .settings-form {
   margin-bottom: 16px;

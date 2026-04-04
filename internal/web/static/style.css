@@ -5463,10 +5463,11 @@ input[type="checkbox"] { accent-color: var(--brand-primary); }
 
 /* ─── Breadcrumb trail (issue detail event breadcrumbs) ─── */
 .breadcrumb-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-primary);
   font-size: 13px;
 }
@@ -5485,12 +5486,23 @@ input[type="checkbox"] { accent-color: var(--brand-primary); }
 .breadcrumb-dot.debug { background: var(--text-disabled); }
 .breadcrumb-dot.http, .breadcrumb-dot.navigation { background: var(--info); }
 
+.breadcrumb-body {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.breadcrumb-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .breadcrumb-time {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-disabled);
-  flex-shrink: 0;
-  min-width: 70px;
 }
 
 .breadcrumb-category {
@@ -5499,14 +5511,10 @@ input[type="checkbox"] { accent-color: var(--brand-primary); }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
-  flex-shrink: 0;
-  min-width: 80px;
 }
 
 .breadcrumb-message {
-  flex: 1;
   color: var(--text-primary);
-  min-width: 0;
   word-break: break-word;
 }
 

@@ -296,9 +296,15 @@
           {{range .Breadcrumbs}}
           <div class="breadcrumb-row {{if eq .Level "error"}}error-row{{end}}">
             <span class="breadcrumb-dot {{.Level}}"></span>
-            <span class="breadcrumb-time">{{.Time}}</span>
-            <span class="breadcrumb-category">{{.Category}}</span>
-            <span class="breadcrumb-message">{{.Message}}</span>
+            <div class="breadcrumb-body">
+              {{if or .Category .Time}}
+              <div class="breadcrumb-meta">
+                {{if .Category}}<span class="breadcrumb-category">{{.Category}}</span>{{end}}
+                {{if .Time}}<span class="breadcrumb-time">{{.Time}}</span>{{end}}
+              </div>
+              {{end}}
+              <span class="breadcrumb-message">{{.Message}}</span>
+            </div>
           </div>
           {{end}}
         </div>

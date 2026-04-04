@@ -201,7 +201,7 @@ func (h *Handler) projectSettingsKeysPage(w http.ResponseWriter, r *http.Request
 		})
 	}
 	if len(keys) > 0 && project.ID != "" {
-		dsn = fmt.Sprintf("http://%s@localhost:8080/api/%s/store/", keys[0].PublicKey, project.ID)
+		dsn = projectStoreDSN(r, keys[0].PublicKey, project.ID)
 	}
 
 	data := h.baseProjectSettingsData(r, project, settings, "keys")
@@ -341,4 +341,3 @@ func (h *Handler) projectSettingsFiltersPage(w http.ResponseWriter, r *http.Requ
 	data.InboundFilters = staticInboundFilters()
 	h.render(w, "settings-project-filters.html", data)
 }
-
