@@ -9,7 +9,7 @@
 
 <div class="settings-section">
   <div class="section-header">Change Password</div>
-  <p style="color: var(--text-secondary, #9CA0B0); font-size: 14px; margin: 0 0 12px;">
+  <p class="account-settings-copy">
     Password changes are not yet supported from the web UI. Use the CLI to reset credentials.
   </p>
 </div>
@@ -32,7 +32,7 @@
       <tr>
         <td>
           {{if .UserAgent}}{{.UserAgent}}{{else}}<span class="text-muted">Unknown</span>{{end}}
-          {{if .IsCurrent}}<span class="issue-status-badge active" style="margin-left:8px;">current</span>{{end}}
+          {{if .IsCurrent}}<span class="issue-status-badge active session-current-badge">current</span>{{end}}
         </td>
         <td class="mono">{{if .IPAddress}}{{.IPAddress}}{{else}}—{{end}}</td>
         <td>{{.CreatedAt}}</td>
@@ -40,7 +40,7 @@
         <td>
           {{if .IsCurrent}}
           {{else}}
-          <form method="post" action="/settings/account/security/revoke-session" style="margin:0;">
+          <form method="post" action="/settings/account/security/revoke-session" class="inline-zero">
             <input type="hidden" name="session_id" value="{{.ID}}">
             <button type="submit" class="btn btn-sm">Revoke</button>
           </form>
@@ -97,6 +97,12 @@
 }
 .text-muted {
   color: var(--text-secondary, #9CA0B0);
+}
+.session-current-badge {
+  margin-left: 8px;
+}
+.inline-zero {
+  margin: 0;
 }
 </style>
 {{end}}

@@ -9,29 +9,29 @@
 
 <div class="settings-section">
   <div class="section-header">Notification Preferences</div>
-  <p style="color: var(--text-secondary, #9CA0B0); font-size: 14px; margin: 0 0 16px;">
+  <p class="account-settings-copy">
     Configure when and how you receive notifications about issues, alerts, and activity.
   </p>
 
-  <table class="settings-table">
-    <tr>
-      <td class="settings-label">New Issues</td>
-      <td><span class="issue-status-badge active">email</span></td>
-    </tr>
-    <tr>
-      <td class="settings-label">Issue Resolved</td>
-      <td><span class="issue-status-badge active">email</span></td>
-    </tr>
-    <tr>
-      <td class="settings-label">Alert Triggered</td>
-      <td><span class="issue-status-badge active">email</span></td>
-    </tr>
-    <tr>
-      <td class="settings-label">Weekly Digest</td>
-      <td><span class="issue-status-badge">off</span></td>
-    </tr>
-  </table>
-  <p style="color: var(--text-secondary, #9CA0B0); font-size: 13px; margin: 12px 0 0;">
+  <dl class="summary-list">
+    <div class="summary-row">
+      <dt class="summary-term">New Issues</dt>
+      <dd class="summary-value"><span class="issue-status-badge active">email</span></dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Issue Resolved</dt>
+      <dd class="summary-value"><span class="issue-status-badge active">email</span></dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Alert Triggered</dt>
+      <dd class="summary-value"><span class="issue-status-badge active">email</span></dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Weekly Digest</dt>
+      <dd class="summary-value"><span class="issue-status-badge">off</span></dd>
+    </div>
+  </dl>
+  <p class="notifications-note">
     Fine-grained notification controls are coming soon.
   </p>
 </div>
@@ -76,6 +76,38 @@
 }
 .text-muted {
   color: var(--text-secondary, #9CA0B0);
+}
+.summary-list {
+  width: min(100%, 640px);
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.summary-row:last-child {
+  border-bottom: none;
+}
+.summary-term {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #9CA0B0);
+}
+.summary-value {
+  margin: 0;
+  color: var(--text-primary, #F5F6FA);
+}
+.notifications-note {
+  color: var(--text-secondary, #9CA0B0);
+  font-size: 13px;
+  margin: 12px 0 0;
 }
 </style>
 {{end}}

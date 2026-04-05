@@ -4,9 +4,9 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">{{if .Saved.Favorite}}★ {{end}}{{.Saved.Name}}</h1>
-    {{if .Saved.Description}}<div class="empty-text" style="padding-top:0.35rem;">{{.Saved.Description}}</div>{{end}}
+    {{if .Saved.Description}}<div class="empty-text discover-inline-meta">{{.Saved.Description}}</div>{{end}}
   </div>
-  <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+  <div class="toolbar-row">
     <a href="{{.OpenURL}}" class="btn btn-sm">Open query</a>
     <a href="{{.ExportCSVURL}}" class="btn btn-sm">Export CSV</a>
     <a href="{{.ExportJSONURL}}" class="btn btn-sm">Export JSON</a>
@@ -21,9 +21,9 @@
   </div>
 </div>
 
-<div class="metrics-grid" style="align-items:start;">
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 1rem;">Query details</div>
+<div class="content-grid">
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Query details</div>
     <div class="activity-feed">
       <div class="activity-row">
         <span class="activity-text"><strong>Dataset</strong> <span class="alert-secondary">· {{.Saved.Dataset}}</span></span>
@@ -50,71 +50,71 @@
   </div>
 
   {{if .CanManage}}
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 1rem;">Manage query</div>
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Manage query</div>
     <form method="POST" action="{{.UpdateAction}}">
       <label for="query-name">Name</label>
-      <input id="query-name" name="name" type="text" value="{{.Saved.Name}}" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
-      <label for="query-description" style="display:block; margin-top:0.75rem;">Description</label>
-      <input id="query-description" name="description" type="text" value="{{.Saved.Description}}" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
-      <label for="query-tags" style="display:block; margin-top:0.75rem;">Tags</label>
-      <input id="query-tags" name="tags" type="text" value="{{.TagCSV}}" placeholder="team, onboarding, latency" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
-      <label for="query-visibility" style="display:block; margin-top:0.75rem;">Visibility</label>
-      <select id="query-visibility" name="visibility" class="filter-select" style="margin-top:0.35rem;">
+      <input id="query-name" name="name" type="text" value="{{.Saved.Name}}" class="search-input-inline form-field-top">
+      <label for="query-description" class="form-label-block">Description</label>
+      <input id="query-description" name="description" type="text" value="{{.Saved.Description}}" class="search-input-inline form-field-top">
+      <label for="query-tags" class="form-label-block">Tags</label>
+      <input id="query-tags" name="tags" type="text" value="{{.TagCSV}}" placeholder="team, onboarding, latency" class="search-input-inline form-field-top">
+      <label for="query-visibility" class="form-label-block">Visibility</label>
+      <select id="query-visibility" name="visibility" class="filter-select form-field-top">
         <option value="private" {{if eq .Saved.Visibility "private"}}selected{{end}}>Just me</option>
         <option value="organization" {{if eq .Saved.Visibility "organization"}}selected{{end}}>Organization</option>
       </select>
-      <label style="display:flex; align-items:center; gap:0.4rem; margin-top:0.75rem; color:var(--text-muted,#6b7280);">
-        <input type="checkbox" name="favorite" value="1" {{if .Saved.Favorite}}checked{{end}} style="margin:0;">
+      <label class="compact-check form-label-block">
+        <input type="checkbox" name="favorite" value="1" {{if .Saved.Favorite}}checked{{end}}>
         Favorite
       </label>
-      <button type="submit" class="btn btn-sm" style="margin-top:0.75rem;">Save changes</button>
+      <button type="submit" class="btn btn-sm form-action-top">Save changes</button>
     </form>
-    <form method="POST" action="{{.DeleteAction}}" style="margin-top:0.75rem;" onsubmit="return confirm('Delete this saved query?');">
+    <form method="POST" action="{{.DeleteAction}}" class="inline-form-spaced" onsubmit="return confirm('Delete this saved query?');">
       <button type="submit" class="btn btn-sm">Delete query</button>
     </form>
   </div>
   {{end}}
 
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 1rem;">Clone query</div>
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Clone query</div>
     <form method="POST" action="{{.CloneAction}}">
       <label for="clone-name">Name</label>
-      <input id="clone-name" name="name" type="text" value="{{.CloneName}}" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
-      <label for="clone-visibility" style="display:block; margin-top:0.75rem;">Visibility</label>
-      <select id="clone-visibility" name="visibility" class="filter-select" style="margin-top:0.35rem;">
+      <input id="clone-name" name="name" type="text" value="{{.CloneName}}" class="search-input-inline form-field-top">
+      <label for="clone-visibility" class="form-label-block">Visibility</label>
+      <select id="clone-visibility" name="visibility" class="filter-select form-field-top">
         <option value="private">Just me</option>
         <option value="organization">Organization</option>
       </select>
-      <label style="display:flex; align-items:center; gap:0.4rem; margin-top:0.75rem; color:var(--text-muted,#6b7280);">
-        <input type="checkbox" name="favorite" value="1" style="margin:0;">
+      <label class="compact-check form-label-block">
+        <input type="checkbox" name="favorite" value="1">
         Favorite the clone
       </label>
-      <button type="submit" class="btn btn-sm" style="margin-top:0.75rem;">Create clone</button>
+      <button type="submit" class="btn btn-sm form-action-top">Create clone</button>
     </form>
   </div>
 
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 1rem;">Scheduled reports</div>
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Scheduled reports</div>
     <form method="POST" action="{{.ReportCreateAction}}">
       <label for="report-recipient">Recipient</label>
-      <input id="report-recipient" name="recipient" type="email" placeholder="team@example.com" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
-      <label for="report-cadence" style="display:block; margin-top:0.75rem;">Cadence</label>
-      <select id="report-cadence" name="cadence" class="filter-select" style="margin-top:0.35rem;">
+      <input id="report-recipient" name="recipient" type="email" placeholder="team@example.com" class="search-input-inline form-field-top">
+      <label for="report-cadence" class="form-label-block">Cadence</label>
+      <select id="report-cadence" name="cadence" class="filter-select form-field-top">
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
       </select>
-      <button type="submit" class="btn btn-sm" style="margin-top:0.75rem;">Add scheduled report</button>
+      <button type="submit" class="btn btn-sm form-action-top">Add scheduled report</button>
     </form>
     {{if .ReportSchedules}}
-    <div class="activity-feed" style="margin-top:1rem;">
+    <div class="activity-feed inline-form-spaced">
       {{range .ReportSchedules}}
-      <div class="activity-row" style="align-items:flex-start; justify-content:space-between; gap:0.75rem;">
+      <div class="activity-row discover-saved-row">
         <div class="activity-text">
           <strong>{{.Recipient}}</strong>
           <span class="alert-secondary">· {{.Cadence}} · next {{.NextRunAt}}</span>
-          {{if .LastRunAt}}<div class="empty-text" style="padding-top:0.35rem;">Last run {{.LastRunAt}}{{if .LastSnapshotURL}} · <a href="{{.LastSnapshotURL}}">Open last snapshot</a>{{end}}</div>{{end}}
-          {{if .LastError}}<div class="empty-text" style="padding-top:0.35rem;">Last error: {{.LastError}}</div>{{end}}
+          {{if .LastRunAt}}<div class="empty-text discover-inline-meta">Last run {{.LastRunAt}}{{if .LastSnapshotURL}} · <a href="{{.LastSnapshotURL}}">Open last snapshot</a>{{end}}</div>{{end}}
+          {{if .LastError}}<div class="empty-text discover-inline-meta">Last error: {{.LastError}}</div>{{end}}
         </div>
         <form method="POST" action="/discover/queries/{{$.Saved.ID}}/reports/{{.ID}}/delete">
           <button type="submit" class="btn btn-sm">Delete</button>
@@ -123,28 +123,28 @@
       {{end}}
     </div>
     {{else}}
-    <div class="empty-text" style="padding-top:0.75rem;">Scheduled reports freeze a fresh snapshot on the scheduler tick and queue the share link in the Tiny outbox.</div>
+    <div class="empty-text inline-note">Scheduled reports freeze a fresh snapshot on the scheduler tick and queue the share link in the Tiny outbox.</div>
     {{end}}
   </div>
 </div>
 
 {{if .Error}}
-<div class="card" style="margin-top:1.25rem; padding:1rem;">
+<div class="card card-shell card-top-gap">
   <div class="empty-text">{{.Error}}</div>
   {{if .ErrorDetails}}
-  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
-    {{range .ErrorDetails}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  <ul class="guide-list">
+    {{range .ErrorDetails}}<li>{{.}}</li>{{end}}
   </ul>
   {{end}}
 </div>
 {{else if eq .Result.Type "stat"}}
-<div class="metric-card" style="margin-top: 1.25rem;">
+<div class="metric-card card-top-gap">
   <div class="metric-label">{{if .Result.StatLabel}}{{.Result.StatLabel}}{{else}}Result{{end}}</div>
   <div class="metric-value">{{if .Result.StatValue}}{{.Result.StatValue}}{{else}}0{{end}}</div>
 </div>
 {{else}}
-<div class="card" style="margin-top: 1.25rem;">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Results</div>
+<div class="card card-top-gap">
+  <div class="section-header">Results</div>
   {{if .Result.Rows}}
   <table class="events-table">
     <thead>
@@ -165,7 +165,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">No matching results.</div>
   </div>
   {{end}}
@@ -173,16 +173,16 @@
 {{end}}
 
 {{if or .Explain.CostLabel .Explain.Notes .Explain.QueryJSON}}
-<div class="card" style="margin-top:1.25rem; padding:1rem;">
-  <div class="section-header" style="padding:0 0 0.75rem;">Query Explain</div>
-  {{if .Explain.CostLabel}}<div class="alert-secondary" style="margin-bottom:0.75rem;">{{.Explain.CostLabel}}</div>{{end}}
+<div class="card card-shell card-top-gap">
+  <div class="section-header section-header-plain">Query Explain</div>
+  {{if .Explain.CostLabel}}<div class="alert-secondary explain-cost">{{.Explain.CostLabel}}</div>{{end}}
   {{if .Explain.Notes}}
-  <ul style="margin:0 0 0.75rem; padding-left:1.2rem; color:var(--text-secondary);">
-    {{range .Explain.Notes}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  <ul class="guide-list explain-list">
+    {{range .Explain.Notes}}<li>{{.}}</li>{{end}}
   </ul>
   {{end}}
   {{if .Explain.QueryJSON}}
-  <pre style="margin:0; padding:0.85rem 1rem; border-radius:12px; background:rgba(15,23,42,0.06); overflow:auto; white-space:pre-wrap;">{{.Explain.QueryJSON}}</pre>
+  <pre class="explain-block">{{.Explain.QueryJSON}}</pre>
   {{end}}
 </div>
 {{end}}

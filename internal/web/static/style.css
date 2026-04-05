@@ -5841,6 +5841,171 @@ body.auth-page {
   margin-top: 0.9rem;
 }
 
+.toolbar-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.card-shell {
+  padding: 1rem;
+}
+
+.card-top-gap {
+  margin-top: 1.25rem;
+}
+
+.section-header-plain {
+  padding: 0 0 0.75rem;
+}
+
+.inline-form-spaced {
+  margin-top: 0.75rem;
+}
+
+.form-label-block {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.form-field-top {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.form-action-top {
+  margin-top: 0.75rem;
+}
+
+.compact-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
+.compact-check input {
+  margin: 0;
+}
+
+.discover-inline-meta {
+  padding-top: 0.25rem;
+}
+
+.discover-saved-row {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.discover-saved-dot {
+  background: var(--brand-primary-muted);
+}
+
+.discover-saved-body {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.discover-saved-link {
+  text-decoration: none;
+  flex: 1;
+}
+
+.dashboard-title-inline {
+  margin: 0;
+}
+
+.empty-state-inline {
+  padding: 1rem 0 0;
+}
+
+.explain-cost {
+  margin-bottom: 0.75rem;
+}
+
+.explain-list {
+  margin: 0 0 0.75rem;
+}
+
+.explain-block {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(15,23,42,0.06);
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.token-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 12px;
+}
+
+.token-scope-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.token-scope-option input {
+  margin: 0;
+}
+
+.annotation-card {
+  padding: 0.75rem 0.875rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,0.25);
+  background: rgba(15,23,42,0.04);
+}
+
+.annotation-warning {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.35);
+}
+
+.annotation-critical {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.35);
+}
+
+.annotation-info {
+  background: rgba(59,130,246,0.10);
+  border-color: rgba(59,130,246,0.28);
+}
+
+.annotation-label {
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.dashboard-threshold-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.dashboard-contract-tags {
+  margin-bottom: 0.75rem;
+}
+
+.account-settings-copy {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
 .account-settings-nav ~ .settings-section {
   max-width: 960px;
 }

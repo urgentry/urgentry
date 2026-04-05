@@ -11,7 +11,7 @@
 <div class="token-raw-box">
   <p>Copy your new token now — it will not be shown again.</p>
   <div class="token-raw-value" id="new-token-value">{{.NewTokenRaw}}</div>
-  <button class="btn btn-sm" style="margin-top:8px;" onclick="copyNewToken()">Copy</button>
+  <button class="btn btn-sm form-action-top" onclick="copyNewToken()">Copy</button>
 </div>
 <script>
 function copyNewToken() {
@@ -34,11 +34,11 @@ function copyNewToken() {
         <input type="text" name="label" placeholder="My token" required>
       </label>
     </div>
-    <div class="settings-form-field" style="margin-bottom:12px;">
-      <span class="settings-label" style="margin-bottom:6px; display:block;">Scopes</span>
-      <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap:6px;">
+    <div class="settings-form-field account-scopes-field">
+      <span class="settings-label">Scopes</span>
+      <div class="token-scope-grid">
         {{range .AvailableScopes}}
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+        <label class="token-scope-option">
           <input type="checkbox" name="scopes" value="{{.}}"> {{.}}
         </label>
         {{end}}
@@ -71,7 +71,7 @@ function copyNewToken() {
       <tr>
         <td>{{.Label}}</td>
         <td class="mono">{{.TokenPrefix}}…</td>
-        <td><span style="font-size:12px; color:var(--text-secondary,#9CA0B0);">{{.Scopes}}</span></td>
+        <td><span class="token-scope-copy">{{.Scopes}}</span></td>
         <td>{{.CreatedAt}}</td>
         <td>{{if .LastUsedAt}}{{.LastUsedAt}}{{else}}<span class="text-muted">Never</span>{{end}}</td>
         <td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}<span class="text-muted">Never</span>{{end}}</td>
@@ -85,7 +85,7 @@ function copyNewToken() {
         <td>
           {{if .IsRevoked}}
           {{else}}
-          <form method="post" action="/settings/account/api/{{.ID}}/revoke" style="margin:0;">
+          <form method="post" action="/settings/account/api/{{.ID}}/revoke" class="inline-zero">
             <button type="submit" class="btn btn-sm">Revoke</button>
           </form>
           {{end}}
@@ -160,6 +160,16 @@ function copyNewToken() {
   font-size: 13px;
   color: var(--text-primary, #F5F6FA);
   word-break: break-all;
+}
+.account-scopes-field {
+  margin-bottom: 12px;
+}
+.token-scope-copy {
+  font-size: 12px;
+  color: var(--text-secondary, #9CA0B0);
+}
+.inline-zero {
+  margin: 0;
 }
 </style>
 {{end}}

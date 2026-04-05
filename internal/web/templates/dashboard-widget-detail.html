@@ -2,18 +2,18 @@
 
 {{define "content"}}
 <div class="page-header">
-  <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
-    <h1 class="page-title" style="margin:0;">{{.WidgetView.Widget.Title}}</h1>
+  <div class="toolbar-row">
+    <h1 class="page-title dashboard-title-inline">{{.WidgetView.Widget.Title}}</h1>
     <span class="alert-secondary">{{.WidgetView.Contract.Kind}} · {{.WidgetView.Contract.Dataset}}</span>
     <a href="{{.DashboardURL}}" class="btn btn-sm">Back to dashboard</a>
   </div>
-  {{if .WidgetView.Widget.Description}}<div class="empty-text" style="margin-top:0.5rem;">{{.WidgetView.Widget.Description}}</div>{{end}}
+  {{if .WidgetView.Widget.Description}}<div class="empty-text discover-inline-meta">{{.WidgetView.Widget.Description}}</div>{{end}}
 </div>
 
-<div class="metrics-grid" style="align-items:start;">
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 0.75rem;">Widget Contract</div>
-    <div style="display:grid; gap:0.75rem;">
+<div class="content-grid">
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Widget Contract</div>
+    <div class="stack-list">
       <div>
         <div class="alert-secondary">Dashboard</div>
         <div><a href="{{.DashboardURL}}">{{.Dashboard.Title}}</a></div>
@@ -33,7 +33,7 @@
       <div>
         <div class="alert-secondary">Dashboard filters</div>
         {{if .WidgetView.Contract.Filters}}
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.35rem;">
+        <div class="toolbar-row inline-note">
           {{range .WidgetView.Contract.Filters}}
           <span class="alert-secondary">{{.}}</span>
           {{end}}
@@ -45,12 +45,12 @@
     </div>
   </div>
 
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 0.75rem;">Actions</div>
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Actions</div>
     {{if .WidgetView.Error}}
     <div class="empty-text">Live export and snapshot are unavailable until this widget query succeeds.</div>
     {{else}}
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+    <div class="toolbar-row">
       <a href="{{.WidgetView.ExportCSVURL}}" class="btn btn-sm">Export live CSV</a>
       <a href="{{.WidgetView.ExportJSONURL}}" class="btn btn-sm">Export live JSON</a>
       <form method="POST" action="{{.WidgetView.SnapshotAction}}">
@@ -59,31 +59,31 @@
     </div>
     {{end}}
     {{if .WidgetView.ThresholdText}}
-    <div class="alert-secondary" style="margin-top:0.85rem;">Thresholds: {{.WidgetView.ThresholdText}}</div>
+    <div class="alert-secondary inline-note">Thresholds: {{.WidgetView.ThresholdText}}</div>
     {{end}}
   </div>
 
-  <div class="card" style="padding:1rem;">
-    <div class="section-header" style="padding:0 0 0.75rem;">Scheduled reports</div>
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Scheduled reports</div>
     <form method="POST" action="{{.ReportCreateAction}}">
       <label for="widget-report-recipient">Recipient</label>
-      <input id="widget-report-recipient" name="recipient" type="email" placeholder="team@example.com" class="search-input-inline" style="width:100%; margin-top:0.35rem;">
-      <label for="widget-report-cadence" style="display:block; margin-top:0.75rem;">Cadence</label>
-      <select id="widget-report-cadence" name="cadence" class="filter-select" style="margin-top:0.35rem;">
+      <input id="widget-report-recipient" name="recipient" type="email" placeholder="team@example.com" class="search-input-inline form-field-top">
+      <label for="widget-report-cadence" class="form-label-block">Cadence</label>
+      <select id="widget-report-cadence" name="cadence" class="filter-select form-field-top">
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
       </select>
-      <button type="submit" class="btn btn-sm" style="margin-top:0.75rem;">Add scheduled report</button>
+      <button type="submit" class="btn btn-sm form-action-top">Add scheduled report</button>
     </form>
     {{if .ReportSchedules}}
-    <div class="activity-feed" style="margin-top:1rem;">
+    <div class="activity-feed inline-form-spaced">
       {{range .ReportSchedules}}
-      <div class="activity-row" style="align-items:flex-start; justify-content:space-between; gap:0.75rem;">
+      <div class="activity-row discover-saved-row">
         <div class="activity-text">
           <strong>{{.Recipient}}</strong>
           <span class="alert-secondary">· {{.Cadence}} · next {{.NextRunAt}}</span>
-          {{if .LastRunAt}}<div class="empty-text" style="padding-top:0.35rem;">Last run {{.LastRunAt}}{{if .LastSnapshotURL}} · <a href="{{.LastSnapshotURL}}">Open last snapshot</a>{{end}}</div>{{end}}
-          {{if .LastError}}<div class="empty-text" style="padding-top:0.35rem;">Last error: {{.LastError}}</div>{{end}}
+          {{if .LastRunAt}}<div class="empty-text discover-inline-meta">Last run {{.LastRunAt}}{{if .LastSnapshotURL}} · <a href="{{.LastSnapshotURL}}">Open last snapshot</a>{{end}}</div>{{end}}
+          {{if .LastError}}<div class="empty-text discover-inline-meta">Last error: {{.LastError}}</div>{{end}}
         </div>
         <form method="POST" action="/dashboards/{{$.Dashboard.ID}}/widgets/{{$.WidgetView.Widget.ID}}/reports/{{.ID}}/delete">
           <button type="submit" class="btn btn-sm">Delete</button>
@@ -92,28 +92,28 @@
       {{end}}
     </div>
     {{else}}
-    <div class="empty-text" style="padding-top:0.75rem;">Scheduled reports freeze this widget with its dashboard filters and queue the share link in the Tiny outbox.</div>
+    <div class="empty-text inline-note">Scheduled reports freeze this widget with its dashboard filters and queue the share link in the Tiny outbox.</div>
     {{end}}
   </div>
 </div>
 
-<div class="card" style="margin-top:1.25rem; padding:1rem;">
-  <div class="section-header" style="padding:0 0 0.75rem;">Query Explain</div>
-  {{if .WidgetView.Explain.CostLabel}}<div class="alert-secondary" style="margin-bottom:0.75rem;">{{.WidgetView.Explain.CostLabel}}</div>{{end}}
+<div class="card card-shell card-top-gap">
+  <div class="section-header section-header-plain">Query Explain</div>
+  {{if .WidgetView.Explain.CostLabel}}<div class="alert-secondary explain-cost">{{.WidgetView.Explain.CostLabel}}</div>{{end}}
   {{if .WidgetView.Explain.Notes}}
-  <ul style="margin:0 0 0.75rem; padding-left:1.2rem; color:var(--text-secondary);">
-    {{range .WidgetView.Explain.Notes}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  <ul class="guide-list explain-list">
+    {{range .WidgetView.Explain.Notes}}<li>{{.}}</li>{{end}}
   </ul>
   {{end}}
   {{if .WidgetView.Explain.QueryJSON}}
-  <pre style="margin:0; padding:0.85rem 1rem; border-radius:12px; background:rgba(15,23,42,0.06); overflow:auto; white-space:pre-wrap;">{{.WidgetView.Explain.QueryJSON}}</pre>
+  <pre class="explain-block">{{.WidgetView.Explain.QueryJSON}}</pre>
   {{end}}
 </div>
 
-<div class="card" style="margin-top:1.25rem;">
-  <div class="section-header" style="padding:1rem 1.25rem 0.25rem;">Results</div>
+<div class="card card-top-gap">
+  <div class="section-header">Results</div>
   {{if .WidgetView.Error}}
-  <div class="empty-state" style="padding:1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">{{.WidgetView.Error}}</div>
   </div>
   {{else if eq .WidgetView.Result.Type "stat"}}
@@ -139,7 +139,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding:1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">No matching results.</div>
   </div>
   {{end}}
