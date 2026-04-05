@@ -5814,6 +5814,109 @@ body.auth-page {
   margin-bottom: 1rem;
 }
 
+.detail-banner {
+  margin-bottom: 1.25rem;
+}
+
+.detail-card-header {
+  padding: 1rem 1.25rem 0.25rem;
+}
+
+.detail-card-title {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-card-body {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.detail-card-body-tight {
+  padding: 1rem 1.25rem;
+}
+
+.detail-table {
+  width: 100%;
+}
+
+.detail-empty-card {
+  padding: 1rem 1.25rem;
+}
+
+.detail-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.detail-toolbar-end {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.detail-note {
+  padding: 16px 24px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.detail-note-sm {
+  padding: 12px 24px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.detail-inline-meta {
+  margin-top: 0.35rem;
+}
+
+.detail-grid-two {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.flamegraph-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.flamegraph-label {
+  min-width: 240px;
+}
+
+.flamegraph-track {
+  flex: 1;
+  background: rgba(70, 85, 130, 0.14);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.flamegraph-bar {
+  min-width: 2.5rem;
+  background: linear-gradient(90deg, #5B6CFF, #7F56D9);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+.flamegraph-value {
+  min-width: 72px;
+  text-align: right;
+}
+
+.metric-strip {
+  margin-bottom: 1.25rem;
+}
+
+.metric-strip .metric-card .metric-value a {
+  font-size: inherit;
+}
+
 .page-header-spaced {
   margin-top: 2rem;
 }

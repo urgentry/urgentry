@@ -23,7 +23,7 @@
           </div>
         </div>
         {{if .Links}}
-        <div class="context-card" style="margin-top: 1rem;">
+        <div class="context-card inline-form-spaced">
           <div class="context-card-header">Related Links</div>
           <div class="context-card-body">
             {{range .Links}}
@@ -38,9 +38,9 @@
     <section class="detail-section">
       <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Query Controls</h3>
       <div class="section-body">
-        <div class="card" style="padding: 1rem;">
-          <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
-            <label style="display: flex; flex-direction: column; gap: 0.35rem; min-width: 220px;">
+        <div class="card card-shell">
+          <form method="get" class="toolbar-row">
+            <label class="settings-form-field profile-control-wide">
               <span>Thread</span>
               <select name="thread">
                 {{range .Controls.Threads}}
@@ -48,7 +48,7 @@
                 {{end}}
               </select>
             </label>
-            <label style="display: flex; flex-direction: column; gap: 0.35rem; min-width: 220px;">
+            <label class="settings-form-field profile-control-wide">
               <span>Compare Against</span>
               <select name="compare">
                 {{range .Controls.Comparands}}
@@ -56,15 +56,15 @@
                 {{end}}
               </select>
             </label>
-            <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="settings-form-field">
               <span>Frame Filter</span>
               <input type="text" name="frame" value="{{.Controls.Frame}}" placeholder="dbQuery">
             </label>
-            <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="settings-form-field">
               <span>Max Depth</span>
               <input type="number" min="1" max="256" name="max_depth" value="{{.Controls.MaxDepth}}">
             </label>
-            <label style="display: flex; flex-direction: column; gap: 0.35rem;">
+            <label class="settings-form-field">
               <span>Max Nodes</span>
               <input type="number" min="1" max="2048" name="max_nodes" value="{{.Controls.MaxNodes}}">
             </label>
@@ -145,12 +145,12 @@
       <div class="section-body">
         {{if .FlamegraphRows}}
           {{range .FlamegraphRows}}
-          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.45rem;">
-            <div style="min-width: 240px; padding-left: {{.IndentPX}}px;">{{.Name}}</div>
-            <div style="flex: 1; background: rgba(70, 85, 130, 0.14); border-radius: 999px; overflow: hidden;">
-              <div style="width: {{.BarWidth}}%; min-width: 2.5rem; background: linear-gradient(90deg, #5B6CFF, #7F56D9); color: white; padding: 0.2rem 0.5rem; white-space: nowrap;">{{.Percent}}</div>
+          <div class="flamegraph-row">
+            <div class="flamegraph-label" style="padding-left: {{.IndentPX}}px;">{{.Name}}</div>
+            <div class="flamegraph-track">
+              <div class="flamegraph-bar" style="width: {{.BarWidth}}%;">{{.Percent}}</div>
             </div>
-            <div class="mono" style="min-width: 72px; text-align: right;">{{.InclusiveWeight}}</div>
+            <div class="mono flamegraph-value">{{.InclusiveWeight}}</div>
           </div>
           {{end}}
         {{else}}
@@ -180,7 +180,7 @@
           </tbody>
         </table>
         {{if .HotPathTruncated}}
-        <div class="empty-inline" style="margin-top: 0.75rem;">The hot path is truncated by the current depth or node limits.</div>
+        <div class="empty-inline inline-form-spaced">The hot path is truncated by the current depth or node limits.</div>
         {{end}}
         {{else}}
         <div class="empty-inline">No hot path available for this filter set.</div>
@@ -192,7 +192,7 @@
       <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Comparison</h3>
       <div class="section-body">
         {{if .Comparison}}
-        <div class="context-card" style="margin-bottom: 1rem;">
+        <div class="context-card card-gap">
           <div class="context-card-body">
             <div class="context-row"><span class="key">Candidate</span><span class="value">{{.Comparison.CandidateLabel}}</span></div>
             <div class="context-row"><span class="key">Confidence</span><span class="value">{{.Comparison.Confidence}}</span></div>
@@ -201,7 +201,7 @@
             {{end}}
           </div>
         </div>
-        <div style="display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+        <div class="detail-grid-two">
           <div class="context-card">
             <div class="context-card-header">Top Regressions</div>
             <div class="context-card-body">

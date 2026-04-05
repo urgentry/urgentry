@@ -7,13 +7,13 @@
   <span>Event <strong class="mono">{{.Event.ShortEventID}}</strong></span>
   <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID"><i data-feather="copy" style="width:14px;height:14px;"></i></button>
   <span class="text-tertiary">&middot; {{.Event.TimeAgo}}</span>
-  <span style="margin-left: auto;">
+  <span class="detail-toolbar-end">
     <button class="btn btn-sm" id="raw-json-toggle" onclick="document.getElementById('raw-json').classList.toggle('visible'); this.textContent = this.textContent === 'Raw JSON' ? 'Hide JSON' : 'Raw JSON';">Raw JSON</button>
   </span>
 </div>
 
 {{if or .Event.ProcessingStatus .Event.IngestError .Event.UnresolvedFrames}}
-<div class="context-card" style="margin-bottom: 1rem;">
+<div class="context-card card-gap">
   <div class="context-card-header">Native Processing</div>
   <div class="context-card-body">
     {{if .Event.ProcessingStatus}}
@@ -100,7 +100,7 @@
       </div>
       {{end}}
       {{else}}
-      <div style="padding: 16px 24px; color: var(--text-tertiary); font-size: 14px;">No stack frames available.</div>
+      <div class="detail-note">No stack frames available.</div>
       {{end}}
     </div>
     {{end}}
@@ -133,7 +133,7 @@
       </div>
       {{end}}
       {{if not .Frames}}
-      <div style="padding: 16px 24px; color: var(--text-tertiary); font-size: 14px;">Stacktrace unavailable.</div>
+      <div class="detail-note">Stacktrace unavailable.</div>
       {{end}}
     </div>
     {{end}}
@@ -168,7 +168,7 @@
         {{end}}
       </div>
       {{else}}
-      <div style="padding: 12px 24px; color: var(--text-tertiary); font-size: 13px;">Breadcrumbs unavailable.</div>
+      <div class="detail-note-sm">Breadcrumbs unavailable.</div>
       {{end}}
     </div>
   </div>
@@ -186,7 +186,7 @@
         </div>
         {{end}}
         {{if not .Tags}}
-        <div class="text-tertiary" style="font-size: 13px;">Tags unavailable.</div>
+        <div class="empty-text">Tags unavailable.</div>
         {{end}}
       </div>
     </div>
@@ -203,7 +203,7 @@
         </div>
         {{end}}
         {{else}}
-        <div class="text-tertiary" style="font-size: 13px;">User context unavailable.</div>
+        <div class="empty-text">User context unavailable.</div>
         {{end}}
       </div>
     </div>
@@ -220,7 +220,7 @@
         </div>
         {{end}}
         {{else}}
-        <div class="text-tertiary" style="font-size: 13px;">Request context unavailable.</div>
+        <div class="empty-text">Request context unavailable.</div>
         {{end}}
       </div>
     </div>

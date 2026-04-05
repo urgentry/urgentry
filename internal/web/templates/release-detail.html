@@ -5,7 +5,7 @@
   <h1 class="page-title">Release {{.Release.Version}}</h1>
 </div>
 
-<div class="metrics-grid" style="margin-bottom: 1.25rem;">
+<div class="metrics-grid metric-strip">
   <div class="metric-card"><div class="metric-label">Events</div><div class="metric-value">{{.Release.EventCount}}</div></div>
   <div class="metric-card"><div class="metric-label">Sessions</div><div class="metric-value">{{.Release.SessionCount}}</div></div>
   <div class="metric-card"><div class="metric-label">Crash-Free</div><div class="metric-value">{{.Release.CrashFreeRate}}</div></div>
@@ -14,14 +14,14 @@
 
 {{if .Regression}}
   {{if .Regression.HasPrevious}}
-  <div class="card" style="margin-bottom: 1.25rem; padding: 1rem 1.25rem;">
-    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
+  <div class="card card-shell card-gap">
+    <div class="detail-toolbar">
       <div>
-        <h2 class="page-title" style="font-size: 1rem;">Release Comparison</h2>
+        <h2 class="detail-card-title">Release Comparison</h2>
         <div class="alert-secondary" style="margin-top:0.35rem;">Compared with {{.Regression.PreviousVersion}}</div>
       </div>
     </div>
-    <div class="metrics-grid" style="margin-top: 1rem;">
+    <div class="metrics-grid card-top-gap">
       {{range .Regression.ComparisonMetrics}}
       <div class="metric-card">
         <div class="metric-label">{{.Label}}</div>
@@ -33,64 +33,64 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom: 1.25rem;">
-    <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Environment Error Movement</h2></div>
+  <div class="card card-gap">
+    <div class="section-header">Environment Error Movement</div>
     {{if .Regression.EnvironmentMovements}}
-    <table class="issue-table" style="width:100%;">
+    <table class="events-table detail-table">
       <thead><tr><th>Environment</th><th>Current</th><th>Previous</th><th>Delta</th></tr></thead>
       <tbody>
         {{range .Regression.EnvironmentMovements}}
         <tr>
-          <td style="padding: 0.75rem 1rem;">{{.Environment}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.Current}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.Previous}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono"><span class="metric-trend {{.TrendClass}}" style="margin-top:0;">{{.Delta}}</span></td>
+          <td>{{.Environment}}</td>
+          <td class="mono">{{.Current}}</td>
+          <td class="mono">{{.Previous}}</td>
+          <td class="mono"><span class="metric-trend {{.TrendClass}}" style="margin-top:0;">{{.Delta}}</span></td>
         </tr>
         {{end}}
       </tbody>
     </table>
     {{else}}
-    <div class="empty-state" style="padding: 1rem 1.25rem;">No environment deltas yet.</div>
+    <div class="empty-state detail-empty-card">No environment deltas yet.</div>
     {{end}}
   </div>
 
-  <div class="card" style="margin-bottom: 1.25rem;">
-    <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Transaction Latency Movement</h2></div>
+  <div class="card card-gap">
+    <div class="section-header">Transaction Latency Movement</div>
     {{if .Regression.TransactionMovements}}
-    <table class="issue-table" style="width:100%;">
+    <table class="events-table detail-table">
       <thead><tr><th>Transaction</th><th>Current P95</th><th>Previous P95</th><th>P95 Delta</th><th>Current Count</th><th>Previous Count</th><th>Count Delta</th></tr></thead>
       <tbody>
         {{range .Regression.TransactionMovements}}
         <tr>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.Transaction}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.CurrentP95}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.PreviousP95}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono"><span class="metric-trend {{.TrendClass}}" style="margin-top:0;">{{.DeltaP95}}</span></td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.CurrentCount}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.PreviousCount}}</td>
-          <td style="padding: 0.75rem 1rem;" class="mono">{{.DeltaCount}}</td>
+          <td class="mono">{{.Transaction}}</td>
+          <td class="mono">{{.CurrentP95}}</td>
+          <td class="mono">{{.PreviousP95}}</td>
+          <td class="mono"><span class="metric-trend {{.TrendClass}}" style="margin-top:0;">{{.DeltaP95}}</span></td>
+          <td class="mono">{{.CurrentCount}}</td>
+          <td class="mono">{{.PreviousCount}}</td>
+          <td class="mono">{{.DeltaCount}}</td>
         </tr>
         {{end}}
       </tbody>
     </table>
     {{else}}
-    <div class="empty-state" style="padding: 1rem 1.25rem;">No transaction deltas yet.</div>
+    <div class="empty-state detail-empty-card">No transaction deltas yet.</div>
     {{end}}
   </div>
   {{else}}
-  <div class="empty-state" style="margin-bottom: 1.25rem; padding: 0.85rem 1rem;">No earlier release is available yet, so regression comparison is waiting on the next ship.</div>
+  <div class="empty-state card-gap detail-empty-card">No earlier release is available yet, so regression comparison is waiting on the next ship.</div>
   {{end}}
 
   {{if .Regression.DeployImpact}}
-  <div class="card" style="margin-bottom: 1.25rem; padding: 1rem 1.25rem;">
-    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
+  <div class="card card-shell card-gap">
+    <div class="detail-toolbar">
       <div>
-        <h2 class="page-title" style="font-size: 1rem;">Latest Deploy Impact</h2>
+        <h2 class="detail-card-title">Latest Deploy Impact</h2>
         <div class="alert-secondary" style="margin-top:0.35rem;">{{.Regression.DeployImpact.Environment}} · {{.Regression.DeployImpact.Name}} · {{.Regression.DeployImpact.Window}}</div>
       </div>
       <div class="alert-secondary">{{.Regression.DeployImpact.AnchorAt}}</div>
     </div>
-    <div class="metrics-grid" style="margin-top: 1rem;">
+    <div class="metrics-grid card-top-gap">
       <div class="metric-card">
         <div class="metric-label">Errors</div>
         <div class="metric-value">{{.Regression.DeployImpact.ErrorsAfter}}</div>
@@ -118,10 +118,10 @@
   {{end}}
 {{end}}
 
-<div class="card" style="margin-bottom: 1.25rem; padding: 1rem 1.25rem;">
-  <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
+<div class="card card-shell card-gap">
+  <div class="detail-toolbar">
     <div>
-      <h2 class="page-title" style="font-size: 1rem;">Native Processing</h2>
+      <h2 class="detail-card-title">Native Processing</h2>
       <div class="alert-secondary" style="margin-top:0.35rem;">{{.Native.TotalEvents}} native events · {{.Native.ResolvedFrames}} resolved frames · {{.Native.UnresolvedFrames}} unresolved frames</div>
     </div>
     <form method="post" action="/releases/{{.Release.Version}}/native/reprocess">
@@ -129,17 +129,17 @@
       <button type="submit" class="btn btn-primary">Reprocess native events</button>
     </form>
   </div>
-  <div class="metrics-grid" style="margin-top: 1rem;">
+  <div class="metrics-grid card-top-gap">
     <div class="metric-card"><div class="metric-label">Pending</div><div class="metric-value">{{.Native.PendingEvents}}</div></div>
     <div class="metric-card"><div class="metric-label">Processing</div><div class="metric-value">{{.Native.ProcessingEvents}}</div></div>
     <div class="metric-card"><div class="metric-label">Failed</div><div class="metric-value">{{.Native.FailedEvents}}</div></div>
     <div class="metric-card"><div class="metric-label">Last Run</div><div class="metric-value">{{if .Native.LastRunStatus}}{{.Native.LastRunStatus}}{{else}}-{{end}}</div></div>
   </div>
   {{if .Native.LastError}}
-  <div class="empty-state" style="margin-top: 1rem; padding: 0.85rem 1rem;">Last error: {{.Native.LastError}}</div>
+  <div class="empty-state inline-form-spaced detail-empty-card">Last error: {{.Native.LastError}}</div>
   {{end}}
   {{if .Native.LastRunLastError}}
-  <div class="empty-state" style="margin-top: 0.75rem; padding: 0.85rem 1rem;">Last run error: {{.Native.LastRunLastError}}</div>
+  <div class="empty-state inline-form-spaced detail-empty-card">Last run error: {{.Native.LastRunLastError}}</div>
   {{end}}
 </div>
 
