@@ -9,16 +9,16 @@
 
 <div class="settings-section">
   <div class="section-header">General</div>
-  <table class="settings-table">
-    <tr>
-      <td class="settings-label">Name</td>
-      <td>{{if .OrgName}}{{.OrgName}}{{else}}<span class="text-muted">—</span>{{end}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Slug</td>
-      <td class="mono">{{if .OrgSlug}}{{.OrgSlug}}{{else}}<span class="text-muted">—</span>{{end}}</td>
-    </tr>
-  </table>
+  <dl class="summary-list">
+    <div class="summary-row">
+      <dt class="summary-term">Name</dt>
+      <dd class="summary-value">{{if .OrgName}}{{.OrgName}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Slug</dt>
+      <dd class="summary-value mono">{{if .OrgSlug}}{{.OrgSlug}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+    </div>
+  </dl>
 </div>
 
 {{template "org-settings-styles" .}}

@@ -5,28 +5,28 @@
   <h1 class="page-title">Trace {{.TraceID}}</h1>
 </div>
 
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
-  <div class="section-header" style="padding: 0 0 0.5rem;">{{.Guide.Title}}</div>
+<div class="card guide-card">
+  <div class="section-header section-header-tight">{{.Guide.Title}}</div>
   <div class="empty-text">{{.Guide.Body}}</div>
-  <ul style="margin:0.75rem 0 0; padding-left:1.2rem; color:var(--text-secondary);">
-    {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  <ul class="guide-list">
+    {{range .Guide.Steps}}<li>{{.}}</li>{{end}}
   </ul>
-  <div style="margin-top:0.9rem;">
+  <div class="guide-actions">
     <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
   </div>
 </div>
 
 {{if .Errors}}
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Linked Errors</h2></div>
-  <table class="issue-table" style="width:100%;">
+<div class="card card-gap">
+  <div class="section-header">Linked Errors</div>
+  <table class="events-table">
     <thead><tr><th>Error</th><th>Level</th><th>When</th></tr></thead>
     <tbody>
       {{range .Errors}}
       <tr>
-        <td style="padding: 0.75rem 1rem;"><a href="/issues/?query={{.EventID}}">{{if .Title}}{{.Title}}{{else}}{{.EventID}}{{end}}</a></td>
-        <td style="padding: 0.75rem 1rem;">{{if .Level}}{{.Level}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.TimeAgo}}</td>
+        <td><a href="/issues/?query={{.EventID}}">{{if .Title}}{{.Title}}{{else}}{{.EventID}}{{end}}</a></td>
+        <td>{{if .Level}}{{.Level}}{{else}}-{{end}}</td>
+        <td>{{.TimeAgo}}</td>
       </tr>
       {{end}}
     </tbody>
@@ -34,27 +34,27 @@
 </div>
 {{end}}
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Related Profiles</h2></div>
+<div class="card card-gap">
+  <div class="section-header">Related Profiles</div>
   {{if .Profiles}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table">
     <thead><tr><th>Profile</th><th>Transaction</th><th>Release</th><th>Duration</th><th>Samples</th><th>Top Function</th><th>Captured</th></tr></thead>
     <tbody>
       {{range .Profiles}}
       <tr>
-        <td style="padding: 0.75rem 1rem;"><a href="/profiles/{{.ID}}/">{{.ID}}</a></td>
-        <td style="padding: 0.75rem 1rem;">{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary">{{.Environment}}</div>{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Duration}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.SampleCount}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.StartedAt}}</td>
+        <td><a href="/profiles/{{.ID}}/">{{.ID}}</a></td>
+        <td>{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+        <td class="mono">{{.SampleCount}}</td>
+        <td class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
+        <td>{{.StartedAt}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No profiles captured for this trace yet.</div>
+  <div class="empty-state empty-state-inline">No profiles captured for this trace yet.</div>
   {{end}}
 </div>
 

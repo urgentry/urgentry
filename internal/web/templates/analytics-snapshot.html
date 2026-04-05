@@ -4,16 +4,16 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">{{.Snapshot.Title}}</h1>
-    <div class="empty-text" style="padding-top:0.35rem;">Frozen analytics snapshot. Created {{.Snapshot.CreatedAt}}. Expires {{.Snapshot.ExpiresAt}}.</div>
+    <div class="empty-text discover-inline-meta">Frozen analytics snapshot. Created {{.Snapshot.CreatedAt}}. Expires {{.Snapshot.ExpiresAt}}.</div>
   </div>
-  <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+  <div class="toolbar-row">
     <a href="{{.ExportCSV}}" class="btn btn-sm">Export snapshot CSV</a>
     <a href="{{.ExportJSON}}" class="btn btn-sm">Export snapshot JSON</a>
   </div>
 </div>
 
-<div class="card" style="padding:1rem; margin-bottom:1.25rem;">
-  <div class="section-header" style="padding:0 0 0.5rem;">Share details</div>
+<div class="card card-shell card-gap">
+  <div class="section-header section-header-plain">Share details</div>
   <div class="activity-feed">
     <div class="activity-row">
       <span class="activity-text"><strong>Source</strong> <span class="alert-secondary">· {{.Snapshot.SourceType}}</span></span>
@@ -40,18 +40,18 @@
 </div>
 
 {{if or .Snapshot.Body.Filters .Snapshot.Body.CostLabel .Snapshot.Body.QueryJSON}}
-<div class="card" style="padding:1rem; margin-bottom:1.25rem;">
-  <div class="section-header" style="padding:0 0 0.5rem;">Snapshot contract</div>
+<div class="card card-shell card-gap">
+  <div class="section-header section-header-plain">Snapshot contract</div>
   {{if .Snapshot.Body.Filters}}
-  <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+  <div class="toolbar-row dashboard-contract-tags">
     {{range .Snapshot.Body.Filters}}
     <span class="alert-secondary">{{.}}</span>
     {{end}}
   </div>
   {{end}}
-  {{if .Snapshot.Body.CostLabel}}<div class="alert-secondary" style="margin-bottom:0.75rem;">{{.Snapshot.Body.CostLabel}}</div>{{end}}
+  {{if .Snapshot.Body.CostLabel}}<div class="alert-secondary explain-cost">{{.Snapshot.Body.CostLabel}}</div>{{end}}
   {{if .Snapshot.Body.QueryJSON}}
-  <pre style="margin:0; padding:0.85rem 1rem; border-radius:12px; background:rgba(15,23,42,0.06); overflow:auto; white-space:pre-wrap;">{{.Snapshot.Body.QueryJSON}}</pre>
+  <pre class="explain-block">{{.Snapshot.Body.QueryJSON}}</pre>
   {{end}}
 </div>
 {{end}}
@@ -63,7 +63,7 @@
 </div>
 {{else}}
 <div class="card">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Snapshot data</div>
+  <div class="section-header">Snapshot data</div>
   {{if .Result.Rows}}
   <table class="events-table">
     <thead>
@@ -82,7 +82,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">This snapshot did not capture any rows.</div>
   </div>
   {{end}}

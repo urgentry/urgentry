@@ -5965,6 +5965,46 @@ body.auth-page {
   margin: 0;
 }
 
+.summary-list {
+  width: min(100%, 760px);
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-term {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.summary-value {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.section-narrow {
+  max-width: 960px;
+}
+
+.card-header-copy {
+  margin-bottom: 1rem;
+}
+
 .annotation-card {
   padding: 0.75rem 0.875rem;
   border-radius: 12px;

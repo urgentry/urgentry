@@ -6,13 +6,13 @@
 </div>
 
 {{if .Error}}
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+<div class="card card-shell card-gap">
   <div class="empty-text">{{.Error}}</div>
 </div>
 {{end}}
 
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
-  <form method="get" action="/metrics/" style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;">
+<div class="card card-shell card-gap section-narrow">
+  <form method="get" action="/metrics/" class="toolbar-row">
     <div>
       <label class="filter-label" for="metricSelect">Metric</label>
       <select name="metric" id="metricSelect" class="filter-select">
@@ -41,7 +41,7 @@
 </div>
 
 {{if .ChartResult}}
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+<div class="card card-shell card-gap section-narrow">
   <div class="section-header">{{.ChartResult.MetricName}} ({{.ChartResult.Aggregate}})</div>
   <div class="metrics-grid" style="margin-top: 0.75rem;">
     <div class="metric-card">
@@ -58,7 +58,7 @@
 
 {{if .Metrics}}
 <div class="card">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">All Metrics (last hour)</div>
+  <div class="section-header">All Metrics (last hour)</div>
   <table class="events-table">
     <thead>
       <tr>
@@ -88,7 +88,7 @@
 </div>
 {{else}}
 {{if not .Error}}
-<div class="card" style="padding: 2rem; text-align: center;">
+<div class="card guide-card section-narrow">
   <div class="empty-text">No custom metrics found. Send metrics via the statsd or metrics envelope endpoint.</div>
 </div>
 {{end}}

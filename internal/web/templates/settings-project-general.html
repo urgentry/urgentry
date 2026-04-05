@@ -31,24 +31,24 @@
       <button type="submit" class="btn btn-primary">Save</button>
     </div>
   </form>
-  <table class="settings-table" style="margin-top: 16px;">
-    <tr>
-      <td class="settings-label">Slug</td>
-      <td class="mono">{{.ProjectSlug}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Organization</td>
-      <td class="mono">{{.OrgSlug}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Project ID</td>
-      <td class="mono">{{.ProjectID}}</td>
-    </tr>
-    <tr>
-      <td class="settings-label">Status</td>
-      <td><span class="issue-status-badge {{.ProjectStatus}}">{{.ProjectStatus}}</span></td>
-    </tr>
-  </table>
+  <dl class="summary-list inline-form-spaced">
+    <div class="summary-row">
+      <dt class="summary-term">Slug</dt>
+      <dd class="summary-value mono">{{.ProjectSlug}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Organization</dt>
+      <dd class="summary-value mono">{{.OrgSlug}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Project ID</dt>
+      <dd class="summary-value mono">{{.ProjectID}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Status</dt>
+      <dd class="summary-value"><span class="issue-status-badge {{.ProjectStatus}}">{{.ProjectStatus}}</span></dd>
+    </div>
+  </dl>
 </div>
 
 {{template "project-settings-nav-styles" .}}

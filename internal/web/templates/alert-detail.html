@@ -2,74 +2,66 @@
 
 {{define "content"}}
 <div class="page-header">
-  <div style="display: flex; align-items: center; gap: 1rem;">
+  <div class="toolbar-row">
     <a href="/alerts/" class="btn-link">&larr; Alerts</a>
     <h1 class="page-title">{{.Rule.Name}}</h1>
     <span class="badge badge-{{.Rule.Status}}">{{.Rule.Status}}</span>
   </div>
 </div>
 
-<div class="card" style="margin-bottom: 1.5rem;">
-  <div style="padding: 1.25rem;">
-    <h2 class="page-title" style="font-size: 1rem; margin-bottom: 1rem;">Rule Details</h2>
-    <table class="events-table">
-      <tbody>
-        <tr><td style="font-weight: 600;">ID</td><td>{{.Rule.ID}}</td></tr>
-        <tr><td style="font-weight: 600;">Project</td><td>{{.Rule.ProjectID}}</td></tr>
-        <tr><td style="font-weight: 600;">Trigger</td><td>{{.Rule.Trigger}}</td></tr>
-        {{if .Rule.TriggerLabel}}<tr><td style="font-weight: 600;">Condition</td><td>{{.Rule.TriggerLabel}}</td></tr>{{end}}
-        {{if .Rule.ThresholdMS}}<tr><td style="font-weight: 600;">Threshold</td><td>{{.Rule.ThresholdMS}} ms</td></tr>{{end}}
-        {{if .Rule.EmailTargets}}<tr><td style="font-weight: 600;">Email</td><td>{{.Rule.EmailTargets}}</td></tr>{{end}}
-        {{if .Rule.WebhookURL}}<tr><td style="font-weight: 600;">Webhook</td><td>{{.Rule.WebhookURL}}</td></tr>{{end}}
-        {{if .Rule.SlackURL}}<tr><td style="font-weight: 600;">Slack</td><td>{{.Rule.SlackURL}}</td></tr>{{end}}
-        <tr><td style="font-weight: 600;">Created</td><td>{{.Rule.CreatedAt}}</td></tr>
-      </tbody>
-    </table>
-  </div>
+<div class="card card-shell card-gap">
+  <div class="section-header section-header-plain">Rule Details</div>
+  <dl class="summary-list">
+    <div class="summary-row"><dt class="summary-term">ID</dt><dd class="summary-value mono">{{.Rule.ID}}</dd></div>
+    <div class="summary-row"><dt class="summary-term">Project</dt><dd class="summary-value">{{.Rule.ProjectID}}</dd></div>
+    <div class="summary-row"><dt class="summary-term">Trigger</dt><dd class="summary-value">{{.Rule.Trigger}}</dd></div>
+    {{if .Rule.TriggerLabel}}<div class="summary-row"><dt class="summary-term">Condition</dt><dd class="summary-value">{{.Rule.TriggerLabel}}</dd></div>{{end}}
+    {{if .Rule.ThresholdMS}}<div class="summary-row"><dt class="summary-term">Threshold</dt><dd class="summary-value">{{.Rule.ThresholdMS}} ms</dd></div>{{end}}
+    {{if .Rule.EmailTargets}}<div class="summary-row"><dt class="summary-term">Email</dt><dd class="summary-value">{{.Rule.EmailTargets}}</dd></div>{{end}}
+    {{if .Rule.WebhookURL}}<div class="summary-row"><dt class="summary-term">Webhook</dt><dd class="summary-value">{{.Rule.WebhookURL}}</dd></div>{{end}}
+    {{if .Rule.SlackURL}}<div class="summary-row"><dt class="summary-term">Slack</dt><dd class="summary-value">{{.Rule.SlackURL}}</dd></div>{{end}}
+    <div class="summary-row"><dt class="summary-term">Created</dt><dd class="summary-value">{{.Rule.CreatedAt}}</dd></div>
+  </dl>
 </div>
 
 {{if .History}}
-<div class="card" style="margin-bottom: 1.5rem;">
-  <div style="padding: 1.25rem;">
-    <h2 class="page-title" style="font-size: 1rem; margin-bottom: 1rem;">Alert History</h2>
-    <table class="events-table">
-      <thead>
-        <tr><th>Group</th><th>Event</th><th>Fired At</th></tr>
-      </thead>
-      <tbody>
-        {{range .History}}
-        <tr>
-          <td>{{.GroupID}}</td>
-          <td>{{.EventID}}</td>
-          <td>{{.FiredAt}}</td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table>
-  </div>
+<div class="card card-gap">
+  <div class="section-header">Alert History</div>
+  <table class="events-table">
+    <thead>
+      <tr><th>Group</th><th>Event</th><th>Fired At</th></tr>
+    </thead>
+    <tbody>
+      {{range .History}}
+      <tr>
+        <td>{{.GroupID}}</td>
+        <td>{{.EventID}}</td>
+        <td>{{.FiredAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
 </div>
 {{end}}
 
 {{if .Deliveries}}
 <div class="card">
-  <div style="padding: 1.25rem;">
-    <h2 class="page-title" style="font-size: 1rem; margin-bottom: 1rem;">Delivery Log</h2>
-    <table class="events-table">
-      <thead>
-        <tr><th>Kind</th><th>Target</th><th>Status</th><th>Attempts</th></tr>
-      </thead>
-      <tbody>
-        {{range .Deliveries}}
-        <tr>
-          <td>{{.Kind}}</td>
-          <td>{{.Target}}</td>
-          <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
-          <td>{{.Attempts}}</td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table>
-  </div>
+  <div class="section-header">Delivery Log</div>
+  <table class="events-table">
+    <thead>
+      <tr><th>Kind</th><th>Target</th><th>Status</th><th>Attempts</th></tr>
+    </thead>
+    <tbody>
+      {{range .Deliveries}}
+      <tr>
+        <td>{{.Kind}}</td>
+        <td>{{.Target}}</td>
+        <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+        <td>{{.Attempts}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
 </div>
 {{end}}
 
