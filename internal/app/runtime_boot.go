@@ -314,12 +314,3 @@ func (b runtimeBoot) waitScheduler() {
 		<-b.schedulerDone
 	}
 }
-
-// maskSecret returns a redacted hint showing only the last 4 characters,
-// or "***" when the value is too short to safely hint.
-func maskSecret(s string) string {
-	if len(s) <= 4 {
-		return "***"
-	}
-	return "***" + s[len(s)-4:]
-}

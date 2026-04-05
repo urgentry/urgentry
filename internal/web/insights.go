@@ -350,13 +350,13 @@ func (h *Handler) performanceSummaryPage(w http.ResponseWriter, r *http.Request)
 	if parseErr == nil {
 		since := time.Now().UTC().Add(-dur).Format(time.RFC3339)
 		var count int64
-		var avg, max sql.NullFloat64
+		var avg, maxDuration sql.NullFloat64
 		if err := h.db.QueryRowContext(r.Context(),
 			`SELECT COUNT(*), AVG(duration_ms), MAX(duration_ms)
 			 FROM transactions
 			 WHERE transaction_name = ? AND start_timestamp >= ?`,
 			txName, since,
-		).Scan(&count, &avg, &max); err != nil {
+		).Scan(&count, &avg, &maxDuration); err != nil {
 			data.Error = "Failed to query transaction stats: " + err.Error()
 			h.render(w, "performance-summary.html", data)
 			return
@@ -365,8 +365,8 @@ func (h *Handler) performanceSummaryPage(w http.ResponseWriter, r *http.Request)
 		if avg.Valid {
 			data.Avg = fmt.Sprintf("%.1f", avg.Float64)
 		}
-		if max.Valid {
-			data.MaxDuration = fmt.Sprintf("%.1f", max.Float64)
+		if maxDuration.Valid {
+			data.MaxDuration = fmt.Sprintf("%.1f", maxDuration.Float64)
 		}
 		if count > 0 {
 			p50Offset := (count - 1) / 2
