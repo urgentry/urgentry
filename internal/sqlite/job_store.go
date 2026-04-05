@@ -39,12 +39,19 @@ func (s *JobStore) Enqueue(ctx context.Context, kind, projectID string, payload 
 		limit = 1000
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO jobs (id, kind, project_id, payload, status, attempts, available_at, created_at, updated_at)
-		 SELECT ?, ?, ?, ?, 'pending', 0, ?, ?, ?
-		 WHERE (SELECT COUNT(*) FROM jobs WHERE status IN ('pending', 'processing')) < ?`,
-		generateID(), kind, projectID, payload, now, now, now, limit,
+	var (
+		res sql.Result
+		err error
 	)
+	err = withBusyRetry(30*time.Second, func() error {
+		res, err = s.db.ExecContext(ctx,
+			`INSERT INTO jobs (id, kind, project_id, payload, status, attempts, available_at, created_at, updated_at)
+			 SELECT ?, ?, ?, ?, 'pending', 0, ?, ?, ?
+			 WHERE (SELECT COUNT(*) FROM jobs WHERE status IN ('pending', 'processing')) < ?`,
+			generateID(), kind, projectID, payload, now, now, now, limit,
+		)
+		return err
+	})
 	if err != nil {
 		return false, fmt.Errorf("enqueue job: %w", err)
 	}
@@ -58,14 +65,16 @@ func (s *JobStore) Enqueue(ctx context.Context, kind, projectID string, payload 
 func (s *JobStore) EnqueueKeyed(ctx context.Context, kind, projectID, dedupeKey string, payload []byte, limit int) (bool, error) {
 	if kind == JobKindNativeStackwalk && dedupeKey != "" {
 		var count int
-		if err := s.db.QueryRowContext(ctx,
-			`SELECT COUNT(*)
-			   FROM jobs
-			  WHERE kind = ?
-			    AND status IN ('pending', 'processing')
-			    AND COALESCE(json_extract(payload, '$.crashId'), '') = ?`,
-			JobKindNativeStackwalk, dedupeKey,
-		).Scan(&count); err != nil {
+		if err := withBusyRetry(30*time.Second, func() error {
+			return s.db.QueryRowContext(ctx,
+				`SELECT COUNT(*)
+				   FROM jobs
+				  WHERE kind = ?
+				    AND status IN ('pending', 'processing')
+				    AND COALESCE(json_extract(payload, '$.crashId'), '') = ?`,
+				JobKindNativeStackwalk, dedupeKey,
+			).Scan(&count)
+		}); err != nil {
 			return false, fmt.Errorf("count keyed native jobs: %w", err)
 		}
 		if count > 0 {
@@ -82,26 +91,27 @@ func (s *JobStore) ClaimNext(ctx context.Context, workerID string, leaseDuration
 	}
 	now := time.Now().UTC()
 	leaseUntil := now.Add(leaseDuration).Format(time.RFC3339)
-	row := s.db.QueryRowContext(ctx,
-		`UPDATE jobs
-		 SET status = 'processing',
-		     attempts = attempts + 1,
-		     lease_until = ?,
-		     worker_id = ?,
-		     updated_at = ?
-		 WHERE id = (
-		     SELECT id
-		     FROM jobs
-		     WHERE status = 'pending' AND available_at <= ?
-		     ORDER BY available_at ASC, created_at ASC
-		     LIMIT 1
-		 )
-		 RETURNING id, kind, project_id, payload, attempts`,
-		leaseUntil, workerID, now.Format(time.RFC3339), now.Format(time.RFC3339),
-	)
-
 	var job runtimeasync.Job
-	if err := row.Scan(&job.ID, &job.Kind, &job.ProjectID, &job.Payload, &job.Attempts); err != nil {
+	err := withBusyRetry(30*time.Second, func() error {
+		return s.db.QueryRowContext(ctx,
+			`UPDATE jobs
+			 SET status = 'processing',
+			     attempts = attempts + 1,
+			     lease_until = ?,
+			     worker_id = ?,
+			     updated_at = ?
+			 WHERE id = (
+			     SELECT id
+			     FROM jobs
+			     WHERE status = 'pending' AND available_at <= ?
+			     ORDER BY available_at ASC, created_at ASC
+			     LIMIT 1
+			 )
+			 RETURNING id, kind, project_id, payload, attempts`,
+			leaseUntil, workerID, now.Format(time.RFC3339), now.Format(time.RFC3339),
+		).Scan(&job.ID, &job.Kind, &job.ProjectID, &job.Payload, &job.Attempts)
+	})
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -112,7 +122,10 @@ func (s *JobStore) ClaimNext(ctx context.Context, workerID string, leaseDuration
 
 // MarkDone deletes a completed job.
 func (s *JobStore) MarkDone(ctx context.Context, jobID string) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, jobID); err != nil {
+	if err := withBusyRetry(30*time.Second, func() error {
+		_, execErr := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id = ?`, jobID)
+		return execErr
+	}); err != nil {
 		return fmt.Errorf("delete completed job: %w", err)
 	}
 	return nil
@@ -122,17 +135,20 @@ func (s *JobStore) MarkDone(ctx context.Context, jobID string) error {
 func (s *JobStore) Requeue(ctx context.Context, jobID string, delay time.Duration, lastError string) error {
 	now := time.Now().UTC()
 	availableAt := now.Add(delay).Format(time.RFC3339)
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE jobs
-		 SET status = 'pending',
-		     available_at = ?,
-		     lease_until = NULL,
-		     worker_id = NULL,
-		     last_error = ?,
-		     updated_at = ?
-		 WHERE id = ?`,
-		availableAt, lastError, now.Format(time.RFC3339), jobID,
-	); err != nil {
+	if err := withBusyRetry(30*time.Second, func() error {
+		_, execErr := s.db.ExecContext(ctx,
+			`UPDATE jobs
+			 SET status = 'pending',
+			     available_at = ?,
+			     lease_until = NULL,
+			     worker_id = NULL,
+			     last_error = ?,
+			     updated_at = ?
+			 WHERE id = ?`,
+			availableAt, lastError, now.Format(time.RFC3339), jobID,
+		)
+		return execErr
+	}); err != nil {
 		return fmt.Errorf("requeue job: %w", err)
 	}
 	return nil
@@ -141,9 +157,11 @@ func (s *JobStore) Requeue(ctx context.Context, jobID string, delay time.Duratio
 // Len returns the queued + leased job count for health reporting.
 func (s *JobStore) Len(ctx context.Context) (int, error) {
 	var count int
-	if err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM jobs WHERE status IN ('pending', 'processing')`,
-	).Scan(&count); err != nil {
+	if err := withBusyRetry(30*time.Second, func() error {
+		return s.db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM jobs WHERE status IN ('pending', 'processing')`,
+		).Scan(&count)
+	}); err != nil {
 		return 0, fmt.Errorf("count jobs: %w", err)
 	}
 	return count, nil
@@ -152,16 +170,23 @@ func (s *JobStore) Len(ctx context.Context) (int, error) {
 // RequeueExpiredProcessing returns expired processing jobs to the pending queue.
 func (s *JobStore) RequeueExpiredProcessing(ctx context.Context) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := s.db.ExecContext(ctx,
-		`UPDATE jobs
-		 SET status = 'pending',
-		     available_at = ?,
-		     lease_until = NULL,
-		     worker_id = NULL,
-		     updated_at = ?
-		 WHERE status = 'processing' AND lease_until IS NOT NULL AND lease_until <= ?`,
-		now, now, now,
+	var (
+		res sql.Result
+		err error
 	)
+	err = withBusyRetry(30*time.Second, func() error {
+		res, err = s.db.ExecContext(ctx,
+			`UPDATE jobs
+			 SET status = 'pending',
+			     available_at = ?,
+			     lease_until = NULL,
+			     worker_id = NULL,
+			     updated_at = ?
+			 WHERE status = 'processing' AND lease_until IS NOT NULL AND lease_until <= ?`,
+			now, now, now,
+		)
+		return err
+	})
 	if err != nil {
 		return 0, fmt.Errorf("requeue expired jobs: %w", err)
 	}
@@ -178,17 +203,24 @@ func (s *JobStore) AcquireLease(ctx context.Context, name, holderID string, ttl 
 		ttl = 30 * time.Second
 	}
 	now := time.Now().UTC()
-	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO runtime_leases (name, holder_id, lease_until, updated_at)
-		 VALUES (?, ?, ?, ?)
-		 ON CONFLICT(name) DO UPDATE SET
-		     holder_id = excluded.holder_id,
-		     lease_until = excluded.lease_until,
-		     updated_at = excluded.updated_at
-		 WHERE runtime_leases.lease_until <= excluded.updated_at
-		    OR runtime_leases.holder_id = excluded.holder_id`,
-		name, holderID, now.Add(ttl).Format(time.RFC3339), now.Format(time.RFC3339),
+	var (
+		res sql.Result
+		err error
 	)
+	err = withBusyRetry(30*time.Second, func() error {
+		res, err = s.db.ExecContext(ctx,
+			`INSERT INTO runtime_leases (name, holder_id, lease_until, updated_at)
+			 VALUES (?, ?, ?, ?)
+			 ON CONFLICT(name) DO UPDATE SET
+			     holder_id = excluded.holder_id,
+			     lease_until = excluded.lease_until,
+			     updated_at = excluded.updated_at
+			 WHERE runtime_leases.lease_until <= excluded.updated_at
+			    OR runtime_leases.holder_id = excluded.holder_id`,
+			name, holderID, now.Add(ttl).Format(time.RFC3339), now.Format(time.RFC3339),
+		)
+		return err
+	})
 	if err != nil {
 		return false, fmt.Errorf("acquire runtime lease: %w", err)
 	}
