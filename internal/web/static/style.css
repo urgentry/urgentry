@@ -5841,6 +5841,38 @@ body.auth-page {
   margin-top: 0.9rem;
 }
 
+.account-settings-nav ~ .settings-section {
+  max-width: 960px;
+}
+
+.account-settings-nav ~ .danger-zone {
+  max-width: 760px;
+}
+
+.danger-zone .section-header {
+  color: var(--error) !important;
+}
+
+.danger-zone p {
+  max-width: 58ch;
+}
+
+.metrics-grid[style*="align-items:start"] {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.metrics-grid[style*="align-items:start"] > .card,
+.metrics-grid[style*="align-items:start"] > .metric-card,
+.metrics-grid[style*="align-items:start"] > .panel {
+  align-self: start;
+  min-height: 0;
+}
+
 /* ============================================================
    Manage Views Consistency
    ============================================================ */

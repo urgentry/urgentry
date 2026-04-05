@@ -9,7 +9,10 @@ import (
 )
 
 type quotaPageData struct {
+	Title      string
 	Nav        string
+	Environment  string
+	Environments []string
 	Hours      int
 	Usage      []sqlite.QuotaUsage
 	RateLimits []sqlite.QuotaRateLimit
@@ -52,11 +55,14 @@ func (h *Handler) quotaPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := quotaPageData{
-		Nav:        "quota",
-		Hours:      hours,
-		Usage:      usage,
-		RateLimits: limits,
-		Projects:   projRefs,
+		Title:        "Quota & Usage",
+		Nav:          "quota",
+		Environment:  readSelectedEnvironment(r),
+		Environments: h.loadEnvironments(ctx),
+		Hours:        hours,
+		Usage:        usage,
+		RateLimits:   limits,
+		Projects:     projRefs,
 	}
 	h.render(w, "quota.html", data)
 }

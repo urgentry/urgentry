@@ -320,8 +320,16 @@ func (h *Handler) performanceSummaryPage(w http.ResponseWriter, r *http.Request)
 	}
 
 	txName := r.URL.Query().Get("transaction")
+	data := performanceSummaryPageData{
+		Title:           "Transaction Summary",
+		Nav:             "performance",
+		Environment:     readSelectedEnvironment(r),
+		Environments:    h.loadEnvironments(r.Context()),
+		TransactionName: txName,
+	}
 	if txName == "" {
-		writeWebBadRequest(w, r, "transaction query parameter is required")
+		data.Error = "Pick a transaction from Performance to see its summary."
+		h.render(w, "performance-summary.html", data)
 		return
 	}
 
@@ -329,14 +337,6 @@ func (h *Handler) performanceSummaryPage(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		writeWebInternal(w, r, "Failed to resolve default organization scope.")
 		return
-	}
-
-	data := performanceSummaryPageData{
-		Title:           "Transaction Summary",
-		Nav:             "performance",
-		Environment:     readSelectedEnvironment(r),
-		Environments:    h.loadEnvironments(r.Context()),
-		TransactionName: txName,
 	}
 
 	timeRange := "24h"

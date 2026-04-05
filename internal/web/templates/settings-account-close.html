@@ -7,13 +7,13 @@
 
 {{template "account-settings-nav" .}}
 
-<div class="settings-section danger-zone">
-  <div class="section-header" style="color: var(--error, #e53e3e);">Close Account</div>
-  <p style="font-size: 14px; margin: 0 0 16px; color: var(--text-secondary, #9CA0B0);">
+<div class="settings-section danger-zone account-close-card">
+  <div class="section-header account-close-title">Close Account</div>
+  <p class="account-close-copy">
     Closing your account is permanent. All your personal data, sessions, and API tokens will be deleted.
     Project data is not affected.
   </p>
-  <p style="font-size: 14px; margin: 0 0 16px; color: var(--text-primary, #F5F6FA);">
+  <p class="account-close-warning">
     Account closure is not available from the web UI. Contact your administrator to remove your account.
   </p>
 </div>
@@ -61,6 +61,28 @@
 }
 .danger-zone {
   border-color: var(--error, #e53e3e) !important;
+}
+.account-close-card {
+  max-width: 760px;
+  background: color-mix(in srgb, var(--error, #e53e3e) 6%, var(--bg-secondary, #1e1e2e));
+  border-color: color-mix(in srgb, var(--error, #e53e3e) 28%, var(--border, #2e2e3e)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--error, #e53e3e) 12%, transparent);
+}
+.account-close-title {
+  color: var(--error, #e53e3e) !important;
+}
+.account-close-copy {
+  font-size: 14px;
+  margin: 0 0 16px;
+  color: var(--text-secondary, #9CA0B0);
+  max-width: 58ch;
+}
+.account-close-warning {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-primary, #F5F6FA);
+  max-width: 48ch;
+  font-weight: 500;
 }
 </style>
 {{end}}

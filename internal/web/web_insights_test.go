@@ -109,10 +109,10 @@ func TestPerformanceSummaryPageMissingTransaction(t *testing.T) {
 		t.Fatalf("GET /performance/summary/ (no param): %v", err)
 	}
 	body := getBody(t, resp)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400; body: %s", resp.StatusCode, body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", resp.StatusCode, body)
 	}
-	if !strings.Contains(body, "transaction") {
-		t.Fatalf("expected error mentioning transaction param, got %s", body)
+	if !strings.Contains(body, "Choose a transaction") {
+		t.Fatalf("expected guided empty state, got %s", body)
 	}
 }

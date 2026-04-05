@@ -10,6 +10,15 @@
   </div>
 </div>
 
+{{if and .Error (not .TransactionName)}}
+<div class="card guide-card">
+  <div class="section-header section-header-tight">Choose a transaction</div>
+  <div class="empty-text">{{.Error}}</div>
+  <div class="guide-actions">
+    <a href="/performance/" class="btn btn-sm">Open Performance</a>
+  </div>
+</div>
+{{else}}
 {{if .TransactionName}}
 <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
   <div class="section-header" style="font-size: 0.8rem; color: var(--muted, #6b7280); margin-bottom: 0.25rem;">Transaction</div>
@@ -101,4 +110,5 @@
   .span-op { font-size: 0.85em; padding: 0.1em 0.35em; background: var(--tag-bg, #f3f0eb); border-radius: 3px; }
   .span-desc { font-size: 0.85em; word-break: break-all; }
 </style>
+{{end}}
 {{end}}
