@@ -2,9 +2,13 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Release {{.Release.Version}}</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Release {{.Release.Version}}</h1>
+    <p class="page-subtitle">Review deploy impact, native processing state, commits, and suspect issues for this shipped version in one place.</p>
+  </div>
 </div>
 
+<div class="release-shell">
 <div class="metrics-grid metric-strip">
   <div class="metric-card"><div class="metric-label">Events</div><div class="metric-value">{{.Release.EventCount}}</div></div>
   <div class="metric-card"><div class="metric-label">Sessions</div><div class="metric-value">{{.Release.SessionCount}}</div></div>
@@ -18,7 +22,7 @@
     <div class="detail-toolbar">
       <div>
         <h2 class="detail-card-title">Release Comparison</h2>
-        <div class="alert-secondary" style="margin-top:0.35rem;">Compared with {{.Regression.PreviousVersion}}</div>
+        <div class="alert-secondary detail-inline-meta">Compared with {{.Regression.PreviousVersion}}</div>
       </div>
     </div>
     <div class="metrics-grid card-top-gap">
@@ -44,7 +48,7 @@
           <td>{{.Environment}}</td>
           <td class="mono">{{.Current}}</td>
           <td class="mono">{{.Previous}}</td>
-          <td class="mono"><span class="metric-trend {{.TrendClass}}" style="margin-top:0;">{{.Delta}}</span></td>
+          <td class="mono"><span class="metric-trend metric-trend-inline {{.TrendClass}}">{{.Delta}}</span></td>
         </tr>
         {{end}}
       </tbody>
@@ -65,7 +69,7 @@
           <td class="mono">{{.Transaction}}</td>
           <td class="mono">{{.CurrentP95}}</td>
           <td class="mono">{{.PreviousP95}}</td>
-          <td class="mono"><span class="metric-trend {{.TrendClass}}" style="margin-top:0;">{{.DeltaP95}}</span></td>
+          <td class="mono"><span class="metric-trend metric-trend-inline {{.TrendClass}}">{{.DeltaP95}}</span></td>
           <td class="mono">{{.CurrentCount}}</td>
           <td class="mono">{{.PreviousCount}}</td>
           <td class="mono">{{.DeltaCount}}</td>
@@ -86,7 +90,7 @@
     <div class="detail-toolbar">
       <div>
         <h2 class="detail-card-title">Latest Deploy Impact</h2>
-        <div class="alert-secondary" style="margin-top:0.35rem;">{{.Regression.DeployImpact.Environment}} · {{.Regression.DeployImpact.Name}} · {{.Regression.DeployImpact.Window}}</div>
+        <div class="alert-secondary detail-inline-meta">{{.Regression.DeployImpact.Environment}} · {{.Regression.DeployImpact.Name}} · {{.Regression.DeployImpact.Window}}</div>
       </div>
       <div class="alert-secondary">{{.Regression.DeployImpact.AnchorAt}}</div>
     </div>
@@ -111,7 +115,7 @@
       </div>
       <div class="metric-card">
         <div class="metric-label">Deploy URL</div>
-        <div class="metric-value" style="font-size:1rem;">{{if .Regression.DeployImpact.URL}}<a href="{{.Regression.DeployImpact.URL}}">{{.Regression.DeployImpact.URL}}</a>{{else}}-{{end}}</div>
+        <div class="metric-value metric-value-link">{{if .Regression.DeployImpact.URL}}<a href="{{.Regression.DeployImpact.URL}}">{{.Regression.DeployImpact.URL}}</a>{{else}}-{{end}}</div>
       </div>
     </div>
   </div>
@@ -122,7 +126,7 @@
   <div class="detail-toolbar">
     <div>
       <h2 class="detail-card-title">Native Processing</h2>
-      <div class="alert-secondary" style="margin-top:0.35rem;">{{.Native.TotalEvents}} native events · {{.Native.ResolvedFrames}} resolved frames · {{.Native.UnresolvedFrames}} unresolved frames</div>
+      <div class="alert-secondary detail-inline-meta">{{.Native.TotalEvents}} native events · {{.Native.ResolvedFrames}} resolved frames · {{.Native.UnresolvedFrames}} unresolved frames</div>
     </div>
     <form method="post" action="/releases/{{.Release.Version}}/native/reprocess">
       <input type="hidden" name="project_id" value="{{.DefaultProject}}">
@@ -143,20 +147,20 @@
   {{end}}
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Debug Files</h2></div>
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Debug Files</h2></div>
   {{if .DebugFiles}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Name</th><th>Kind</th><th>Symbolication</th><th>Last Reprocess</th><th>Error</th><th>Action</th></tr></thead>
     <tbody>
       {{range .DebugFiles}}
       <tr>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Name}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.Kind}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .SymbolicationStatus}}{{.SymbolicationStatus}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .ReprocessStatus}}{{.ReprocessStatus}}{{else}}-{{end}}{{if .DateReprocessed}}<div class="alert-secondary">{{.DateReprocessed}}</div>{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .ReprocessLastError}}{{.ReprocessLastError}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">
+        <td class="mono">{{.Name}}</td>
+        <td>{{.Kind}}</td>
+        <td>{{if .SymbolicationStatus}}{{.SymbolicationStatus}}{{else}}-{{end}}</td>
+        <td>{{if .ReprocessStatus}}{{.ReprocessStatus}}{{else}}-{{end}}{{if .DateReprocessed}}<div class="alert-secondary detail-inline-meta">{{.DateReprocessed}}</div>{{end}}</td>
+        <td>{{if .ReprocessLastError}}{{.ReprocessLastError}}{{else}}-{{end}}</td>
+        <td>
           <form method="post" action="/releases/{{$.Release.Version}}/debug-files/{{.ID}}/reprocess">
             <input type="hidden" name="project_id" value="{{.ProjectID}}">
             <button type="submit" class="btn btn-sm">Reprocess</button>
@@ -167,37 +171,37 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No native debug files uploaded for this release yet.</div>
+  <div class="empty-state detail-empty-card">No native debug files uploaded for this release yet.</div>
   {{end}}
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Reprocess Activity</h2></div>
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Reprocess Activity</h2></div>
   {{if .Backfills}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Run</th><th>Status</th><th>Scope</th><th>Processed</th><th>Updated</th><th>Failed</th><th>Updated</th><th>Error</th></tr></thead>
     <tbody>
       {{range .Backfills}}
       <tr>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.ID}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.Status}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.Scope}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Processed}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Updated}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Failed}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.DateUpdated}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .LastError}}{{.LastError}}{{else}}-{{end}}</td>
+        <td class="mono">{{.ID}}</td>
+        <td>{{.Status}}</td>
+        <td>{{.Scope}}</td>
+        <td class="mono">{{.Processed}}</td>
+        <td class="mono">{{.Updated}}</td>
+        <td class="mono">{{.Failed}}</td>
+        <td>{{.DateUpdated}}</td>
+        <td>{{if .LastError}}{{.LastError}}{{else}}-{{end}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No native reprocess runs recorded yet.</div>
+  <div class="empty-state detail-empty-card">No native reprocess runs recorded yet.</div>
   {{end}}
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem; padding: 1rem 1.25rem;">
-  <h2 class="page-title" style="font-size: 1rem;">Add Deploy</h2>
+<div class="card card-shell card-gap">
+  <h2 class="detail-card-title dashboard-title-inline">Add Deploy</h2>
   <form method="post" action="/releases/{{.Release.Version}}/deploys" class="settings-form">
     <input type="hidden" name="project_id" value="{{.DefaultProject}}">
     <div class="settings-form-grid">
@@ -211,8 +215,8 @@
   </form>
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem; padding: 1rem 1.25rem;">
-  <h2 class="page-title" style="font-size: 1rem;">Add Commit</h2>
+<div class="card card-shell card-gap">
+  <h2 class="detail-card-title dashboard-title-inline">Add Commit</h2>
   <form method="post" action="/releases/{{.Release.Version}}/commits" class="settings-form">
     <input type="hidden" name="project_id" value="{{.DefaultProject}}">
     <div class="settings-form-grid">
@@ -220,101 +224,102 @@
       <label class="settings-form-field"><span class="settings-label">Repository</span><input type="text" name="repository" placeholder="github.com/acme/backend"></label>
       <label class="settings-form-field"><span class="settings-label">Author Name</span><input type="text" name="author_name" placeholder="Ada Lovelace"></label>
       <label class="settings-form-field"><span class="settings-label">Author Email</span><input type="text" name="author_email" placeholder="ada@example.com"></label>
-      <label class="settings-form-field" style="grid-column: 1 / -1;"><span class="settings-label">Message</span><input type="text" name="message" placeholder="Fix checkout timeout"></label>
-      <label class="settings-form-field" style="grid-column: 1 / -1;"><span class="settings-label">Files (comma-separated)</span><input type="text" name="files" placeholder="payments.go, internal/checkout/service.go"></label>
+      <label class="settings-form-field"><span class="settings-label">Message</span><input type="text" name="message" placeholder="Fix checkout timeout"></label>
+      <label class="settings-form-field"><span class="settings-label">Files (comma-separated)</span><input type="text" name="files" placeholder="payments.go, internal/checkout/service.go"></label>
     </div>
     <div class="settings-form-actions"><button type="submit" class="btn btn-primary">Associate commit</button></div>
   </form>
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Deploys</h2></div>
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Deploys</h2></div>
   {{if .Deploys}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Environment</th><th>Name</th><th>URL</th><th>Started</th><th>Finished</th><th>Created</th></tr></thead>
     <tbody>
       {{range .Deploys}}
       <tr>
-        <td style="padding: 0.75rem 1rem;">{{.Environment}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.Name}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.URL}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.DateStarted}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.DateFinished}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.DateCreated}}</td>
+        <td>{{.Environment}}</td>
+        <td>{{.Name}}</td>
+        <td class="mono">{{.URL}}</td>
+        <td>{{.DateStarted}}</td>
+        <td>{{.DateFinished}}</td>
+        <td>{{.DateCreated}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No deploys recorded yet.</div>
+  <div class="empty-state detail-empty-card">No deploys recorded yet.</div>
   {{end}}
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Commits</h2></div>
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Commits</h2></div>
   {{if .Commits}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Commit</th><th>Author</th><th>Message</th><th>Files</th><th>Created</th></tr></thead>
     <tbody>
       {{range .Commits}}
       <tr>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.CommitSHA}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.Author}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.Message}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Files}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.DateCreated}}</td>
+        <td class="mono">{{.CommitSHA}}</td>
+        <td>{{.Author}}</td>
+        <td>{{.Message}}</td>
+        <td class="mono">{{.Files}}</td>
+        <td>{{.DateCreated}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No commits associated yet.</div>
+  <div class="empty-state detail-empty-card">No commits associated yet.</div>
   {{end}}
 </div>
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Profile Highlights</h2></div>
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Profile Highlights</h2></div>
   {{if .Profiles}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Profile</th><th>Transaction</th><th>Release</th><th>Duration</th><th>Samples</th><th>Top Function</th><th>Captured</th></tr></thead>
     <tbody>
       {{range .Profiles}}
       <tr>
-        <td style="padding: 0.75rem 1rem;"><a href="/profiles/{{.ID}}/">{{.ID}}</a>{{if .TraceID}}<div><a href="/traces/{{.TraceID}}/" class="alert-secondary">{{.TraceID}}</a></div>{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary">{{.Environment}}</div>{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Duration}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.SampleCount}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.StartedAt}}</td>
+        <td><a href="/profiles/{{.ID}}/">{{.ID}}</a>{{if .TraceID}}<div class="alert-secondary detail-inline-meta"><a href="/traces/{{.TraceID}}/" class="alert-secondary">{{.TraceID}}</a></div>{{end}}</td>
+        <td>{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary detail-inline-meta">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+        <td class="mono">{{.SampleCount}}</td>
+        <td class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
+        <td>{{.StartedAt}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No profiles captured for this release yet.</div>
+  <div class="empty-state detail-empty-card">No profiles captured for this release yet.</div>
   {{end}}
 </div>
 
 <div class="card">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Suspect Issues</h2></div>
+  <div class="card-header-block"><h2 class="page-title card-header-title">Suspect Issues</h2></div>
   {{if .Suspects}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Issue</th><th>Culprit</th><th>Commit</th><th>Matched File</th><th>When</th></tr></thead>
     <tbody>
       {{range .Suspects}}
       <tr>
-        <td style="padding: 0.75rem 1rem;"><a href="/issues/{{.GroupID}}/">{{.ShortID}}</a><div>{{.Title}}</div></td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Culprit}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.CommitSHA}}<div style="font-family: inherit; color:#9CA0B0;">{{.Author}}</div></td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.MatchedFile}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.LastSeen}}</td>
+        <td><a href="/issues/{{.GroupID}}/">{{.ShortID}}</a><div class="detail-inline-meta">{{.Title}}</div></td>
+        <td class="mono">{{.Culprit}}</td>
+        <td class="mono">{{.CommitSHA}}<div class="alert-secondary detail-inline-meta">{{.Author}}</div></td>
+        <td class="mono">{{.MatchedFile}}</td>
+        <td>{{.LastSeen}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No suspect issues inferred yet.</div>
+  <div class="empty-state detail-empty-card">No suspect issues inferred yet.</div>
   {{end}}
+</div>
 </div>
 {{end}}

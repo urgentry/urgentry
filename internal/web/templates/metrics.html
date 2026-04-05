@@ -2,7 +2,10 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Metrics Explorer</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Metrics Explorer</h1>
+    <p class="page-subtitle">Inspect custom metrics and query the last hour of aggregates without leaving the shared telemetry shell.</p>
+  </div>
 </div>
 
 {{if .Error}}
@@ -11,7 +14,13 @@
 </div>
 {{end}}
 
+<div class="card guide-card section-narrow">
+  <div class="section-header section-header-tight">How metrics land here</div>
+  <div class="empty-text">Send metrics via the statsd or metrics envelope endpoint, then use this page to query recent aggregates and jump into the emitted series by name.</div>
+</div>
+
 <div class="card card-shell card-gap section-narrow">
+  <div class="section-header section-header-tight">Query a metric</div>
   <form method="get" action="/metrics/" class="toolbar-row">
     <div>
       <label class="filter-label" for="metricSelect">Metric</label>
@@ -43,7 +52,7 @@
 {{if .ChartResult}}
 <div class="card card-shell card-gap section-narrow">
   <div class="section-header">{{.ChartResult.MetricName}} ({{.ChartResult.Aggregate}})</div>
-  <div class="metrics-grid" style="margin-top: 0.75rem;">
+  <div class="metrics-grid card-top-gap">
     <div class="metric-card">
       <div class="metric-label">Value</div>
       <div class="metric-value">{{printf "%.4f" .ChartResult.Value}}</div>
@@ -89,7 +98,10 @@
 {{else}}
 {{if not .Error}}
 <div class="card guide-card section-narrow">
-  <div class="empty-text">No custom metrics found. Send metrics via the statsd or metrics envelope endpoint.</div>
+  <div class="empty-state empty-state-inline">
+    <div class="empty-title">No custom metrics found yet</div>
+    <div class="empty-text">Once your app emits metrics, Urgentry will list the last hour of aggregates here so you can query them by name and aggregate.</div>
+  </div>
 </div>
 {{end}}
 {{end}}

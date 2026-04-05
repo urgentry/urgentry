@@ -2,77 +2,55 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Explore</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Explore</h1>
+    <p class="page-subtitle">Jump between your query surfaces without losing the global environment and time range context from the shell.</p>
+  </div>
 </div>
 
-<div class="explore-grid">
-  <a href="/discover/" class="explore-card">
-    <div class="explore-icon">&#128269;</div>
-    <div class="explore-card-body">
-      <div class="explore-card-title">Discover</div>
-      <div class="explore-card-desc">Query and explore events, errors, and transactions with a flexible query builder.</div>
-    </div>
-  </a>
-  <a href="/logs/" class="explore-card">
-    <div class="explore-icon">&#128221;</div>
-    <div class="explore-card-body">
-      <div class="explore-card-title">Logs</div>
-      <div class="explore-card-desc">Search and filter structured log events from your services.</div>
-    </div>
-  </a>
-  <a href="/traces/" class="explore-card">
-    <div class="explore-icon">&#128336;</div>
-    <div class="explore-card-body">
-      <div class="explore-card-title">Traces</div>
-      <div class="explore-card-desc">Inspect distributed traces and spans to understand request flows.</div>
-    </div>
-  </a>
-  <a href="/profiles/" class="explore-card">
-    <div class="explore-icon">&#128200;</div>
-    <div class="explore-card-body">
-      <div class="explore-card-title">Profiles</div>
-      <div class="explore-card-desc">Continuous profiling data showing where your application spends CPU and memory.</div>
-    </div>
-  </a>
-</div>
+<div class="explore-shell">
+  <div class="card guide-card">
+    <div class="section-header section-header-tight">Choose a query surface</div>
+    <div class="empty-text">Each view keeps the same shell filters and navigation model, so you can compare issues, logs, traces, and profiles without re-orienting every time.</div>
+  </div>
 
-<style>
-  .explore-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-top: 0.5rem;
-  }
-  .explore-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.25rem;
-    border-radius: 8px;
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border, #e5e7eb);
-    text-decoration: none;
-    color: inherit;
-    transition: box-shadow 0.15s, border-color 0.15s;
-  }
-  .explore-card:hover {
-    border-color: var(--accent, #7c6b52);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  }
-  .explore-icon {
-    font-size: 1.75rem;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-  .explore-card-title {
-    font-weight: 600;
-    font-size: 1rem;
-    margin-bottom: 0.25rem;
-  }
-  .explore-card-desc {
-    font-size: 0.85rem;
-    color: var(--muted, #6b7280);
-    line-height: 1.4;
-  }
-</style>
+  <div class="explore-grid">
+    <a href="/discover/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="search"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Discover</div>
+        <div class="explore-card-desc">Query events, errors, and transactions with the shared builder, starter views, and export flows.</div>
+      </div>
+    </a>
+    <a href="/logs/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="file-text"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Logs</div>
+        <div class="explore-card-desc">Search structured log events, inspect message context, and pivot into the linked issue or trace path.</div>
+      </div>
+    </a>
+    <a href="/traces/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="activity"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Traces</div>
+        <div class="explore-card-desc">Inspect distributed request flows, timings, spans, and cross-links into stored events and profiles.</div>
+      </div>
+    </a>
+    <a href="/profiles/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="bar-chart-2"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Profiles</div>
+        <div class="explore-card-desc">Review continuous profiling captures to find the hottest code paths behind slow or noisy requests.</div>
+      </div>
+    </a>
+  </div>
+</div>
 {{end}}
