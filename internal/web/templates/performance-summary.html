@@ -2,7 +2,10 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Transaction Summary</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Transaction Summary</h1>
+    <p class="page-subtitle">Inspect a single transaction’s latency profile and span breakdown before you pivot back to the broader performance surfaces.</p>
+  </div>
   <div class="page-actions">
     <a href="/performance/" class="btn btn-sm">Transactions</a>
     <a href="/performance/queues/" class="btn btn-sm">Queues</a>
@@ -19,20 +22,21 @@
   </div>
 </div>
 {{else}}
+<div class="detail-shell">
 {{if .TransactionName}}
-<div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
-  <div class="section-header" style="font-size: 0.8rem; color: var(--muted, #6b7280); margin-bottom: 0.25rem;">Transaction</div>
-  <div class="mono" style="font-size: 1rem; font-weight: 600;">{{.TransactionName}}</div>
+<div class="card card-shell card-gap">
+  <div class="section-header section-header-tight">Transaction</div>
+  <div class="mono metric-value-link">{{.TransactionName}}</div>
 </div>
 {{end}}
 
 {{if .Error}}
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+<div class="card card-shell card-gap">
   <div class="empty-text">{{.Error}}</div>
 </div>
 {{end}}
 
-<div class="metrics-grid" style="margin-bottom: 1.25rem;">
+<div class="metrics-grid summary-metrics-grid card-gap">
   <div class="metric-card">
     <div class="metric-label">Count</div>
     <div class="metric-value">{{if .Count}}{{.Count}}{{else}}0{{end}}</div>
@@ -64,7 +68,7 @@
 
 {{if .Spans}}
 <div class="card">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Span Breakdown (last 24h)</div>
+  <div class="section-header">Span Breakdown (last 24h)</div>
   <table class="events-table">
     <thead>
       <tr>
@@ -93,22 +97,12 @@
 {{else}}
 {{if not .Error}}
 <div class="card">
-  <div class="empty-state" style="padding: 2rem 1rem;">
+  <div class="empty-state">
     <div class="empty-text">No span data found for this transaction in the last 24 hours.</div>
   </div>
 </div>
 {{end}}
 {{end}}
-
-<style>
-  .apdex-score { font-weight: 600; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
-  .apdex-excellent { color: #166534; background: #dcfce7; }
-  .apdex-good { color: #3b6f10; background: #ecfccb; }
-  .apdex-fair { color: #854d0e; background: #fef9c3; }
-  .apdex-poor { color: #9a3412; background: #ffedd5; }
-  .apdex-unacceptable { color: #991b1b; background: #fee2e2; }
-  .span-op { font-size: 0.85em; padding: 0.1em 0.35em; background: var(--tag-bg, #f3f0eb); border-radius: 3px; }
-  .span-desc { font-size: 0.85em; word-break: break-all; }
-</style>
+</div>
 {{end}}
 {{end}}

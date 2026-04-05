@@ -2,9 +2,13 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Trace {{.TraceID}}</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Trace {{.TraceID}}</h1>
+    <p class="page-subtitle">Review linked errors, related profiles, the waterfall, and stored spans for this distributed request.</p>
+  </div>
 </div>
 
+<div class="detail-shell">
 <div class="card guide-card">
   <div class="section-header section-header-tight">{{.Guide.Title}}</div>
   <div class="empty-text">{{.Guide.Body}}</div>
@@ -44,7 +48,7 @@
       <tr>
         <td><a href="/profiles/{{.ID}}/">{{.ID}}</a></td>
         <td>{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
-        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary detail-inline-meta">{{.Environment}}</div>{{end}}</td>
         <td class="mono">{{.Duration}}</td>
         <td class="mono">{{.SampleCount}}</td>
         <td class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
@@ -59,12 +63,12 @@
 </div>
 
 {{if .Waterfall.Nodes}}
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0; display: flex; align-items: center; justify-content: space-between;">
-    <h2 class="page-title" style="font-size: 1rem;">Span Waterfall</h2>
-    <span class="mono" style="color: var(--text-secondary); font-size: 0.8rem;">Total: {{.Waterfall.TotalDuration}}</span>
+<div class="card card-gap">
+  <div class="detail-toolbar detail-card-header">
+    <h2 class="detail-card-title">Span Waterfall</h2>
+    <span class="mono alert-secondary">Total: {{.Waterfall.TotalDuration}}</span>
   </div>
-  <div class="wf-container" style="padding: 0.75rem 1.25rem 1rem;">
+  <div class="wf-container detail-card-body">
     {{range .Waterfall.Nodes}}
     <div class="wf-row" data-span-id="{{.SpanID}}" data-depth="{{.Depth}}" {{if .HasChildren}}data-has-children="true"{{end}}>
       <div class="wf-label" style="padding-left: {{.IndentPx}}px;">
@@ -82,49 +86,50 @@
 </div>
 {{end}}
 
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Transactions</h2></div>
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Transactions</h2></div>
   {{if .Transactions}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Transaction</th><th>Status</th><th>Release</th><th>Duration</th><th>When</th></tr></thead>
     <tbody>
       {{range .Transactions}}
       <tr>
-        <td style="padding: 0.75rem 1rem;">{{if .Transaction}}{{.Transaction}}{{else}}{{.EventID}}{{end}}{{if .Op}}<div class="alert-secondary">{{.Op}}</div>{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .Status}}{{.Status}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary">{{.Environment}}</div>{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Duration}}</td>
-        <td style="padding: 0.75rem 1rem;">{{.TimeAgo}}</td>
+        <td>{{if .Transaction}}{{.Transaction}}{{else}}{{.EventID}}{{end}}{{if .Op}}<div class="alert-secondary detail-inline-meta">{{.Op}}</div>{{end}}</td>
+        <td>{{if .Status}}{{.Status}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary detail-inline-meta">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+        <td>{{.TimeAgo}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No transactions stored for this trace.</div>
+  <div class="empty-state detail-empty-card">No transactions stored for this trace.</div>
   {{end}}
 </div>
 
 <div class="card">
-  <div style="padding: 1rem 1.25rem 0;"><h2 class="page-title" style="font-size: 1rem;">Spans</h2></div>
+  <div class="card-header-block"><h2 class="page-title card-header-title">Spans</h2></div>
   {{if .Spans}}
-  <table class="issue-table" style="width:100%;">
+  <table class="events-table detail-table">
     <thead><tr><th>Span</th><th>Parent</th><th>Operation</th><th>Description</th><th>Status</th><th>Duration</th></tr></thead>
     <tbody>
       {{range .Spans}}
       <tr>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.SpanID}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{if .ParentSpanID}}{{.ParentSpanID}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .Op}}{{.Op}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .Description}}{{.Description}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;">{{if .Status}}{{.Status}}{{else}}-{{end}}</td>
-        <td style="padding: 0.75rem 1rem;" class="mono">{{.Duration}}</td>
+        <td class="mono">{{.SpanID}}</td>
+        <td class="mono">{{if .ParentSpanID}}{{.ParentSpanID}}{{else}}-{{end}}</td>
+        <td>{{if .Op}}{{.Op}}{{else}}-{{end}}</td>
+        <td>{{if .Description}}{{.Description}}{{else}}-{{end}}</td>
+        <td>{{if .Status}}{{.Status}}{{else}}-{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 1rem 1.25rem;">No spans stored for this trace.</div>
+  <div class="empty-state detail-empty-card">No spans stored for this trace.</div>
   {{end}}
+</div>
 </div>
 
 <script>

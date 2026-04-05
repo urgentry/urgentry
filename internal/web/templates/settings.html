@@ -2,7 +2,10 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Settings</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Manage project retention, replay controls, ingest keys, ownership rules, and source mapping from one settings surface.</p>
+  </div>
 </div>
 
 <!-- General -->
@@ -38,8 +41,8 @@
         <input type="number" min="1" name="debug_retention_days" value="{{.DebugRetentionDays}}" required>
       </label>
     </div>
-    <div class="section-header" style="margin-top: 1rem;">Telemetry Retention</div>
-    <table class="events-table" style="margin-top: 12px;">
+    <div class="section-header section-top-gap">Telemetry Retention</div>
+    <table class="events-table table-top-gap-sm">
       <thead>
         <tr>
           <th>Surface</th>
@@ -72,7 +75,7 @@
         {{end}}
       </tbody>
     </table>
-    <div class="section-header" style="margin-top: 1rem;">Replay Controls</div>
+    <div class="section-header section-top-gap">Replay Controls</div>
     <div class="settings-form-grid">
       <label class="settings-form-field">
         <span class="settings-label">Replay Sample Rate</span>
@@ -121,7 +124,7 @@
   {{end}}
 
   {{if .Keys}}
-  <table class="events-table" style="margin-top: 16px;">
+  <table class="events-table table-top-gap">
     <thead>
       <tr>
         <th>Public Key</th>
@@ -140,7 +143,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 16px;">
+  <div class="empty-state empty-state-compact">
     <div class="empty-text">No project keys configured.</div>
   </div>
   {{end}}
@@ -206,7 +209,7 @@
     </div>
   </form>
   {{if .OwnershipRules}}
-  <table class="events-table" style="margin-top: 16px;">
+  <table class="events-table table-top-gap">
     <thead>
       <tr>
         <th>Name</th>
@@ -224,7 +227,7 @@
         <td class="mono">{{.Assignee}}</td>
         <td>{{.CreatedAt}}</td>
         <td>
-          <form method="post" action="/settings/ownership/{{.ID}}/delete" style="margin:0;">
+          <form method="post" action="/settings/ownership/{{.ID}}/delete" class="inline-form">
             <input type="hidden" name="project_id" value="{{$.ProjectID}}">
             <button type="submit" class="btn btn-sm">Delete</button>
           </form>
@@ -234,7 +237,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 16px;">
+  <div class="empty-state empty-state-compact">
     <div class="empty-text">No ownership rules configured yet.</div>
   </div>
   {{end}}
@@ -267,7 +270,7 @@
     </div>
   </form>
   {{if .CodeMappings}}
-  <table class="events-table" style="margin-top: 16px;">
+  <table class="events-table table-top-gap">
     <thead>
       <tr>
         <th>Stack Root</th>
@@ -287,7 +290,7 @@
         <td class="mono">{{.DefaultBranch}}</td>
         <td>{{.CreatedAt}}</td>
         <td>
-          <form method="post" action="/settings/code-mappings/{{.ID}}/delete" style="margin:0;">
+          <form method="post" action="/settings/code-mappings/{{.ID}}/delete" class="inline-form">
             <input type="hidden" name="project_id" value="{{$.ProjectID}}">
             <button type="submit" class="btn btn-sm">Delete</button>
           </form>
@@ -297,7 +300,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 16px;">
+  <div class="empty-state empty-state-compact">
     <div class="empty-text">No code mappings configured yet. Add a mapping to link stack trace files to your source code repository.</div>
   </div>
   {{end}}
@@ -325,7 +328,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 16px;">
+  <div class="empty-state empty-state-compact">
     <div class="empty-text">No audit activity recorded yet.</div>
   </div>
   {{end}}

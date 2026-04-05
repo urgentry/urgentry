@@ -2,7 +2,10 @@
 
 {{define "content"}}
 <div class="page-header">
-  <h1 class="page-title">Performance</h1>
+  <div class="page-heading">
+    <h1 class="page-title">Performance</h1>
+    <p class="page-subtitle">Review transaction latency, throughput, and web vitals from the shared performance surfaces.</p>
+  </div>
   <div class="page-actions">
     <a href="/performance/" class="btn btn-sm btn-active">Transactions</a>
     <a href="/performance/queues/" class="btn btn-sm">Queues</a>
@@ -16,7 +19,13 @@
 </div>
 {{end}}
 
-<div class="metrics-grid" style="margin-bottom: 1.25rem;">
+<div class="performance-shell">
+<div class="card guide-card">
+  <div class="section-header section-header-tight">How to read this page</div>
+  <div class="empty-text">Start with the transaction summary, then pivot into queues or spans when the slowest requests need deeper breakdowns.</div>
+</div>
+
+<div class="metrics-grid card-gap">
   <div class="metric-card">
     <div class="metric-label">Throughput</div>
     <div class="metric-value">{{if .Throughput}}{{.Throughput}}{{else}}0{{end}}</div>
@@ -36,7 +45,7 @@
   </div>
 </div>
 
-<div class="card">
+<div class="card card-gap">
   <div class="section-header">Slowest Transactions (by p95)</div>
   {{if .Transactions}}
   <table class="events-table">
@@ -67,7 +76,8 @@
   </table>
   {{else}}
   <div class="empty-state empty-state-inline">
-    <div class="empty-text">No transactions captured yet. Send transaction data to see performance metrics.</div>
+    <div class="empty-title">No transactions captured yet</div>
+    <div class="empty-text">Send transaction data to populate throughput, latency, and the slowest transaction table on this page.</div>
   </div>
   {{end}}
 </div>
@@ -103,18 +113,5 @@
   </table>
 </div>
 {{end}}
-
-<style>
-  .perf-delta { font-size: 0.85em; font-weight: 500; }
-  .apdex-score { font-weight: 600; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
-  .apdex-excellent { color: #166534; background: #dcfce7; }
-  .apdex-good { color: #3b6f10; background: #ecfccb; }
-  .apdex-fair { color: #854d0e; background: #fef9c3; }
-  .apdex-poor { color: #9a3412; background: #ffedd5; }
-  .apdex-unacceptable { color: #991b1b; background: #fee2e2; }
-  .vital-score { font-weight: 600; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
-  .vital-good { color: #166534; background: #dcfce7; }
-  .vital-needs-improvement { color: #854d0e; background: #fef9c3; }
-  .vital-poor { color: #991b1b; background: #fee2e2; }
-</style>
+</div>
 {{end}}

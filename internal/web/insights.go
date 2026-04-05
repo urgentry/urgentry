@@ -1,8 +1,11 @@
 package web
 
 import (
+	"database/sql"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"urgentry/internal/discover"
@@ -338,41 +341,59 @@ func (h *Handler) performanceSummaryPage(w http.ResponseWriter, r *http.Request)
 		writeWebInternal(w, r, "Failed to resolve default organization scope.")
 		return
 	}
+	_ = scope
 
 	timeRange := "24h"
-
-	// Aggregate stats for the specific transaction.
-	statsQuery, err := buildDiscoverQuery(scope.OrganizationSlug, discoverBuilderState{
-		Dataset:       string(discover.DatasetTransactions),
-		Filter:        "transaction:" + txName,
-		Aggregate:     "count, p50(duration.ms), p95(duration.ms), avg(duration.ms), max(duration.ms)",
-		Visualization: "table",
-		TimeRange:     timeRange,
-	}, 1)
-	if err != nil {
-		data.Error = "Failed to build transaction stats query: " + err.Error()
-		h.render(w, "performance-summary.html", data)
-		return
-	}
-	statsResult, err := h.queries.ExecuteTable(r.Context(), statsQuery)
-	if err != nil {
-		data.Error = "Failed to query transaction stats: " + err.Error()
-		h.render(w, "performance-summary.html", data)
-		return
-	}
-	if len(statsResult.Rows) > 0 {
-		row := statsResult.Rows[0]
-		data.Count = formatDiscoverValue(row["count"])
-		data.P50 = formatDiscoverValue(row["p50"])
-		data.P95 = formatDiscoverValue(row["p95"])
-		data.Avg = formatDiscoverValue(row["avg"])
-		data.MaxDuration = formatDiscoverValue(row["max"])
-	}
 
 	// Compute Apdex via direct SQL.
 	dur, parseErr := discovershared.ParseDiscoverInterval(timeRange)
 	if parseErr == nil {
 		since := time.Now().UTC().Add(-dur).Format(time.RFC3339)
+		var count int64
+		var avg, max sql.NullFloat64
+		if err := h.db.QueryRowContext(r.Context(),
+			`SELECT COUNT(*), AVG(duration_ms), MAX(duration_ms)
+			 FROM transactions
+			 WHERE transaction_name = ? AND start_timestamp >= ?`,
+			txName, since,
+		).Scan(&count, &avg, &max); err != nil {
+			data.Error = "Failed to query transaction stats: " + err.Error()
+			h.render(w, "performance-summary.html", data)
+			return
+		}
+		data.Count = strconv.FormatInt(count, 10)
+		if avg.Valid {
+			data.Avg = fmt.Sprintf("%.1f", avg.Float64)
+		}
+		if max.Valid {
+			data.MaxDuration = fmt.Sprintf("%.1f", max.Float64)
+		}
+		if count > 0 {
+			p50Offset := (count - 1) / 2
+			p95Offset := int64(math.Ceil(float64(count)*0.95)) - 1
+			var p50, p95 sql.NullFloat64
+			if err := h.db.QueryRowContext(r.Context(),
+				`SELECT duration_ms
+				 FROM transactions
+				 WHERE transaction_name = ? AND start_timestamp >= ?
+				 ORDER BY duration_ms ASC
+				 LIMIT 1 OFFSET ?`,
+				txName, since, p50Offset,
+			).Scan(&p50); err == nil && p50.Valid {
+				data.P50 = fmt.Sprintf("%.1f", p50.Float64)
+			}
+			if err := h.db.QueryRowContext(r.Context(),
+				`SELECT duration_ms
+				 FROM transactions
+				 WHERE transaction_name = ? AND start_timestamp >= ?
+				 ORDER BY duration_ms ASC
+				 LIMIT 1 OFFSET ?`,
+				txName, since, p95Offset,
+			).Scan(&p95); err == nil && p95.Valid {
+				data.P95 = fmt.Sprintf("%.1f", p95.Float64)
+			}
+		}
+
 		frustrated := apdexThresholdMs * 4
 		var total, satisfied, tolerating int64
 		_ = h.db.QueryRowContext(r.Context(),
