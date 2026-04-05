@@ -86,44 +86,44 @@
             </div>
 
             <div class="replay-focus-grid">
-              <div class="context-row" id="replayFocusMessageRow" {{if not .Selected.Message}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.Message}} is-hidden{{end}}" id="replayFocusMessageRow">
                 <span class="key">Message</span>
                 <span class="value" id="replayFocusMessage">{{if .Selected}}{{.Selected.Message}}{{end}}</span>
               </div>
-              <div class="context-row" id="replayFocusURLRow" {{if not .Selected.URL}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.URL}} is-hidden{{end}}" id="replayFocusURLRow">
                 <span class="key">URL</span>
                 <span class="value mono" id="replayFocusURL">{{if .Selected}}{{.Selected.URL}}{{end}}</span>
               </div>
-              <div class="context-row" id="replayFocusMethodRow" {{if not .Selected.Method}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.Method}} is-hidden{{end}}" id="replayFocusMethodRow">
                 <span class="key">Method</span>
                 <span class="value" id="replayFocusMethod">{{if .Selected}}{{.Selected.Method}}{{end}}</span>
               </div>
-              <div class="context-row" id="replayFocusStatusRow" {{if not .Selected.StatusCode}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.StatusCode}} is-hidden{{end}}" id="replayFocusStatusRow">
                 <span class="key">Status</span>
                 <span class="value" id="replayFocusStatus">{{if .Selected}}{{.Selected.StatusCode}}{{end}}</span>
               </div>
-              <div class="context-row" id="replayFocusDurationRow" {{if not .Selected.Duration}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.Duration}} is-hidden{{end}}" id="replayFocusDurationRow">
                 <span class="key">Duration</span>
                 <span class="value" id="replayFocusDuration">{{if .Selected}}{{.Selected.Duration}}{{end}}</span>
               </div>
-              <div class="context-row" id="replayFocusSelectorRow" {{if not .Selected.Selector}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.Selector}} is-hidden{{end}}" id="replayFocusSelectorRow">
                 <span class="key">Selector</span>
                 <span class="value mono" id="replayFocusSelector">{{if .Selected}}{{.Selected.Selector}}{{end}}</span>
               </div>
-              <div class="context-row" id="replayFocusTextRow" {{if not .Selected.Text}}style="display:none"{{end}}>
+              <div class="context-row{{if not .Selected.Text}} is-hidden{{end}}" id="replayFocusTextRow">
                 <span class="key">Text</span>
                 <span class="value" id="replayFocusText">{{if .Selected}}{{.Selected.Text}}{{end}}</span>
               </div>
             </div>
 
             <div class="replay-focus-links">
-              <a id="replayFocusIssueLink" class="pill" href="{{if .Selected}}{{.Selected.LinkedIssueURL}}{{end}}" {{if or (not .Selected) (not .Selected.LinkedIssueURL)}}style="display:none"{{end}}>
+              <a id="replayFocusIssueLink" class="pill{{if or (not .Selected) (not .Selected.LinkedIssueURL)}} is-hidden{{end}}" href="{{if .Selected}}{{.Selected.LinkedIssueURL}}{{end}}">
                 Issue: <span id="replayFocusIssueLabel">{{if .Selected}}{{if .Selected.LinkedIssueTitle}}{{.Selected.LinkedIssueTitle}}{{else}}{{.Selected.LinkedIssueID}}{{end}}{{end}}</span>
               </a>
-              <a id="replayFocusEventLink" class="pill" href="{{if .Selected}}{{.Selected.LinkedEventURL}}{{end}}" {{if or (not .Selected) (not .Selected.LinkedEventURL)}}style="display:none"{{end}}>
+              <a id="replayFocusEventLink" class="pill{{if or (not .Selected) (not .Selected.LinkedEventURL)}} is-hidden{{end}}" href="{{if .Selected}}{{.Selected.LinkedEventURL}}{{end}}">
                 Event: <span id="replayFocusEventLabel">{{if .Selected}}{{.Selected.LinkedEventID}}{{end}}</span>
               </a>
-              <a id="replayFocusTraceLink" class="pill" href="{{if .Selected}}{{.Selected.TraceURL}}{{end}}" {{if or (not .Selected) (not .Selected.TraceURL)}}style="display:none"{{end}}>
+              <a id="replayFocusTraceLink" class="pill{{if or (not .Selected) (not .Selected.TraceURL)}} is-hidden{{end}}" href="{{if .Selected}}{{.Selected.TraceURL}}{{end}}">
                 Trace: <span id="replayFocusTraceLabel">{{if .Selected}}{{.Selected.TraceID}}{{end}}</span>
               </a>
             </div>

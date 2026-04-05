@@ -6054,8 +6054,47 @@ body.auth-page {
   padding: 16px;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .inline-form {
   margin: 0;
+}
+
+.inline-form-inline {
+  display: inline;
+}
+
+.context-card-flat {
+  margin-bottom: 0;
+  border: none;
+}
+
+.raw-json-top {
+  margin-top: 16px;
+}
+
+.raw-json-top-lg {
+  margin-top: 24px;
+}
+
+.section-top-gap-sm {
+  margin-top: 8px;
+}
+
+.comment-form-actions {
+  margin-top: 8px;
+}
+
+.interactive-inline {
+  cursor: pointer;
+}
+
+.merge-form-vertical {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
 }
 
 .summary-metrics-grid {
