@@ -7,6 +7,9 @@ import (
 
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if benchmarkBridgeFixtureCleanup != nil {
+		benchmarkBridgeFixtureCleanup()
+	}
 	bridgeQueryPostgres.Close()
 	os.Exit(code)
 }

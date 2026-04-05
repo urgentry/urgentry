@@ -96,8 +96,13 @@ lint-full: lint
 	govulncheck ./...
 
 ## bench-pr: Short deterministic PR benchmark lane (~60s, stable for benchstat)
+## The bridge telemetry benches run in separate go test invocations so replay
+## and profile coverage do not destabilize the lighter query sub-benchmarks on
+## local ephemeral Postgres clusters.
 bench-pr:
-	go test ./internal/envelope ./internal/grouping ./internal/normalize ./internal/domain ./internal/http ./internal/telemetryquery -run '^$$' -bench . -benchmem -count=5 -cpu 1 -benchtime=500ms
+	go test ./internal/envelope ./internal/grouping ./internal/normalize ./internal/domain ./internal/http -run '^$$' -bench . -benchmem -count=5 -cpu 1 -benchtime=500ms
+	go test ./internal/telemetryquery -run '^$$' -bench '^BenchmarkBridgeService/(SearchLogs|ExecuteTransactionsTable|TraceDetail)$$' -benchmem -count=5 -cpu 1 -benchtime=500ms
+	go test ./internal/telemetryquery -run '^$$' -bench '^BenchmarkBridgeService/(GetReplay|GetProfile)$$' -benchmem -count=5 -cpu 1 -benchtime=250ms
 
 ## bench-budget: Run bench-pr and enforce ns/op, B/op, and allocs/op budgets
 bench-budget:

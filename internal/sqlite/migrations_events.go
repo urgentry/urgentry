@@ -692,4 +692,10 @@ var migrationsEvents = []schemaMigration{
 			CREATE INDEX IF NOT EXISTS idx_issue_autofix_runs_project_latest
 				ON issue_autofix_runs(project_id, run_id DESC);
 	`},
+	{80, `
+			CREATE INDEX IF NOT EXISTS idx_events_group_occurred
+				ON events(group_id, occurred_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_events_group_user
+				ON events(group_id, user_identifier);
+	`},
 }

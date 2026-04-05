@@ -395,7 +395,14 @@ func (s *WebStore) IssueDiffBase(ctx context.Context, groupID string) (*store.Is
 }
 
 func scanWebIssues(rows *sql.Rows) ([]store.WebIssue, error) {
-	var issues []store.WebIssue
+	return scanWebIssuesWithCapacity(rows, 0)
+}
+
+func scanWebIssuesWithCapacity(rows *sql.Rows, capHint int) ([]store.WebIssue, error) {
+	if capHint < 0 {
+		capHint = 0
+	}
+	issues := make([]store.WebIssue, 0, capHint)
 	for rows.Next() {
 		var iss store.WebIssue
 		var title, culprit, level, status, assignee sql.NullString

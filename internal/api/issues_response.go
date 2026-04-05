@@ -136,16 +136,18 @@ func loadIssueResponseExtras(ctx context.Context, db *sql.DB, issues controlplan
 		}
 		now := time.Now().UTC()
 		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 24, 24*time.Hour); err == nil {
+			zero24Hours := issueZeroSparklinePoints(24, time.Hour, now)
 			for _, groupID := range groupIDs {
 				item := extras[groupID]
-				item.Stats.Last24Hours = issueSparklinePoints(sparklines[groupID], time.Hour, now)
+				item.Stats.Last24Hours = issueSparklinePoints(sparklines[groupID], time.Hour, now, zero24Hours)
 				extras[groupID] = item
 			}
 		}
 		if sparklines, err := webStore.BatchSparklines(ctx, groupIDs, 30, 30*24*time.Hour); err == nil {
+			zero30Days := issueZeroSparklinePoints(30, 24*time.Hour, now)
 			for _, groupID := range groupIDs {
 				item := extras[groupID]
-				item.Stats.Last30Days = issueSparklinePoints(sparklines[groupID], 24*time.Hour, now)
+				item.Stats.Last30Days = issueSparklinePoints(sparklines[groupID], 24*time.Hour, now, zero30Days)
 				extras[groupID] = item
 			}
 		}
@@ -242,15 +244,38 @@ func issueEmptyStats() IssueStats {
 	}
 }
 
-func issueSparklinePoints(counts []int, step time.Duration, end time.Time) []IssueSeriesPoint {
-	if len(counts) == 0 {
+func issueZeroSparklinePoints(buckets int, step time.Duration, end time.Time) []IssueSeriesPoint {
+	if buckets <= 0 {
 		return []IssueSeriesPoint{}
 	}
-	points := make([]IssueSeriesPoint, 0, len(counts))
+	points := make([]IssueSeriesPoint, buckets)
+	start := end.Add(-time.Duration(buckets) * step)
+	for i := range points {
+		ts := start.Add(time.Duration(i) * step).Unix()
+		points[i] = IssueSeriesPoint{ts, 0}
+	}
+	return points
+}
+
+func issueSparklinePoints(counts []int, step time.Duration, end time.Time, zero []IssueSeriesPoint) []IssueSeriesPoint {
+	if len(counts) == 0 {
+		return zero
+	}
+	allZero := true
+	for _, count := range counts {
+		if count != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return zero
+	}
+	points := make([]IssueSeriesPoint, len(counts))
 	start := end.Add(-time.Duration(len(counts)) * step)
 	for i, count := range counts {
 		ts := start.Add(time.Duration(i) * step).Unix()
-		points = append(points, IssueSeriesPoint{ts, int64(count)})
+		points[i] = IssueSeriesPoint{ts, int64(count)}
 	}
 	return points
 }

@@ -6,6 +6,7 @@ package normalize
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,8 +46,8 @@ type Event struct {
 type rawEvent struct {
 	Type           string                 `json:"type,omitempty"`
 	EventID        string                 `json:"event_id"`
-	Timestamp      json.RawMessage        `json:"timestamp,omitempty"`
-	StartTimestamp json.RawMessage        `json:"start_timestamp,omitempty"`
+	Timestamp      normalizedTimestamp    `json:"timestamp,omitempty"`
+	StartTimestamp normalizedTimestamp    `json:"start_timestamp,omitempty"`
 	Platform       string                 `json:"platform"`
 	Level          string                 `json:"level"`
 	Logger         string                 `json:"logger,omitempty"`
@@ -55,9 +56,9 @@ type rawEvent struct {
 	Release        string                 `json:"release,omitempty"`
 	Dist           string                 `json:"dist,omitempty"`
 	Environment    string                 `json:"environment,omitempty"`
-	Message        json.RawMessage        `json:"message,omitempty"`
+	Message        normalizedMessage      `json:"message,omitempty"`
 	Fingerprint    []string               `json:"fingerprint,omitempty"`
-	Tags           json.RawMessage        `json:"tags,omitempty"`
+	Tags           normalizedTags         `json:"tags,omitempty"`
 	Extra          map[string]any         `json:"extra,omitempty"`
 	Modules        map[string]string      `json:"modules,omitempty"`
 	User           *User                  `json:"user,omitempty"`
@@ -173,10 +174,35 @@ type rawSpan struct {
 	Op             string          `json:"op,omitempty"`
 	Description    string          `json:"description,omitempty"`
 	Status         string          `json:"status,omitempty"`
-	StartTimestamp json.RawMessage `json:"start_timestamp,omitempty"`
-	Timestamp      json.RawMessage `json:"timestamp,omitempty"`
-	Tags           json.RawMessage `json:"tags,omitempty"`
+	StartTimestamp normalizedTimestamp `json:"start_timestamp,omitempty"`
+	Timestamp      normalizedTimestamp `json:"timestamp,omitempty"`
+	Tags           normalizedTags      `json:"tags,omitempty"`
 	Data           map[string]any  `json:"data,omitempty"`
+}
+
+type normalizedTimestamp struct {
+	set   bool
+	value time.Time
+}
+
+func (n *normalizedTimestamp) UnmarshalJSON(data []byte) error {
+	n.set = true
+	n.value = parseNormalizedTimestamp(data)
+	return nil
+}
+
+type normalizedMessage string
+
+func (m *normalizedMessage) UnmarshalJSON(data []byte) error {
+	*m = normalizedMessage(parseNormalizedMessage(data))
+	return nil
+}
+
+type normalizedTags map[string]string
+
+func (t *normalizedTags) UnmarshalJSON(data []byte) error {
+	*t = parseNormalizedTags(data)
+	return nil
 }
 
 // Normalize takes a raw JSON event payload and produces a normalized Event.
@@ -216,19 +242,23 @@ func Normalize(raw []byte) (*Event, error) {
 	evt.EventID = normalizeEventID(evt.EventID)
 
 	// Normalize timestamp (handles ISO 8601 string or epoch float)
-	evt.Timestamp = normalizeTimestamp(r.Timestamp)
-	if started := normalizeOptionalTimestamp(r.StartTimestamp); !started.IsZero() {
+	evt.Timestamp = time.Now().UTC()
+	if r.Timestamp.set {
+		evt.Timestamp = r.Timestamp.value
+	}
+	if r.StartTimestamp.set && !r.StartTimestamp.value.IsZero() {
+		started := r.StartTimestamp.value
 		evt.StartTimestamp = &started
 	}
 
 	// Handle tags in array-of-pairs or object format
 	if len(r.Tags) > 0 {
-		evt.Tags = normalizeTags(r.Tags)
+		evt.Tags = map[string]string(r.Tags)
 	}
 
 	// Normalize message (string or message object)
-	if len(r.Message) > 0 {
-		evt.Message = normalizeMessage(r.Message)
+	if r.Message != "" {
+		evt.Message = string(r.Message)
 	}
 
 	// Normalize level
@@ -254,12 +284,12 @@ func Normalize(raw []byte) (*Event, error) {
 				Op:             span.Op,
 				Description:    span.Description,
 				Status:         span.Status,
-				StartTimestamp: normalizeOptionalTimestamp(span.StartTimestamp),
-				Timestamp:      normalizeOptionalTimestamp(span.Timestamp),
+				StartTimestamp: span.StartTimestamp.value,
+				Timestamp:      span.Timestamp.value,
 				Data:           span.Data,
 			}
 			if len(span.Tags) > 0 {
-				item.Tags = normalizeTags(span.Tags)
+				item.Tags = map[string]string(span.Tags)
 			}
 			evt.Spans = append(evt.Spans, item)
 		}
@@ -268,7 +298,7 @@ func Normalize(raw []byte) (*Event, error) {
 	return evt, nil
 }
 
-func normalizeTimestamp(raw json.RawMessage) time.Time {
+func parseNormalizedTimestamp(raw []byte) time.Time {
 	if len(raw) == 0 {
 		return time.Now().UTC()
 	}
@@ -276,8 +306,7 @@ func normalizeTimestamp(raw json.RawMessage) time.Time {
 	// Dispatch by first byte to avoid wasted unmarshal attempts.
 	switch raw[0] {
 	case '"':
-		var ts string
-		if err := json.Unmarshal(raw, &ts); err == nil {
+		if ts, err := strconv.Unquote(string(raw)); err == nil {
 			if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
 				return t.UTC()
 			}
@@ -298,13 +327,6 @@ func normalizeTimestamp(raw json.RawMessage) time.Time {
 	}
 
 	return time.Now().UTC()
-}
-
-func normalizeOptionalTimestamp(raw json.RawMessage) time.Time {
-	if len(raw) == 0 {
-		return time.Time{}
-	}
-	return normalizeTimestamp(raw)
 }
 
 func normalizeEventID(id string) string {
@@ -330,7 +352,7 @@ func normalizeLevel(level string) string {
 	}
 }
 
-func normalizeTags(raw json.RawMessage) map[string]string {
+func parseNormalizedTags(raw []byte) map[string]string {
 	if len(raw) == 0 {
 		return nil
 	}
@@ -343,13 +365,11 @@ func normalizeTags(raw json.RawMessage) map[string]string {
 		}
 	case '[':
 		// Try array-of-pairs format: [["key", "value"], ...]
-		var arrTags [][]string
+		var arrTags [][2]string
 		if err := json.Unmarshal(raw, &arrTags); err == nil {
 			result := make(map[string]string, len(arrTags))
 			for _, pair := range arrTags {
-				if len(pair) >= 2 {
-					result[pair[0]] = pair[1]
-				}
+				result[pair[0]] = pair[1]
 			}
 			return result
 		}
@@ -371,15 +391,14 @@ func normalizeTags(raw json.RawMessage) map[string]string {
 	return nil
 }
 
-func normalizeMessage(raw json.RawMessage) string {
+func parseNormalizedMessage(raw []byte) string {
 	if len(raw) == 0 {
 		return ""
 	}
 	// Dispatch by first byte to avoid wasted unmarshal attempts.
 	switch raw[0] {
 	case '"':
-		var s string
-		if err := json.Unmarshal(raw, &s); err == nil {
+		if s, err := strconv.Unquote(string(raw)); err == nil {
 			return s
 		}
 	case '{':

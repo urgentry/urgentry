@@ -115,6 +115,68 @@ func (t *Template) OpenDatabase(tb testing.TB, prefix string) *sql.DB {
 	return db
 }
 
+// OpenPersistentDatabaseWithDSN opens a database cloned from the template
+// without registering test cleanup. Callers that need a process-wide fixture,
+// such as benchmark harnesses, are responsible for invoking the returned
+// cleanup function when appropriate.
+func (t *Template) OpenPersistentDatabaseWithDSN(tb testing.TB, prefix string) (*sql.DB, string, func(), error) {
+	tb.Helper()
+
+	if t == nil || t.provider == nil {
+		return nil, "", nil, fmt.Errorf("testpostgres template is nil")
+	}
+	t.ensure(tb)
+	if t.err != nil {
+		return nil, "", nil, fmt.Errorf("initialize test template %q: %w", t.name, t.err)
+	}
+
+	cluster := t.provider.testCluster(tb)
+	root, err := sql.Open("pgx", cluster.dsn)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("open root postgres: %w", err)
+	}
+
+	dbName := t.provider.nextDatabaseName(prefix)
+	if _, err := root.Exec(`CREATE DATABASE ` + dbName + ` TEMPLATE ` + t.dbName); err != nil {
+		_ = root.Close()
+		return nil, "", nil, fmt.Errorf("create test database from template: %w", err)
+	}
+
+	testDSN, err := replaceDatabaseName(cluster.dsn, dbName)
+	if err != nil {
+		_, _ = root.Exec(`DROP DATABASE ` + dbName)
+		_ = root.Close()
+		return nil, "", nil, fmt.Errorf("build test DSN: %w", err)
+	}
+	db, err := sql.Open("pgx", testDSN)
+	if err != nil {
+		_, _ = root.Exec(`DROP DATABASE ` + dbName)
+		_ = root.Close()
+		return nil, "", nil, fmt.Errorf("open test database: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		_, _ = root.Exec(`DROP DATABASE ` + dbName)
+		_ = root.Close()
+		return nil, "", nil, fmt.Errorf("ping test database: %w", err)
+	}
+
+	cleanup := func() {
+		_ = db.Close()
+		_, _ = root.Exec(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`, dbName)
+		_, _ = root.Exec(`DROP DATABASE IF EXISTS ` + dbName)
+		_ = root.Close()
+	}
+	return db, testDSN, cleanup, nil
+}
+
+// OpenPersistentDatabase is like OpenPersistentDatabaseWithDSN but returns only
+// the opened database and cleanup function.
+func (t *Template) OpenPersistentDatabase(tb testing.TB, prefix string) (*sql.DB, func(), error) {
+	db, _, cleanup, err := t.OpenPersistentDatabaseWithDSN(tb, prefix)
+	return db, cleanup, err
+}
+
 func (t *Template) OpenDatabaseWithDSN(tb testing.TB, prefix string) (*sql.DB, string) {
 	tb.Helper()
 

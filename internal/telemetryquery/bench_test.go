@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,22 +17,7 @@ import (
 	profilefixtures "urgentry/internal/testfixtures/profiles"
 )
 
-func BenchmarkBridgeServiceSearchLogs(b *testing.B) {
-	fx := newBenchmarkBridgeService(b)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		items, err := fx.service.SearchLogs(fx.ctx, fx.orgSlug, "api", 50)
-		if err != nil {
-			b.Fatalf("SearchLogs: %v", err)
-		}
-		if len(items) == 0 {
-			b.Fatal("SearchLogs returned no rows")
-		}
-	}
-}
-
-func BenchmarkBridgeServiceExecuteTransactionsTable(b *testing.B) {
+func BenchmarkBridgeService(b *testing.B) {
 	fx := newBenchmarkBridgeService(b)
 	query := discover.Query{
 		Version: discover.CurrentVersion,
@@ -53,66 +40,80 @@ func BenchmarkBridgeServiceExecuteTransactionsTable(b *testing.B) {
 		},
 		Limit: 25,
 	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		result, err := fx.service.ExecuteTable(fx.ctx, query)
-		if err != nil {
-			b.Fatalf("ExecuteTable: %v", err)
-		}
-		if len(result.Rows) == 0 {
-			b.Fatal("ExecuteTable returned no rows")
-		}
-	}
-}
 
-func BenchmarkBridgeServiceTraceDetail(b *testing.B) {
-	fx := newBenchmarkBridgeService(b)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		transactions, err := fx.service.ListTransactionsByTrace(fx.ctx, fx.projectID, fx.traceID)
-		if err != nil {
-			b.Fatalf("ListTransactionsByTrace: %v", err)
+	b.Run("SearchLogs", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			items, err := fx.service.SearchLogs(fx.ctx, fx.orgSlug, "api", 50)
+			if err != nil {
+				b.Fatalf("SearchLogs: %v", err)
+			}
+			if len(items) == 0 {
+				b.Fatal("SearchLogs returned no rows")
+			}
 		}
-		spans, err := fx.service.ListTraceSpans(fx.ctx, fx.projectID, fx.traceID)
-		if err != nil {
-			b.Fatalf("ListTraceSpans: %v", err)
-		}
-		if len(transactions) == 0 || len(spans) == 0 {
-			b.Fatalf("trace detail returned incomplete data: txns=%d spans=%d", len(transactions), len(spans))
-		}
-	}
-}
+	})
 
-func BenchmarkBridgeServiceGetReplay(b *testing.B) {
-	fx := newBenchmarkBridgeService(b)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		record, err := fx.service.GetReplay(fx.ctx, fx.projectID, fx.replayID)
-		if err != nil {
-			b.Fatalf("GetReplay: %v", err)
+	b.Run("ExecuteTransactionsTable", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			result, err := fx.service.ExecuteTable(fx.ctx, query)
+			if err != nil {
+				b.Fatalf("ExecuteTable: %v", err)
+			}
+			if len(result.Rows) == 0 {
+				b.Fatal("ExecuteTable returned no rows")
+			}
 		}
-		if record.Manifest.ReplayID == "" || len(record.Timeline) == 0 {
-			b.Fatalf("GetReplay returned incomplete record: %+v", record)
-		}
-	}
-}
+	})
 
-func BenchmarkBridgeServiceGetProfile(b *testing.B) {
-	fx := newBenchmarkBridgeService(b)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		record, err := fx.service.GetProfile(fx.ctx, fx.projectID, fx.profileID)
-		if err != nil {
-			b.Fatalf("GetProfile: %v", err)
+	b.Run("TraceDetail", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			transactions, err := fx.service.ListTransactionsByTrace(fx.ctx, fx.projectID, fx.traceID)
+			if err != nil {
+				b.Fatalf("ListTransactionsByTrace: %v", err)
+			}
+			spans, err := fx.service.ListTraceSpans(fx.ctx, fx.projectID, fx.traceID)
+			if err != nil {
+				b.Fatalf("ListTraceSpans: %v", err)
+			}
+			if len(transactions) == 0 || len(spans) == 0 {
+				b.Fatalf("trace detail returned incomplete data: txns=%d spans=%d", len(transactions), len(spans))
+			}
 		}
-		if record.Manifest.ProfileID == "" || len(record.TopFunctions) == 0 {
-			b.Fatalf("GetProfile returned incomplete record: %+v", record)
+	})
+
+	b.Run("GetReplay", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			record, err := fx.service.GetReplay(fx.ctx, fx.projectID, fx.replayID)
+			if err != nil {
+				b.Fatalf("GetReplay: %v", err)
+			}
+			if record.Manifest.ReplayID == "" || len(record.Timeline) == 0 {
+				b.Fatalf("GetReplay returned incomplete record: %+v", record)
+			}
 		}
-	}
+	})
+
+	b.Run("GetProfile", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			record, err := fx.service.GetProfile(fx.ctx, fx.projectID, fx.profileID)
+			if err != nil {
+				b.Fatalf("GetProfile: %v", err)
+			}
+			if record.Manifest.ProfileID == "" || len(record.TopFunctions) == 0 {
+				b.Fatalf("GetProfile returned incomplete record: %+v", record)
+			}
+		}
+	})
 }
 
 type benchmarkBridgeFixture struct {
@@ -125,36 +126,80 @@ type benchmarkBridgeFixture struct {
 	profileID string
 }
 
+var (
+	benchmarkBridgeFixtureOnce    sync.Once
+	benchmarkBridgeFixtureData    benchmarkBridgeFixture
+	benchmarkBridgeFixtureCleanup func()
+	benchmarkBridgeCleanupOnce    sync.Once
+)
+
 func newBenchmarkBridgeService(b *testing.B) benchmarkBridgeFixture {
 	b.Helper()
 
-	ctx := context.Background()
-	source := openBridgeQuerySourceDB(b)
-	seedBridgeDiscoverSource(b, source)
-	seedBridgeBenchTraffic(b, source)
+	benchmarkBridgeFixtureOnce.Do(func() {
+		ctx := context.Background()
+		source, sourceCleanup := openBenchmarkBridgeQuerySourceDB(b)
+		seedBridgeDiscoverSource(b, source)
+		seedBridgeBenchTraffic(b, source)
 
-	blobs := store.NewMemoryBlobStore()
-	seedBridgeBenchReplay(b, source, blobs)
-	seedBridgeBenchProfiles(b, source, blobs)
+		blobs := store.NewMemoryBlobStore()
+		seedBridgeBenchReplay(b, source, blobs)
+		seedBridgeBenchProfiles(b, source, blobs)
 
-	bridge := openMigratedBridgeQueryTestDatabase(b)
-	projector := telemetrybridge.NewProjector(source, bridge)
-	if err := projector.SyncFamilies(ctx, telemetrybridge.Scope{OrganizationID: "org-1"}, telemetrybridge.FamilyLogs, telemetrybridge.FamilyTransactions); err != nil {
-		b.Fatalf("SyncFamilies org scope: %v", err)
+		bridge, bridgeCleanup, err := migratedBridgeQueryPostgres.OpenPersistentDatabase(b, "urgentry_bridge_query_bench")
+		if err != nil {
+			b.Fatalf("OpenPersistentDatabase: %v", err)
+		}
+		benchmarkBridgeFixtureCleanup = func() {
+			if bridgeCleanup != nil {
+				bridgeCleanup()
+			}
+			if sourceCleanup != nil {
+				sourceCleanup()
+			}
+		}
+		projector := telemetrybridge.NewProjector(source, bridge)
+		if err := projector.SyncFamilies(ctx, telemetrybridge.Scope{OrganizationID: "org-1"}, telemetrybridge.FamilyLogs, telemetrybridge.FamilyTransactions); err != nil {
+			b.Fatalf("SyncFamilies org scope: %v", err)
+		}
+		if err := projector.SyncFamilies(ctx, telemetrybridge.Scope{OrganizationID: "org-1", ProjectID: "proj-a"}, telemetrybridge.FamilyTransactions, telemetrybridge.FamilySpans, telemetrybridge.FamilyReplays, telemetrybridge.FamilyReplayTimeline, telemetrybridge.FamilyProfiles); err != nil {
+			b.Fatalf("SyncFamilies project scope: %v", err)
+		}
+		benchmarkBridgeFixtureData = benchmarkBridgeFixture{
+			ctx:       ctx,
+			service:   newBridgeTestService(source, bridge, blobs, nil),
+			orgSlug:   "acme",
+			projectID: "proj-a",
+			traceID:   "bench-trace-000",
+			replayID:  "bench-replay-00",
+			profileID: "bench-profile-00",
+		}
+	})
+	if benchmarkBridgeFixtureCleanup != nil {
+		b.Cleanup(func() {
+			benchmarkBridgeCleanupOnce.Do(func() {
+				benchmarkBridgeFixtureCleanup()
+			})
+		})
 	}
-	if err := projector.SyncFamilies(ctx, telemetrybridge.Scope{OrganizationID: "org-1", ProjectID: "proj-a"}, telemetrybridge.FamilyTransactions, telemetrybridge.FamilySpans, telemetrybridge.FamilyReplays, telemetrybridge.FamilyReplayTimeline, telemetrybridge.FamilyProfiles); err != nil {
-		b.Fatalf("SyncFamilies project scope: %v", err)
-	}
-	service := newBridgeTestService(source, bridge, blobs, nil)
 
-	return benchmarkBridgeFixture{
-		ctx:       ctx,
-		service:   service,
-		orgSlug:   "acme",
-		projectID: "proj-a",
-		traceID:   "bench-trace-000",
-		replayID:  "bench-replay-00",
-		profileID: "bench-profile-00",
+	return benchmarkBridgeFixtureData
+}
+
+func openBenchmarkBridgeQuerySourceDB(b *testing.B) (*sql.DB, func()) {
+	b.Helper()
+
+	dir, err := os.MkdirTemp("", "urgentry-bridge-source-*")
+	if err != nil {
+		b.Fatalf("MkdirTemp: %v", err)
+	}
+	db, err := sqlite.Open(dir)
+	if err != nil {
+		b.Fatalf("sqlite.Open: %v", err)
+	}
+	return db, func() {
+		_ = db.Close()
+		_ = os.RemoveAll(dir)
 	}
 }
 

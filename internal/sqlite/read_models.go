@@ -19,7 +19,7 @@ func ListProjectIssues(ctx context.Context, db *sql.DB, projectID string, limit 
 		return nil, err
 	}
 	defer rows.Close()
-	return scanWebIssues(rows)
+	return scanWebIssuesWithCapacity(rows, limit)
 }
 
 func GetIssue(ctx context.Context, db *sql.DB, id string) (*store.WebIssue, error) {

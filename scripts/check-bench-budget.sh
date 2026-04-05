@@ -35,14 +35,14 @@ NS_BUDGET["BenchmarkNormalizeArrayTags"]=60000;       BYTES_BUDGET["BenchmarkNor
 NS_BUDGET["BenchmarkProjectIssuesEndpoint"]=8000000;  BYTES_BUDGET["BenchmarkProjectIssuesEndpoint"]=800000;  ALLOCS_BUDGET["BenchmarkProjectIssuesEndpoint"]=8000
 
 # telemetryquery bridge
-NS_BUDGET["BenchmarkBridgeServiceSearchLogs"]=3000000;                BYTES_BUDGET["BenchmarkBridgeServiceSearchLogs"]=200000;               ALLOCS_BUDGET["BenchmarkBridgeServiceSearchLogs"]=6000
-NS_BUDGET["BenchmarkBridgeServiceExecuteTransactionsTable"]=2000000;  BYTES_BUDGET["BenchmarkBridgeServiceExecuteTransactionsTable"]=240000;  ALLOCS_BUDGET["BenchmarkBridgeServiceExecuteTransactionsTable"]=6000
+NS_BUDGET["BenchmarkBridgeService/SearchLogs"]=3000000;                       BYTES_BUDGET["BenchmarkBridgeService/SearchLogs"]=200000;                      ALLOCS_BUDGET["BenchmarkBridgeService/SearchLogs"]=6000
+NS_BUDGET["BenchmarkBridgeService/ExecuteTransactionsTable"]=2000000;         BYTES_BUDGET["BenchmarkBridgeService/ExecuteTransactionsTable"]=240000;        ALLOCS_BUDGET["BenchmarkBridgeService/ExecuteTransactionsTable"]=6000
 
 FAILED=0
 
 while IFS= read -r line; do
   # Match: BenchmarkName-N  runs  ns/op [B/op] [allocs/op]
-  if [[ "$line" =~ ^(Benchmark[A-Za-z0-9_]+)-[0-9]+[[:space:]]+[0-9]+[[:space:]]+([0-9.]+)[[:space:]]ns/op ]]; then
+  if [[ "$line" =~ ^(Benchmark[A-Za-z0-9_/]+)-[0-9]+[[:space:]]+[0-9]+[[:space:]]+([0-9.]+)[[:space:]]ns/op ]]; then
     name="${BASH_REMATCH[1]}"
     ns="${BASH_REMATCH[2]}"
     ns_int="${ns%.*}"

@@ -26,10 +26,24 @@ func NullStr(ns sql.NullString) string {
 // ParseDBTime parses a time string from the database.
 // It tries RFC3339 first, then the "2006-01-02 15:04:05" format.
 func ParseDBTime(s string) time.Time {
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		return t
+	if s == "" {
+		return time.Time{}
 	}
-	if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+	if len(s) > 10 {
+		switch s[10] {
+		case 'T':
+			if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
+				return t
+			}
+			return time.Time{}
+		case ' ':
+			if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+				return t
+			}
+			return time.Time{}
+		}
+	}
+	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
 		return t
 	}
 	return time.Time{}

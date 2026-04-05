@@ -52,7 +52,7 @@ func SearchIssues(ctx context.Context, db *sql.DB, filter, rawQuery string, limi
 		return nil, err
 	}
 	defer rows.Close()
-	return scanWebIssues(rows)
+	return scanWebIssuesWithCapacity(rows, limit)
 }
 
 // SearchProjectIssues returns project-scoped issue rows matching the typed-search query.
@@ -63,7 +63,7 @@ func SearchProjectIssues(ctx context.Context, db *sql.DB, projectID, filter, raw
 		return nil, err
 	}
 	defer rows.Close()
-	return scanWebIssues(rows)
+	return scanWebIssuesWithCapacity(rows, limit)
 }
 
 // SearchProjectIssuesPaged returns project-scoped issue rows with explicit
@@ -76,7 +76,7 @@ func SearchProjectIssuesPaged(ctx context.Context, db *sql.DB, projectID, filter
 		return nil, err
 	}
 	defer rows.Close()
-	return scanWebIssues(rows)
+	return scanWebIssuesWithCapacity(rows, limit)
 }
 
 func SearchProjectIssueIDs(ctx context.Context, db *sql.DB, projectID, filter, rawQuery string, limit int) ([]string, error) {

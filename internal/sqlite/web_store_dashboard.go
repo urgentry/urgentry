@@ -304,39 +304,28 @@ func (s *WebStore) batchSparklines(ctx context.Context, groupIDs []string, bucke
 	}
 	defer rows.Close()
 
-	raw := make(map[string]map[int]int)
+	result := make(map[string][]int, len(groupIDs))
+	for _, gid := range groupIDs {
+		result[gid] = make([]int, buckets)
+	}
 	for rows.Next() {
 		var gid string
 		var bucket, cnt int
 		if err := rows.Scan(&gid, &bucket, &cnt); err != nil {
 			return nil, err
 		}
-		if raw[gid] == nil {
-			raw[gid] = make(map[int]int)
-		}
 		if bucket >= buckets {
 			bucket = buckets - 1
 		}
-		if bucket >= 0 {
-			raw[gid][bucket] = cnt
+		if bucket < 0 {
+			continue
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	result := make(map[string][]int, len(groupIDs))
-	for _, gid := range groupIDs {
-		bars := make([]int, buckets)
-		if bucketMap, ok := raw[gid]; ok {
-			for b, cnt := range bucketMap {
-				idx := buckets - 1 - b
-				if idx >= 0 && idx < buckets {
-					bars[idx] = cnt
-				}
+		if bars, ok := result[gid]; ok {
+			idx := buckets - 1 - bucket
+			if idx >= 0 && idx < buckets {
+				bars[idx] = cnt
 			}
 		}
-		result[gid] = bars
 	}
-	return result, nil
+	return result, rows.Err()
 }
