@@ -11,7 +11,7 @@
 </div>
 
 {{if .Error}}
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+<div class="card card-shell card-gap">
   <div class="empty-text">{{.Error}}</div>
 </div>
 {{end}}
@@ -37,7 +37,7 @@
 </div>
 
 <div class="card">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Slowest Transactions (by p95)</div>
+  <div class="section-header">Slowest Transactions (by p95)</div>
   {{if .Transactions}}
   <table class="events-table">
     <thead>
@@ -66,15 +66,15 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 2rem 1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">No transactions captured yet. Send transaction data to see performance metrics.</div>
   </div>
   {{end}}
 </div>
 
 {{if .WebVitals}}
-<div class="card" style="margin-top: 1.25rem;">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Web Vitals by Page</div>
+<div class="card card-top-gap">
+  <div class="section-header">Web Vitals by Page</div>
   <table class="events-table">
     <thead>
       <tr>

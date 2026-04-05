@@ -11,13 +11,13 @@
 </div>
 
 {{if .Error}}
-<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+<div class="card card-shell card-gap">
   <div class="empty-text">{{.Error}}</div>
 </div>
 {{end}}
 
 <div class="card">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Queue Processing (last 24h)</div>
+  <div class="section-header">Queue Processing (last 24h)</div>
   {{if .Queues}}
   <table class="events-table">
     <thead>
@@ -46,7 +46,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 2rem 1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">No queue spans captured yet. Send spans with op <code>queue.process</code> or <code>queue.publish</code> to see queue metrics.</div>
   </div>
   {{end}}

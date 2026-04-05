@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -60,18 +61,6 @@ func (h *Handler) performanceQueuesPage(w http.ResponseWriter, r *http.Request) 
 			SUM(CASE WHEN op = 'queue.process' THEN 1 ELSE 0 END) AS process_count,
 			SUM(CASE WHEN op = 'queue.publish' THEN 1 ELSE 0 END) AS publish_count,
 			AVG(CASE WHEN op = 'queue.process' THEN duration_ms END) AS avg_processing,
-			CASE
-				WHEN SUM(CASE WHEN op = 'queue.process' THEN 1 ELSE 0 END) > 0
-				THEN (SELECT s2.duration_ms FROM spans s2
-					WHERE s2.op = 'queue.process'
-					AND COALESCE(s2.description, '(unknown)') = COALESCE(description, '(unknown)')
-					AND s2.start_timestamp >= ?
-					ORDER BY s2.duration_ms DESC
-					LIMIT 1 OFFSET (
-						CAST(SUM(CASE WHEN op = 'queue.process' THEN 1 ELSE 0 END) * 0.05 AS INTEGER)
-					))
-				ELSE NULL
-			END AS p95_processing,
 			SUM(CASE WHEN op = 'queue.process' AND status != 'ok' AND status != '' THEN 1 ELSE 0 END) AS failure_count
 		 FROM spans
 		 WHERE op IN ('queue.process', 'queue.publish')
@@ -79,7 +68,7 @@ func (h *Handler) performanceQueuesPage(w http.ResponseWriter, r *http.Request) 
 		 GROUP BY queue_name
 		 ORDER BY process_count DESC
 		 LIMIT 50`,
-		since, since,
+		since,
 	)
 	if err != nil {
 		data.Error = "Failed to query queue spans: " + err.Error()
@@ -90,15 +79,15 @@ func (h *Handler) performanceQueuesPage(w http.ResponseWriter, r *http.Request) 
 
 	for rows.Next() {
 		var qr queueRow
-		var avgProcessing, p95Processing *float64
-		if err := rows.Scan(&qr.Name, &qr.ProcessCount, &qr.PublishCount, &avgProcessing, &p95Processing, &qr.FailureCount); err != nil {
+		var avgProcessing *float64
+		if err := rows.Scan(&qr.Name, &qr.ProcessCount, &qr.PublishCount, &avgProcessing, &qr.FailureCount); err != nil {
 			continue
 		}
 		if avgProcessing != nil {
 			qr.AvgProcessing = fmt.Sprintf("%.1f", *avgProcessing)
 		}
-		if p95Processing != nil {
-			qr.P95Processing = fmt.Sprintf("%.1f", *p95Processing)
+		if p95, p95Err := h.queueP95Processing(r.Context(), qr.Name, since); p95Err == nil && p95 != nil {
+			qr.P95Processing = fmt.Sprintf("%.1f", *p95)
 		}
 		if qr.ProcessCount > 0 {
 			rate := float64(qr.FailureCount) / float64(qr.ProcessCount) * 100
@@ -110,4 +99,39 @@ func (h *Handler) performanceQueuesPage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	h.render(w, "performance-queues.html", data)
+}
+
+func (h *Handler) queueP95Processing(ctx context.Context, queueName, since string) (*float64, error) {
+	if h.db == nil {
+		return nil, nil
+	}
+	var count int64
+	if err := h.db.QueryRowContext(ctx,
+		`SELECT COUNT(*)
+		 FROM spans
+		 WHERE op = 'queue.process'
+		   AND COALESCE(description, '(unknown)') = ?
+		   AND start_timestamp >= ?`,
+		queueName, since,
+	).Scan(&count); err != nil || count == 0 {
+		return nil, err
+	}
+	offset := int64(float64(count-1) * 0.05)
+	if offset < 0 {
+		offset = 0
+	}
+	var value float64
+	if err := h.db.QueryRowContext(ctx,
+		`SELECT duration_ms
+		 FROM spans
+		 WHERE op = 'queue.process'
+		   AND COALESCE(description, '(unknown)') = ?
+		   AND start_timestamp >= ?
+		 ORDER BY duration_ms DESC
+		 LIMIT 1 OFFSET ?`,
+		queueName, since, offset,
+	).Scan(&value); err != nil {
+		return nil, err
+	}
+	return &value, nil
 }

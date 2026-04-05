@@ -5,15 +5,15 @@
   <h1 class="page-title">Logs</h1>
 </div>
 
-<form method="GET" action="/logs/" class="search-form-sentry" style="margin-bottom: 1.25rem;">
-  <div class="search-bar-sentry" style="flex-wrap: wrap;">
-    <input type="text" name="query" value="{{.Query}}" placeholder="Search log messages, logger, release..." class="search-input-inline" style="min-width: 260px; flex: 1;">
+<form method="GET" action="/logs/" class="search-form-sentry card-gap">
+  <div class="search-bar-sentry toolbar-row">
+    <input type="text" name="query" value="{{.Query}}" placeholder="Search log messages, logger, release..." class="search-input-inline discover-query-input">
     <button type="submit" class="btn btn-sm">Search</button>
   </div>
 </form>
 
 <div class="card">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Persisted Logs</div>
+  <div class="section-header">Persisted Logs</div>
   {{if .Logs}}
   <table class="events-table">
     <thead>
@@ -43,7 +43,7 @@
     </tbody>
   </table>
   {{else}}
-  <div class="empty-state" style="padding: 16px;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">No logs found.</div>
   </div>
   {{end}}

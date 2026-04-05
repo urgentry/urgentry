@@ -17,8 +17,8 @@
 {{end}}
 
 {{if .DBSpans}}
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Slowest DB Queries (last 24h)</div>
+<div class="card card-gap">
+  <div class="section-header">Slowest DB Queries (last 24h)</div>
   <table class="events-table">
     <thead>
       <tr>
@@ -47,8 +47,8 @@
 {{end}}
 
 {{if .HTTPSpans}}
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Most-Called HTTP Endpoints (last 24h)</div>
+<div class="card card-gap">
+  <div class="section-header">Most-Called HTTP Endpoints (last 24h)</div>
   <table class="events-table">
     <thead>
       <tr>
@@ -77,8 +77,8 @@
 {{end}}
 
 {{if .OtherSpans}}
-<div class="card" style="margin-bottom: 1.25rem;">
-  <div class="section-header" style="padding: 1rem 1.25rem 0.25rem;">Other Spans (last 24h)</div>
+<div class="card card-gap">
+  <div class="section-header">Other Spans (last 24h)</div>
   <table class="events-table">
     <thead>
       <tr>
@@ -108,7 +108,7 @@
 
 {{if and (not .DBSpans) (not .HTTPSpans) (not .OtherSpans) (not .Error)}}
 <div class="card">
-  <div class="empty-state" style="padding: 2rem 1rem;">
+  <div class="empty-state empty-state-inline">
     <div class="empty-text">No span data captured yet. Send transaction events with spans to see aggregated span metrics.</div>
   </div>
 </div>
