@@ -1,4 +1,4 @@
-.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench synthetic-registry synthetic-registry-check
+.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench synthetic-registry synthetic-registry-check synthetic-generate synthetic-audit synthetic-check
 
 # Default binary name
 BINARY := urgentry
@@ -150,6 +150,18 @@ synthetic-registry:
 ## synthetic-registry-check: Fail if the checked-in synthetic registries are stale
 synthetic-registry-check:
 	go run ./tools/syntheticregistry --write=false --check
+
+## synthetic-generate: Regenerate synthetic corpus manifests and structured payload bodies
+synthetic-generate:
+	go run ./cmd/urgentry synthetic generate --surface all
+
+## synthetic-audit: Summarize synthetic coverage against the checked-in registry and packs
+synthetic-audit:
+	go run ./cmd/urgentry synthetic audit
+
+## synthetic-check: Verify synthetic manifests and scenario-pack tests
+synthetic-check:
+	go test ./internal/synthetic/... -count=1
 
 ## fuzz: Run fuzz tests (30 seconds each)
 fuzz:

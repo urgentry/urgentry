@@ -34,6 +34,8 @@ func main() {
 		runProfile(os.Args[2:])
 	case "version":
 		fmt.Println(config.GetVersionInfo())
+	case "synthetic":
+		runSynthetic(os.Args[2:])
 	case "self-hosted":
 		runSelfHosted(os.Args[2:])
 	default:
@@ -410,6 +412,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "commands:\n")
 	fmt.Fprintf(os.Stderr, "  serve    Start the server (--role=all|api|ingest|worker|scheduler)\n")
 	fmt.Fprintf(os.Stderr, "  profile  Run a deterministic profiling scenario and write artifacts\n")
+	fmt.Fprintf(os.Stderr, "  synthetic  Run synthetic data generation and scenario tooling\n")
 	fmt.Fprintf(os.Stderr, "  self-hosted  Run serious self-hosted migration and rollback tooling\n")
 	fmt.Fprintf(os.Stderr, "  version  Print version and exit\n")
 	os.Exit(2)

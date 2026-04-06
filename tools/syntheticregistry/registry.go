@@ -929,7 +929,7 @@ func classifyTableFamily(name string) string {
 		return "project_catalog"
 	case "saved_searches", "dashboards", "dashboard_widgets", "saved_search_favorites", "saved_search_tags", "analytics_snapshots", "analytics_report_schedules", "metric_alert_rules":
 		return "query_analytics"
-	case "events", "groups", "transactions", "spans", "outcomes", "release_sessions", "monitors", "monitor_checkins", "replay_manifests", "replay_assets", "replay_timeline_items", "profile_manifests", "profile_threads", "profile_frames", "profile_stacks", "profile_stack_frames", "profile_samples", "uptime_monitors", "uptime_check_results", "anomaly_events":
+	case "events", "groups", "transactions", "spans", "outcomes", "release_sessions", "monitors", "monitor_checkins", "replay_manifests", "replay_assets", "replay_timeline_items", "profile_manifests", "profile_threads", "profile_frames", "profile_stacks", "profile_stack_frames", "profile_samples", "uptime_monitors", "uptime_check_results", "anomaly_events", "metric_buckets", "user_feedback":
 		return "ingest_telemetry"
 	case "artifacts", "event_attachments", "debug_files", "native_symbol_sources", "native_crash_images", "native_crashes", "project_symbol_sources", "preprod_artifacts", "project_replay_configs", "issue_autofix_runs":
 		return "artifacts_symbolication"
@@ -937,7 +937,7 @@ func classifyTableFamily(name string) string {
 		return "issue_workflow"
 	case "releases", "release_deploys", "release_commits", "alert_rules", "alert_history", "notification_outbox", "notification_deliveries", "notification_actions", "notification_routing_rules", "project_hooks", "workflows", "detectors", "replay_deletion_jobs":
 		return "releases_alerting_ops"
-	case "backfill_runs", "install_state", "operator_audit_logs", "jobs", "runtime_leases", "telemetry_archives":
+	case "backfill_runs", "install_state", "operator_audit_logs", "jobs", "runtime_leases", "telemetry_archives", "_migrations":
 		return "control_ops"
 	case "external_users", "external_teams", "integration_configs", "code_mappings", "group_external_issues", "org_data_forwarders", "data_forwarding_configs", "sentry_apps":
 		return "integrations_forwarding"

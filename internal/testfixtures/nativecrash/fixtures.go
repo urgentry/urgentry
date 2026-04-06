@@ -2,6 +2,7 @@ package nativecrash
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -60,6 +61,19 @@ func Corpus(t testing.TB) []Fixture {
 		ByName(t, "linux_elf"),
 		ByName(t, "fallback_module_only"),
 	}
+}
+
+func CorpusForLibrary() ([]Fixture, error) {
+	names := []string{"apple_multimodule", "linux_elf", "fallback_module_only"}
+	out := make([]Fixture, 0, len(names))
+	for _, name := range names {
+		item, err := ByNameForLibrary(name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }
 
 func ByName(t testing.TB, name string) Fixture {
@@ -156,8 +170,97 @@ func ByName(t testing.TB, name string) Fixture {
 	}
 }
 
+func ByNameForLibrary(name string) (Fixture, error) {
+	switch name {
+	case "apple_multimodule":
+		dump, err := minidumpfixture.BuildModulesBytes(0x1010, []minidumpfixture.ModuleSpec{
+			{BaseOfImage: 0x1000, SizeOfImage: 0x200, Name: "App"},
+			{BaseOfImage: 0x2000, SizeOfImage: 0x400, Name: "UIKit"},
+		})
+		if err != nil {
+			return Fixture{}, err
+		}
+		return Fixture{
+			Name:         name,
+			Release:      "ios@1.2.3",
+			Platform:     "cocoa",
+			DumpFilename: "apple-multimodule.dmp",
+			Dump:         dump,
+			Images: []Image{
+				{CodeFile: "App", Module: "App", DebugID: "DEBUG-APPLE-1", CodeID: "CODE-APPLE-1", ImageAddr: "0x1000", ImageSize: "0x200", Arch: "arm64"},
+				{CodeFile: "UIKit", Module: "UIKit", DebugID: "DEBUG-APPLE-2", CodeID: "CODE-APPLE-2", ImageAddr: "0x2000", ImageSize: "0x400", Arch: "arm64"},
+			},
+			Symbols: []SymbolSource{{
+				Kind:    "macho",
+				Name:    "App.sym",
+				DebugID: "DEBUG-APPLE-1",
+				CodeID:  "CODE-APPLE-1",
+				Body: []byte("MODULE mac arm64 DEBUG-APPLE-1 App\n" +
+					"FILE 0 src/AppDelegate.swift\n" +
+					"FUNC 1010 10 0 main\n" +
+					"1010 10 42 0\n"),
+			}},
+			GoldenFrames:       "apple_multimodule.frames.json",
+			WantResolvedFrames: 1,
+			WantUnresolved:     1,
+		}, nil
+	case "linux_elf":
+		dump, err := minidumpfixture.BuildModulesBytes(0x1, []minidumpfixture.ModuleSpec{
+			{BaseOfImage: 0x1, SizeOfImage: 0x20, Name: "server"},
+		})
+		if err != nil {
+			return Fixture{}, err
+		}
+		return Fixture{
+			Name:         name,
+			Release:      "linux@1.2.3",
+			Platform:     "native",
+			DumpFilename: "linux-elf.dmp",
+			Dump:         dump,
+			Images:       []Image{{CodeFile: "server", Module: "server", CodeID: "ELF-CODE-1", ImageAddr: "0x1", ImageSize: "0x20", Arch: "x86_64"}},
+			Symbols: []SymbolSource{{
+				Kind:   "elf",
+				Name:   "server.debug",
+				CodeID: "ELF-CODE-1",
+				Body:   nativesymfixture.ELFHandleRequestObjectBytes(),
+			}},
+			GoldenFrames:       "linux_elf.frames.json",
+			WantResolvedFrames: 1,
+			WantUnresolved:     0,
+		}, nil
+	case "fallback_module_only":
+		dump, err := minidumpfixture.BuildModulesBytes(0x3010, []minidumpfixture.ModuleSpec{
+			{BaseOfImage: 0x3000, SizeOfImage: 0x200, Name: "FallbackApp"},
+			{BaseOfImage: 0x4000, SizeOfImage: 0x200, Name: "libsystem"},
+		})
+		if err != nil {
+			return Fixture{}, err
+		}
+		return Fixture{
+			Name:               name,
+			Release:            "ios@9.9.9",
+			Platform:           "cocoa",
+			DumpFilename:       "fallback-module-only.dmp",
+			Dump:               dump,
+			GoldenFrames:       "fallback_module_only.frames.json",
+			WantResolvedFrames: 0,
+			WantUnresolved:     2,
+		}, nil
+	default:
+		return Fixture{}, fmt.Errorf("unknown native fixture %q", name)
+	}
+}
+
 func (f Fixture) EventJSON(t testing.TB, eventID string) []byte {
 	t.Helper()
+	body, err := f.EventJSONForLibrary(eventID)
+	if err != nil {
+		t.Fatalf("marshal native fixture payload: %v", err)
+	}
+	return body
+}
+
+func (f Fixture) EventJSONForLibrary(eventID string) ([]byte, error) {
 	payload := map[string]any{
 		"event_id": eventID,
 		"release":  f.Release,
@@ -199,9 +302,9 @@ func (f Fixture) EventJSON(t testing.TB, eventID string) []byte {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		t.Fatalf("marshal native fixture payload: %v", err)
+		return nil, err
 	}
-	return body
+	return body, nil
 }
 
 func LoadGoldenFrames(t testing.TB, name string) []FrameSnapshot {

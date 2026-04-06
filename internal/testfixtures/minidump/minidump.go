@@ -3,6 +3,7 @@ package minidump
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"testing"
 	"unicode/utf16"
 )
@@ -14,7 +15,16 @@ type ModuleSpec struct {
 }
 
 func Build(t testing.TB, exceptionAddr, imageAddr uint64, imageSize uint32, moduleName string) []byte {
-	return BuildModules(t, exceptionAddr, []ModuleSpec{{
+	t.Helper()
+	data, err := BuildBytes(exceptionAddr, imageAddr, imageSize, moduleName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func BuildBytes(exceptionAddr, imageAddr uint64, imageSize uint32, moduleName string) ([]byte, error) {
+	return BuildModulesBytes(exceptionAddr, []ModuleSpec{{
 		BaseOfImage: imageAddr,
 		SizeOfImage: imageSize,
 		Name:        moduleName,
@@ -23,8 +33,16 @@ func Build(t testing.TB, exceptionAddr, imageAddr uint64, imageSize uint32, modu
 
 func BuildModules(t testing.TB, exceptionAddr uint64, modules []ModuleSpec) []byte {
 	t.Helper()
+	data, err := BuildModulesBytes(exceptionAddr, modules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func BuildModulesBytes(exceptionAddr uint64, modules []ModuleSpec) ([]byte, error) {
 	if len(modules) == 0 {
-		t.Fatal("minidump fixture requires at least one module")
+		return nil, fmt.Errorf("minidump fixture requires at least one module")
 	}
 
 	const (
@@ -87,8 +105,7 @@ func BuildModules(t testing.TB, exceptionAddr uint64, modules []ModuleSpec) []by
 	binary.LittleEndian.PutUint64(buf[exceptionOffset+24:], exceptionAddr)
 
 	if bytes.Equal(buf[:4], []byte("MDMP")) {
-		return buf
+		return buf, nil
 	}
-	t.Fatal("failed to build minidump fixture")
-	return nil
+	return nil, fmt.Errorf("failed to build minidump fixture")
 }

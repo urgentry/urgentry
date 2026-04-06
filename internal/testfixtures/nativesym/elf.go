@@ -15,3 +15,11 @@ func ELFHandleRequestObject(t testing.TB) []byte {
 	}
 	return body
 }
+
+func ELFHandleRequestObjectBytes() []byte {
+	body, err := base64.StdEncoding.DecodeString(elfHandleRequestObjectBase64)
+	if err != nil {
+		panic(err)
+	}
+	return body
+}
