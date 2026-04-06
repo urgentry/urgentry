@@ -131,6 +131,7 @@ func newHTTPDeps(input httpDepsInput) ghttp.Deps {
 			Quota:               input.quota,
 			SymbolSources:       input.symbolSources,
 			Hooks:               input.hooks,
+			FeedbackStore:       input.feedbackStore,
 			NotificationActions: sqlite.NewNotificationActionStore(input.db),
 			Detectors:           sqlite.NewDetectorStore(input.db),
 			Workflows:           sqlite.NewWorkflowStore(input.db),

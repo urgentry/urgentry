@@ -50,6 +50,7 @@ make build-tiny   # compatibility alias for make build
 make build-debug  # unstripped local debug binary
 make run          # build + run on :8080
 make tiny-smoke   # boot Tiny mode, render /login/, verify bootstrap login + PAT
+make tiny-sentry-baseline # boot Tiny mode and replay the upstream-Sentry baseline corpus
 make tiny-launch-gate # release/handoff gate (before public releases)
 make test         # fast local loop (during development)
 make test-compat  # compatibility harness + live SDK matrix

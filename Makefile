@@ -1,4 +1,4 @@
-.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench synthetic-registry synthetic-registry-check synthetic-generate synthetic-audit synthetic-check
+.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate tiny-sentry-baseline clean fuzz docker release tidy vulncheck profile profile-trace profile-bench synthetic-registry synthetic-registry-check synthetic-generate synthetic-audit synthetic-check
 
 # Default binary name
 BINARY := urgentry
@@ -43,6 +43,10 @@ tiny-smoke:
 ## tiny-launch-gate: Run the Tiny public-launch hardening gate
 tiny-launch-gate:
 	bash ./scripts/tiny-launch-gate.sh
+
+## tiny-sentry-baseline: Boot Tiny mode and replay the Sentry-validated baseline corpus
+tiny-sentry-baseline:
+	bash ./scripts/tiny-sentry-baseline.sh
 
 ## test: Run the fast local test suite (excludes internal/compat, skips Postgres)
 test:
