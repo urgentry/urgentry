@@ -104,9 +104,20 @@ var (
 	traceEnd         = traceStart.Add(250 * time.Millisecond)
 )
 
+const (
+	storeEventID            = "01010101010101010101010101010101"
+	envelopeEventID         = "02020202020202020202020202020202"
+	sessionEnvelopeEventID  = "03030303030303030303030303030303"
+	sessionAggregateEventID = "04040404040404040404040404040404"
+	clientReportEventID     = "05050505050505050505050505050505"
+	checkInEnvelopeEventID  = "06060606060606060606060606060606"
+	sessionID               = "11111111-2222-4333-8444-555555555555"
+	checkInID               = "66666666-7777-4888-8999-aaaaaaaaaaaa"
+)
+
 func storeCorpus() []Payload {
 	body := mustJSON(map[string]any{
-		"event_id":    "syntheticstore000000000000000001",
+		"event_id":    storeEventID,
 		"timestamp":   defaultEventTime.Format(time.RFC3339),
 		"platform":    "javascript",
 		"level":       "error",
@@ -130,7 +141,7 @@ func storeCorpus() []Payload {
 				Method:            "POST",
 				PathKind:          "store",
 				ContentType:       "application/json",
-				EventID:           "syntheticstore000000000000000001",
+				EventID:           storeEventID,
 				Release:           "synthetic@1.0.0",
 				Environment:       "synthetic",
 				ExpectStatusCode:  httpStatusOK,
@@ -147,7 +158,7 @@ func storeCorpus() []Payload {
 				PathKind:          "store",
 				ContentType:       "application/json",
 				Compression:       CompressionGzip,
-				EventID:           "syntheticstore000000000000000001",
+				EventID:           storeEventID,
 				Release:           "synthetic@1.0.0",
 				Environment:       "synthetic",
 				ExpectStatusCode:  httpStatusOK,
@@ -164,7 +175,7 @@ func storeCorpus() []Payload {
 				PathKind:          "store",
 				ContentType:       "application/json",
 				Compression:       CompressionDeflate,
-				EventID:           "syntheticstore000000000000000001",
+				EventID:           storeEventID,
 				Release:           "synthetic@1.0.0",
 				Environment:       "synthetic",
 				ExpectStatusCode:  httpStatusOK,
@@ -177,9 +188,8 @@ func storeCorpus() []Payload {
 }
 
 func envelopeCorpus() []Payload {
-	eventID := "syntheticenv000000000000000000001"
 	eventPayload := mustJSON(map[string]any{
-		"event_id":    eventID,
+		"event_id":    envelopeEventID,
 		"timestamp":   defaultEventTime.Format(time.RFC3339),
 		"platform":    "javascript",
 		"level":       "error",
@@ -188,7 +198,7 @@ func envelopeCorpus() []Payload {
 		"message":     "Synthetic envelope event",
 	})
 	sessionPayload := mustJSON(map[string]any{
-		"sid":     "synthetic-session-001",
+		"sid":     sessionID,
 		"did":     "synthetic-user-001",
 		"status":  "ok",
 		"errors":  0,
@@ -209,12 +219,12 @@ func envelopeCorpus() []Payload {
 			},
 		},
 		"attrs": map[string]any{
-			"release":     "synthetic@1.0.1",
+			"release":     "synthetic@2.0.0",
 			"environment": "synthetic",
 		},
 	})
 	feedbackPayload := mustJSON(map[string]any{
-		"event_id": eventID,
+		"event_id": envelopeEventID,
 		"name":     "Synthetic Reporter",
 		"email":    "synthetic@example.com",
 		"comments": "Synthetic feedback item",
@@ -226,8 +236,8 @@ func envelopeCorpus() []Payload {
 		},
 	})
 	checkInPayload := mustJSON(map[string]any{
-		"check_in_id":  "synthetic-checkin-001",
-		"monitor_slug": "synthetic-nightly",
+		"check_in_id":  checkInID,
+		"monitor_slug": "synthetic-cron",
 		"status":       "ok",
 		"duration":     4.2,
 		"environment":  "synthetic",
@@ -248,13 +258,13 @@ func envelopeCorpus() []Payload {
 				Method:            "POST",
 				PathKind:          "envelope",
 				ContentType:       "application/x-sentry-envelope",
-				EventID:           eventID,
+				EventID:           envelopeEventID,
 				Release:           "synthetic@1.0.0",
 				Environment:       "synthetic",
 				ExpectStatusCode:  httpStatusOK,
 				ExpectSideEffects: []string{"event", "group"},
 			},
-			Body: buildEnvelope(map[string]any{"event_id": eventID}, envelopeItem{typ: "event", payload: eventPayload}),
+			Body: buildEnvelope(map[string]any{"event_id": envelopeEventID}, envelopeItem{typ: "event", payload: eventPayload}),
 		},
 		{
 			Manifest: Manifest{
@@ -268,7 +278,7 @@ func envelopeCorpus() []Payload {
 				ExpectStatusCode:  httpStatusOK,
 				ExpectSideEffects: []string{"release_session"},
 			},
-			Body: buildEnvelope(map[string]any{"event_id": "synthetic-session-envelope"}, envelopeItem{typ: "session", payload: sessionPayload}),
+			Body: buildEnvelope(map[string]any{"event_id": sessionEnvelopeEventID}, envelopeItem{typ: "session", payload: sessionPayload}),
 		},
 		{
 			Manifest: Manifest{
@@ -277,12 +287,12 @@ func envelopeCorpus() []Payload {
 				Method:            "POST",
 				PathKind:          "envelope",
 				ContentType:       "application/x-sentry-envelope",
-				Release:           "synthetic@1.0.1",
+				Release:           "synthetic@2.0.0",
 				Environment:       "synthetic",
 				ExpectStatusCode:  httpStatusOK,
 				ExpectSideEffects: []string{"release_session_aggregate"},
 			},
-			Body: buildEnvelope(map[string]any{"event_id": "synthetic-session-agg-envelope"}, envelopeItem{typ: "sessions", payload: sessionAggregatePayload}),
+			Body: buildEnvelope(map[string]any{"event_id": sessionAggregateEventID}, envelopeItem{typ: "sessions", payload: sessionAggregatePayload}),
 		},
 		{
 			Manifest: Manifest{
@@ -291,11 +301,11 @@ func envelopeCorpus() []Payload {
 				Method:            "POST",
 				PathKind:          "envelope",
 				ContentType:       "application/x-sentry-envelope",
-				EventID:           eventID,
+				EventID:           envelopeEventID,
 				ExpectStatusCode:  httpStatusOK,
 				ExpectSideEffects: []string{"user_feedback"},
 			},
-			Body: buildEnvelope(map[string]any{"event_id": eventID}, envelopeItem{typ: "user_report", payload: feedbackPayload}),
+			Body: buildEnvelope(map[string]any{"event_id": envelopeEventID}, envelopeItem{typ: "user_report", payload: feedbackPayload}),
 		},
 		{
 			Manifest: Manifest{
@@ -307,7 +317,7 @@ func envelopeCorpus() []Payload {
 				ExpectStatusCode:  httpStatusOK,
 				ExpectSideEffects: []string{"outcome"},
 			},
-			Body: buildEnvelope(map[string]any{"event_id": "synthetic-client-report-envelope"}, envelopeItem{typ: "client_report", payload: clientReportPayload}),
+			Body: buildEnvelope(map[string]any{"event_id": clientReportEventID}, envelopeItem{typ: "client_report", payload: clientReportPayload}),
 		},
 		{
 			Manifest: Manifest{
@@ -316,12 +326,12 @@ func envelopeCorpus() []Payload {
 				Method:            "POST",
 				PathKind:          "envelope",
 				ContentType:       "application/x-sentry-envelope",
-				MonitorSlug:       "synthetic-nightly",
+				MonitorSlug:       "synthetic-cron",
 				Environment:       "synthetic",
 				ExpectStatusCode:  httpStatusOK,
 				ExpectSideEffects: []string{"monitor", "monitor_checkin"},
 			},
-			Body: buildEnvelope(map[string]any{"event_id": "synthetic-checkin-envelope"}, envelopeItem{typ: "check_in", payload: checkInPayload}),
+			Body: buildEnvelope(map[string]any{"event_id": checkInEnvelopeEventID}, envelopeItem{typ: "check_in", payload: checkInPayload}),
 		},
 	}
 }

@@ -80,7 +80,7 @@ func Corpus() []Fixture {
 func SaveRead() Fixture {
 	return Fixture{
 		Name: "save_read",
-		spec: defaultSpec("evt-save-read", "profile-save-read", 25000000, saveReadBody),
+		spec: defaultSpec("0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d", "1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d", 25000000, saveReadBody),
 		Expected: Expectations{
 			SampleCount:   6,
 			FrameCount:    2,
@@ -96,7 +96,7 @@ func SaveRead() Fixture {
 func IOHeavy() Fixture {
 	return Fixture{
 		Name: "io_heavy",
-		spec: defaultSpec("evt-io-heavy", "profile-io-heavy", 12000000, ioHeavyBody),
+		spec: defaultSpec("0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e", "1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e", 12000000, ioHeavyBody),
 		Expected: Expectations{
 			SampleCount:   8,
 			FrameCount:    4,
@@ -112,7 +112,7 @@ func IOHeavy() Fixture {
 func CPUHeavy() Fixture {
 	return Fixture{
 		Name: "cpu_heavy",
-		spec: defaultSpec("evt-cpu-heavy", "profile-cpu-heavy", 15000000, cpuHeavyBody),
+		spec: defaultSpec("0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f", "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f", 15000000, cpuHeavyBody),
 		Expected: Expectations{
 			SampleCount:   7,
 			FrameCount:    4,
@@ -129,8 +129,8 @@ func MixedLanguage() Fixture {
 	return Fixture{
 		Name: "mixed_language",
 		spec: EnvelopeSpec{
-			EventID:     "evt-mixed-language",
-			ProfileID:   "profile-mixed-language",
+			EventID:     "10101010101010101010101010101010",
+			ProfileID:   "20202020202020202020202020202020",
 			Transaction: "checkout",
 			TraceID:     "0123456789abcdef0123456789abcdef",
 			Release:     "backend@1.2.3",
@@ -155,7 +155,7 @@ func MixedLanguage() Fixture {
 func DBHeavy() Fixture {
 	return Fixture{
 		Name: "db_heavy",
-		spec: defaultSpec("evt-db-heavy", "profile-db-heavy", 28000000, dbHeavyBody),
+		spec: defaultSpec("11111111111111111111111111111111", "21212121212121212121212121212121", 28000000, dbHeavyBody),
 		Expected: Expectations{
 			SampleCount:   10,
 			FrameCount:    2,
@@ -171,14 +171,14 @@ func DBHeavy() Fixture {
 func MalformedEmpty() Fixture {
 	return Fixture{
 		Name: "malformed_empty",
-		spec: defaultSpec("evt-malformed-empty", "profile-malformed-empty", 1000000, malformedEmptyBody),
+		spec: defaultSpec("12121212121212121212121212121212", "22222222222222222222222222222222", 1000000, malformedEmptyBody),
 	}
 }
 
 func InvalidFrames() Fixture {
 	return Fixture{
 		Name: "invalid_frames",
-		spec: defaultSpec("evt-invalid-frames", "profile-invalid-frames", 1000000, invalidFramesBody),
+		spec: defaultSpec("13131313131313131313131313131313", "23232323232323232323232323232323", 1000000, invalidFramesBody),
 	}
 }
 

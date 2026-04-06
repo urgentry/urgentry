@@ -100,7 +100,7 @@ func WriteDeepCorpus(root string) error {
 		if err := os.WriteFile(filepath.Join(caseDir, fixture.DumpFilename), fixture.Dump, 0o644); err != nil {
 			return err
 		}
-		eventBody, err := fixture.EventJSONForLibrary("synthetic-native-event-" + fixture.Name)
+		eventBody, err := fixture.EventJSONForLibrary(nativeEventID(fixture.Name))
 		if err != nil {
 			return err
 		}
@@ -171,7 +171,7 @@ func MaterializeDeepCase(id string) (MaterializedDeep, error) {
 			if err != nil {
 				return MaterializedDeep{}, err
 			}
-			eventBody, err := fixture.EventJSONForLibrary("synthetic-native-event-" + fixture.Name)
+			eventBody, err := fixture.EventJSONForLibrary(nativeEventID(fixture.Name))
 			if err != nil {
 				return MaterializedDeep{}, err
 			}
@@ -191,7 +191,7 @@ func MaterializeDeepCase(id string) (MaterializedDeep, error) {
 func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, string, error) {
 	switch item.Builder {
 	case "envelope_attachment_text":
-		eventID := "synthetic-artifact-envelope-001"
+		eventID := "07070707070707070707070707070707"
 		eventPayload := mustJSON(map[string]any{
 			"event_id": eventID,
 			"message":  "Synthetic artifact envelope",
@@ -233,7 +233,7 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, string, error) 
 			FileName:    "mapping.txt",
 			ContentType: "text/plain",
 			Body:        mapping,
-		}}, map[string]string{"uuid": "UUID-SYNTHETIC-1"})
+		}}, map[string]string{"uuid": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"})
 		if err != nil {
 			return nil, "", "", err
 		}
@@ -250,7 +250,7 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, string, error) 
 				Kind:        "attachment",
 				ID:          "synthetic-artifact-1",
 				ProjectSlug: "synthetic-import-project",
-				EventID:     "syntheticimportevent0000000000001",
+				EventID:     "08080808080808080808080808080808",
 				Name:        "crash.txt",
 				ContentType: "text/plain",
 				Checksum:    "sha256:synthetic-attachment",
@@ -302,4 +302,17 @@ func mustJSON(v any) []byte {
 func sanitizeCaseID(value string) string {
 	replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-", " ", "-")
 	return replacer.Replace(value)
+}
+
+func nativeEventID(name string) string {
+	switch name {
+	case "apple_multimodule":
+		return "14141414141414141414141414141414"
+	case "linux_elf":
+		return "15151515151515151515151515151515"
+	case "fallback_module_only":
+		return "16161616161616161616161616161616"
+	default:
+		return "17171717171717171717171717171717"
+	}
 }
