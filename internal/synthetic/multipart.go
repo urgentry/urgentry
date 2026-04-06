@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"mime/multipart"
 	"net/textproto"
+	"sort"
 )
 
 type multipartPart struct {
@@ -16,7 +17,16 @@ type multipartPart struct {
 func BuildMultipart(parts []multipartPart, fields map[string]string) ([]byte, string, error) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	for key, value := range fields {
+	if err := writer.SetBoundary("urgentry-synthetic-boundary"); err != nil {
+		return nil, "", err
+	}
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := fields[key]
 		if err := writer.WriteField(key, value); err != nil {
 			return nil, "", err
 		}

@@ -14,6 +14,7 @@ import (
 type GoTestPack struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description,omitempty"`
+	AliasOf     string           `json:"alias_of,omitempty"`
 	Suites      []GoTestSuite    `json:"suites"`
 	Covers      ScenarioCoverage `json:"covers,omitempty"`
 }
@@ -137,6 +138,9 @@ func Audit(repoRoot string) (AuditReport, error) {
 		var pack GoTestPack
 		if err := readJSONFile(filepath.Join(ScenariosRoot(), entry.Name()), &pack); err != nil {
 			return AuditReport{}, err
+		}
+		if strings.TrimSpace(pack.AliasOf) != "" {
+			continue
 		}
 		scenarioPackCount++
 		for _, item := range pack.Covers.RouteSections {

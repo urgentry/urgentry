@@ -29,7 +29,7 @@ func TestMaterializeArtifactCase(t *testing.T) {
 		if found.ID == "" {
 			t.Fatalf("artifact case %s not found", id)
 		}
-		body, name, err := MaterializeArtifactCase(found)
+		body, name, contentType, err := MaterializeArtifactCase(found)
 		if err != nil {
 			t.Fatalf("MaterializeArtifactCase(%q): %v", id, err)
 		}
@@ -38,6 +38,14 @@ func TestMaterializeArtifactCase(t *testing.T) {
 		}
 		if strings.TrimSpace(name) == "" {
 			t.Fatalf("%s output filename empty", id)
+		}
+		if strings.Contains(name, ".multipart") {
+			if strings.HasPrefix(strings.TrimSpace(string(body)), "{") {
+				t.Fatalf("%s body unexpectedly wrapped as JSON", id)
+			}
+			if !strings.Contains(contentType, "multipart") {
+				t.Fatalf("%s unexpected content type %q", id, contentType)
+			}
 		}
 	}
 }

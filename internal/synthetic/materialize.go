@@ -32,11 +32,14 @@ func WriteArtifactCorpus(root string) error {
 		if err := os.MkdirAll(caseDir, 0o755); err != nil {
 			return err
 		}
-		if err := writeJSONFile(filepath.Join(caseDir, "metadata.json"), item); err != nil {
+		body, name, contentType, err := MaterializeArtifactCase(item)
+		if err != nil {
 			return err
 		}
-		body, name, err := MaterializeArtifactCase(item)
-		if err != nil {
+		if err := writeJSONFile(filepath.Join(caseDir, "metadata.json"), map[string]any{
+			"case":         item,
+			"content_type": contentType,
+		}); err != nil {
 			return err
 		}
 		if err := os.WriteFile(filepath.Join(caseDir, name), body, 0o644); err != nil {
@@ -185,7 +188,7 @@ func MaterializeDeepCase(id string) (MaterializedDeep, error) {
 	return MaterializedDeep{}, fmt.Errorf("unknown deep case %q", id)
 }
 
-func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, error) {
+func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, string, error) {
 	switch item.Builder {
 	case "envelope_attachment_text":
 		eventID := "synthetic-artifact-envelope-001"
@@ -199,7 +202,7 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, error) {
 			envelopeItem{typ: "event", payload: eventPayload},
 			envelopeItem{typ: "attachment", payload: []byte("synthetic attachment body"), filename: "test.txt", contentType: "text/plain"},
 		)
-		return body, "request.envelope", nil
+		return body, "request.envelope", item.ContentType, nil
 	case "standalone_attachment_text":
 		body, contentType, err := BuildMultipart([]multipartPart{{
 			FieldName:   "file",
@@ -208,9 +211,9 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, error) {
 			Body:        []byte("synthetic standalone attachment"),
 		}}, item.ExtraFields)
 		if err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
-		return appendMultipartMetadata(body, contentType), "request.multipart", nil
+		return body, "request.multipart", contentType, nil
 	case "source_map_basic":
 		sourceMap := []byte(`{"version":3,"file":"app.min.js","sources":["app.ts"],"names":[],"mappings":"AAAA"}`)
 		body, contentType, err := BuildMultipart([]multipartPart{{
@@ -220,9 +223,9 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, error) {
 			Body:        sourceMap,
 		}}, map[string]string{"name": "app.min.js.map"})
 		if err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
-		return appendMultipartMetadata(body, contentType), "request.multipart", nil
+		return body, "request.multipart", contentType, nil
 	case "proguard_basic":
 		mapping := []byte("com.example.Foo -> a:")
 		body, contentType, err := BuildMultipart([]multipartPart{{
@@ -232,9 +235,9 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, error) {
 			Body:        mapping,
 		}}, map[string]string{"uuid": "UUID-SYNTHETIC-1"})
 		if err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
-		return appendMultipartMetadata(body, contentType), "request.multipart", nil
+		return body, "request.multipart", contentType, nil
 	case "import_bundle_minimal":
 		payload := migration.ImportPayload{
 			Projects: []migration.ProjectImport{{
@@ -257,11 +260,11 @@ func MaterializeArtifactCase(item ArtifactCase) ([]byte, string, error) {
 		}
 		body, err := json.Marshal(payload)
 		if err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
-		return body, "request.json", nil
+		return body, "request.json", "application/json", nil
 	default:
-		return nil, "", fmt.Errorf("unsupported artifact builder %q", item.Builder)
+		return nil, "", "", fmt.Errorf("unsupported artifact builder %q", item.Builder)
 	}
 }
 
@@ -294,15 +297,6 @@ func mustJSON(v any) []byte {
 		panic(err)
 	}
 	return data
-}
-
-func appendMultipartMetadata(body []byte, contentType string) []byte {
-	wrapped := map[string]any{
-		"content_type": contentType,
-		"body_base64":  body,
-	}
-	data, _ := json.MarshalIndent(wrapped, "", "  ")
-	return append(data, '\n')
 }
 
 func sanitizeCaseID(value string) string {

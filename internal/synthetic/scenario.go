@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -245,11 +246,16 @@ func loadScenarioBody(baseDir string, step Step, vars map[string]string) ([]byte
 		if err != nil {
 			return nil, err
 		}
-		rendered, err := renderScenarioString(string(body), vars)
-		if err != nil {
-			return nil, err
+		// Preserve binary and precompressed fixtures unless the file explicitly
+		// uses template markers.
+		if utf8.Valid(body) && bytes.Contains(body, []byte("{{")) {
+			rendered, err := renderScenarioString(string(body), vars)
+			if err != nil {
+				return nil, err
+			}
+			return []byte(rendered), nil
 		}
-		return []byte(rendered), nil
+		return body, nil
 	case step.Body != "":
 		rendered, err := renderScenarioString(step.Body, vars)
 		if err != nil {

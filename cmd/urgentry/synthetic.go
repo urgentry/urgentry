@@ -77,12 +77,6 @@ func runSyntheticGenerate(args []string) {
 	if err := synthetic.WriteDeepCorpus(filepath.Join(*manifestDir, "deep")); err != nil {
 		log.Fatal().Err(err).Msg("write synthetic deep corpus")
 	}
-	if err := synthetic.WriteArtifactCorpus(filepath.Join(*manifestDir, "artifacts")); err != nil {
-		log.Fatal().Err(err).Msg("write synthetic artifact corpus")
-	}
-	if err := synthetic.WriteDeepCorpus(filepath.Join(*manifestDir, "deep")); err != nil {
-		log.Fatal().Err(err).Msg("write synthetic deep corpus")
-	}
 
 	writeJSON(map[string]any{
 		"surface":     *surface,
