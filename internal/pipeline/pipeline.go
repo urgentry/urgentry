@@ -260,6 +260,15 @@ func (p *Pipeline) mustBeConfigurable(action string) {
 // Enqueue submits an item for async processing.
 // Returns false if the pipeline is stopped (channel closed).
 func (p *Pipeline) Enqueue(item Item) bool {
+	return p.EnqueueContext(context.Background(), item)
+}
+
+// EnqueueContext submits an item for async processing and honors ctx while
+// waiting for queue capacity.
+func (p *Pipeline) EnqueueContext(ctx context.Context, item Item) bool {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if p.isStopped() {
 		if p.metrics != nil {
 			p.metrics.RecordDrop()
@@ -287,7 +296,14 @@ func (p *Pipeline) Enqueue(item Item) bool {
 				log.Warn().Str("project_id", item.ProjectID).Dur("max_wait", p.maxEnqueueWait).Msg("pipeline: durable enqueue timed out")
 				return false
 			}
-			time.Sleep(p.enqueueRetryInterval)
+			select {
+			case <-ctx.Done():
+				if p.metrics != nil {
+					p.metrics.RecordDrop()
+				}
+				return false
+			case <-time.After(p.enqueueRetryInterval):
+			}
 		}
 	}
 
@@ -305,12 +321,10 @@ func (p *Pipeline) Enqueue(item Item) bool {
 		}
 		return true
 	default:
-		// Queue full — apply backpressure by blocking.
-		queue <- item
 		if p.metrics != nil {
-			p.metrics.RecordQueued()
+			p.metrics.RecordDrop()
 		}
-		return true
+		return false
 	}
 }
 

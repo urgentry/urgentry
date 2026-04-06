@@ -147,7 +147,7 @@ func EnvelopeHandlerWithDeps(deps IngestDeps) http.Handler {
 						httputil.WriteError(w, http.StatusTooManyRequests, "event rate exceeded, spike protection active")
 						return
 					}
-					if ok := deps.Pipeline.EnqueueNonBlocking(pipeline.Item{
+					if ok := deps.Pipeline.EnqueueContext(ctx, pipeline.Item{
 						ProjectID: projectID,
 						RawEvent:  item.Payload,
 					}); !ok {

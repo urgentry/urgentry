@@ -74,7 +74,7 @@ func newOTLPHandler(
 			projectID = "1"
 		}
 		for _, item := range items {
-			if pipe == nil || !pipe.EnqueueNonBlocking(pipeline.Item{ProjectID: projectID, RawEvent: item}) {
+			if pipe == nil || !pipe.EnqueueContext(r.Context(), pipeline.Item{ProjectID: projectID, RawEvent: item}) {
 				if met != nil {
 					met.RecordIngest(len(payload), errQueueFull)
 				}

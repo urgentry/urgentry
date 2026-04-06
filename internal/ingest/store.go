@@ -69,7 +69,7 @@ func StoreHandlerWithMetrics(pipe *pipeline.Pipeline, met *metrics.Metrics) http
 			if projectID == "" {
 				projectID = "1"
 			}
-			if ok := pipe.EnqueueNonBlocking(pipeline.Item{
+			if ok := pipe.EnqueueContext(r.Context(), pipeline.Item{
 				ProjectID: projectID,
 				RawEvent:  body,
 			}); !ok {
