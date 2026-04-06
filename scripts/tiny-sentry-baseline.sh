@@ -8,6 +8,10 @@ cd "$ROOT_DIR"
 TMP_DIR="$(mktemp -d)"
 LOG_FILE="$TMP_DIR/urgentry.log"
 BIN_PATH="$TMP_DIR/urgentry-baseline"
+COOKIE_JAR="$TMP_DIR/cookies.txt"
+HEADERS_FILE="$TMP_DIR/login.headers"
+STATE_JSON="$TMP_DIR/agent-browser-state.json"
+SESSION_NAME="tiny-sentry-baseline-$(basename "$TMP_DIR" | tr -c '[:alnum:]_-' '-')"
 PORT="${URGENTRY_SENTRY_BASELINE_TINY_PORT:-18082}"
 BASE_URL="http://127.0.0.1:${PORT}"
 BOOTSTRAP_EMAIL="${URGENTRY_SENTRY_BASELINE_TINY_EMAIL:-baseline-admin@example.com}"
@@ -20,6 +24,7 @@ cleanup() {
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
   fi
+  agent-browser --session-name "$SESSION_NAME" close >/dev/null 2>&1 || true
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -34,6 +39,7 @@ require_tool() {
 require_tool curl
 require_tool jq
 require_tool python3
+require_tool agent-browser
 
 echo "building Tiny baseline binary"
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}" ./scripts/build-urgentry.sh --output "$BIN_PATH" >/dev/null
@@ -162,7 +168,15 @@ api_get "/api/0/projects/$ORG_SLUG/$PROJECT_SLUG/events/010101010101010101010101
 api_get "/api/0/projects/$ORG_SLUG/$PROJECT_SLUG/events/02020202020202020202020202020202/" | jq -e '.title == "Synthetic envelope event"' >/dev/null
 api_get "/api/0/projects/$ORG_SLUG/$PROJECT_SLUG/monitors/synthetic-cron/checkins/" | jq -e 'length > 0 and .[0].monitorSlug == "synthetic-cron" and .[0].duration == 4.2' >/dev/null
 api_get "/api/0/events/07070707070707070707070707070707/attachments/" | jq -e 'length > 0 and .[0].name == "test.txt"' >/dev/null
-api_get "/api/0/projects/$ORG_SLUG/$PROJECT_SLUG/issues/" | jq -e 'map(.title) | index("Synthetic artifact envelope") != null and index("Synthetic store payload") != null and index("Synthetic envelope event") != null and index("Synthetic fresh feedback anchor urgentry") != null' >/dev/null
+issues_json="[]"
+for _ in $(seq 1 10); do
+  issues_json="$(api_get "/api/0/projects/$ORG_SLUG/$PROJECT_SLUG/issues/")"
+  if jq -e 'map(.title) | index("Synthetic artifact envelope") != null and index("Synthetic store payload") != null and index("Synthetic envelope event") != null and index("Synthetic fresh feedback anchor urgentry") != null' >/dev/null <<<"$issues_json"; then
+    break
+  fi
+  sleep 1
+done
+jq -e 'map(.title) | index("Synthetic artifact envelope") != null and index("Synthetic store payload") != null and index("Synthetic envelope event") != null and index("Synthetic fresh feedback anchor urgentry") != null' >/dev/null <<<"$issues_json"
 
 feedback_json="[]"
 for _ in $(seq 1 10); do
@@ -183,5 +197,74 @@ for _ in $(seq 1 10); do
   sleep 1
 done
 jq -e '.userReport.name == "Urgentry Fresh Reporter"' >/dev/null <<<"$fresh_event_json"
+
+echo "verifying Tiny UI with agent-browser"
+login_status="$(
+  curl -sS -o /dev/null -D "$HEADERS_FILE" -c "$COOKIE_JAR" \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data-urlencode "email=$BOOTSTRAP_EMAIL" \
+    --data-urlencode "password=$BOOTSTRAP_PASSWORD" \
+    --data-urlencode 'next=/issues/' \
+    -w '%{http_code}' \
+    "$BASE_URL/login/"
+)"
+if [[ "$login_status" != "303" ]]; then
+  echo "tiny-sentry-baseline failed: browser bootstrap login returned $login_status" >&2
+  cat "$HEADERS_FILE" >&2
+  exit 1
+fi
+
+python3 - <<'PY' "$COOKIE_JAR" "$STATE_JSON"
+import json
+import sys
+
+jar_path, out_path = sys.argv[1], sys.argv[2]
+cookies = []
+
+with open(jar_path, "r", encoding="utf-8") as handle:
+    for raw_line in handle:
+        line = raw_line.rstrip("\n")
+        if not line:
+            continue
+        http_only = False
+        if line.startswith("#HttpOnly_"):
+            line = line[len("#HttpOnly_"):]
+            http_only = True
+        elif line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 7:
+            continue
+        domain, include_subdomains, path, secure, expires, name, value = parts
+        expires_num = float(expires) if expires and expires != "0" else -1.0
+        cookies.append(
+            {
+                "name": name,
+                "value": value,
+                "domain": domain,
+                "path": path,
+                "expires": expires_num,
+                "size": len(name) + len(value),
+                "httpOnly": http_only,
+                "secure": secure.upper() == "TRUE",
+                "session": expires_num < 0,
+            }
+        )
+
+with open(out_path, "w", encoding="utf-8") as handle:
+    json.dump({"cookies": cookies, "origins": []}, handle)
+PY
+
+agent-browser --session-name "$SESSION_NAME" close >/dev/null 2>&1 || true
+agent-browser --session-name "$SESSION_NAME" state load "$STATE_JSON" >/dev/null
+agent-browser --session-name "$SESSION_NAME" open "$BASE_URL/issues/" >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait 1500 >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait --text "Synthetic store payload" >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait --text "Synthetic envelope event" >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait --text "Synthetic artifact envelope" >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait --text "Synthetic fresh feedback anchor urgentry" >/dev/null
+agent-browser --session-name "$SESSION_NAME" open "$BASE_URL/feedback/" >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait 1500 >/dev/null
+agent-browser --session-name "$SESSION_NAME" wait --text "Urgentry Fresh Reporter" >/dev/null
 
 echo "tiny sentry baseline passed"
