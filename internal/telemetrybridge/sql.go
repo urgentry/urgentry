@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"urgentry/internal/sqlutil"
 )
@@ -32,18 +33,34 @@ func CurrentVersion(ctx context.Context, db *sql.DB) (int, error) {
 }
 
 func Migrate(ctx context.Context, db *sql.DB, backend Backend) error {
-	if err := ensureMigrationTable(ctx, db); err != nil {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire telemetry migration connection: %w", err)
+	}
+	defer conn.Close()
+
+	const telemetryMigrationLockKey int64 = 0x74656c656d657472
+	if _, err := conn.ExecContext(ctx, `SELECT pg_advisory_lock($1)`, telemetryMigrationLockKey); err != nil {
+		return fmt.Errorf("acquire telemetry migration lock: %w", err)
+	}
+	defer func() {
+		unlockCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_, _ = conn.ExecContext(unlockCtx, `SELECT pg_advisory_unlock($1)`, telemetryMigrationLockKey)
+	}()
+
+	if err := ensureMigrationTable(ctx, conn); err != nil {
 		return err
 	}
 	for _, migration := range Migrations(backend) {
 		var exists int
-		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM _telemetry_migrations WHERE version = $1`, migration.Version).Scan(&exists); err != nil {
+		if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM _telemetry_migrations WHERE version = $1`, migration.Version).Scan(&exists); err != nil {
 			return fmt.Errorf("check telemetry migration %d: %w", migration.Version, err)
 		}
 		if exists > 0 {
 			continue
 		}
-		tx, err := db.BeginTx(ctx, nil)
+		tx, err := conn.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("begin telemetry migration %d: %w", migration.Version, err)
 		}
@@ -62,7 +79,11 @@ func Migrate(ctx context.Context, db *sql.DB, backend Backend) error {
 	return nil
 }
 
-func ensureMigrationTable(ctx context.Context, db *sql.DB) error {
+type telemetryMigrationExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func ensureMigrationTable(ctx context.Context, db telemetryMigrationExecutor) error {
 	if _, err := db.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS _telemetry_migrations (
 	version INTEGER PRIMARY KEY,

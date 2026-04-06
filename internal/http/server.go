@@ -249,7 +249,7 @@ func NewServer(role string, cfg config.Config, deps Deps) http.Handler {
 
 		// Backlog pressure — if the pipeline queue is deeply backed up,
 		// signal unavailability so orchestrators stop routing new traffic.
-		if deps.Pipeline != nil {
+		if deps.Pipeline != nil && mountsIngest(role) {
 			depth := deps.Pipeline.Len()
 			const backlogThreshold = 10000
 			if depth > backlogThreshold {

@@ -92,7 +92,14 @@ func (s *runtimeState) boot(ctx context.Context) (runtimeBoot, error) {
 // separate helpers prevents future mode-specific behavior from leaking back
 // into Run.
 func (s *runtimeState) bootTiny(ctx context.Context) (runtimeBoot, error) {
-	return s.bootCommon(ctx)
+	boot, err := s.bootCommon(ctx)
+	if err != nil {
+		return runtimeBoot{}, err
+	}
+	if s.mode.mountsAPI {
+		ensureDefaultAlertRule(s.control.alertStore)
+	}
+	return boot, nil
 }
 
 func (s *runtimeState) bootSeriousSelfHosted(ctx context.Context) (runtimeBoot, error) {
@@ -106,9 +113,6 @@ func (s *runtimeState) bootCommon(ctx context.Context) (runtimeBoot, error) {
 	}
 	if err := s.syncInstallState(ctx, bootstrapCompleted); err != nil {
 		return runtimeBoot{}, fmt.Errorf("install state: %w", err)
-	}
-	if s.mode.mountsAPI {
-		ensureDefaultAlertRule(s.control.alertStore)
 	}
 	return s.startBackground(ctx), nil
 }

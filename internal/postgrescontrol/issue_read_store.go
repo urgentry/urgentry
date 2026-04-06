@@ -43,6 +43,9 @@ func (s *IssueReadStore) SearchProjectIssues(ctx context.Context, projectID, fil
 	if err != nil {
 		return nil, err
 	}
+	if shouldFallbackToControlIssues(filter, rawQuery) && len(ids) == 0 {
+		return s.searchProjectIssuesDirect(ctx, projectID, filter, rawQuery, limit)
+	}
 	return s.loadIssues(ctx, ids)
 }
 
@@ -57,6 +60,9 @@ func (s *IssueReadStore) SearchProjectIssuesPaged(ctx context.Context, projectID
 	ids, err := sqlite.SearchProjectIssueIDsPaged(ctx, s.queryDB, projectID, filter, rawQuery, limit, offset)
 	if err != nil {
 		return nil, err
+	}
+	if shouldFallbackToControlIssues(filter, rawQuery) && len(ids) == 0 {
+		return s.searchProjectIssuesDirectPaged(ctx, projectID, filter, rawQuery, limit, offset)
 	}
 	return s.loadIssues(ctx, ids)
 }
@@ -194,6 +200,10 @@ func normalizeIssueSearchStatus(filter, rawQuery string) string {
 	default:
 		return ""
 	}
+}
+
+func shouldFallbackToControlIssues(filter, rawQuery string) bool {
+	return strings.TrimSpace(filter) == "" && strings.TrimSpace(rawQuery) == ""
 }
 
 func clampLimit(limit, fallback int) int {

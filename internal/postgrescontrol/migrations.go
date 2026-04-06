@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"urgentry/internal/sqlutil"
 
@@ -864,7 +865,23 @@ func AllMigrations() []Migration {
 }
 
 func Migrate(ctx context.Context, db *sql.DB) error {
-	if _, err := db.ExecContext(ctx, `
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire control migration connection: %w", err)
+	}
+	defer conn.Close()
+
+	const controlMigrationLockKey int64 = 0x757267656e747279
+	if _, err := conn.ExecContext(ctx, `SELECT pg_advisory_lock($1)`, controlMigrationLockKey); err != nil {
+		return fmt.Errorf("acquire control migration lock: %w", err)
+	}
+	defer func() {
+		unlockCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_, _ = conn.ExecContext(unlockCtx, `SELECT pg_advisory_unlock($1)`, controlMigrationLockKey)
+	}()
+
+	if _, err := conn.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS _control_migrations (
 	version INTEGER PRIMARY KEY,
 	name TEXT NOT NULL,
@@ -875,13 +892,13 @@ CREATE TABLE IF NOT EXISTS _control_migrations (
 
 	for _, migration := range migrations {
 		var exists int
-		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM _control_migrations WHERE version = $1", migration.Version).Scan(&exists); err != nil {
+		if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM _control_migrations WHERE version = $1", migration.Version).Scan(&exists); err != nil {
 			return fmt.Errorf("check control migration %d: %w", migration.Version, err)
 		}
 		if exists > 0 {
 			continue
 		}
-		tx, err := db.BeginTx(ctx, nil)
+		tx, err := conn.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("begin control migration %d: %w", migration.Version, err)
 		}

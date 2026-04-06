@@ -88,14 +88,6 @@ func (s *AuthStore) EnsureBootstrapAccess(ctx context.Context, opts BootstrapOpt
 		opts.PersonalAccessToken = rawToken("gpat")
 	}
 
-	var count int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&count); err != nil {
-		return nil, fmt.Errorf("count users: %w", err)
-	}
-	if count > 0 {
-		return &BootstrapResult{}, nil
-	}
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(opts.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("hash bootstrap password: %w", err)
@@ -106,6 +98,18 @@ func (s *AuthStore) EnsureBootstrapAccess(ctx context.Context, opts BootstrapOpt
 		return nil, fmt.Errorf("begin bootstrap tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, int64(0x757267656e747279)); err != nil {
+		return nil, fmt.Errorf("acquire bootstrap lock: %w", err)
+	}
+
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&count); err != nil {
+		return nil, fmt.Errorf("count users: %w", err)
+	}
+	if count > 0 {
+		return &BootstrapResult{}, nil
+	}
 
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO organizations (id, slug, name)
@@ -268,23 +272,27 @@ func (s *AuthStore) RotateBootstrapAccess(ctx context.Context, email, password, 
 
 // EnsureDefaultKey creates a default project key if none exists and returns a public key.
 func EnsureDefaultKey(ctx context.Context, db *sql.DB) (string, error) {
-	var count int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM project_keys`).Scan(&count); err != nil {
-		return "", fmt.Errorf("count project keys: %w", err)
-	}
-	if count > 0 {
-		var publicKey string
-		if err := db.QueryRowContext(ctx, `SELECT public_key FROM project_keys ORDER BY created_at ASC LIMIT 1`).Scan(&publicKey); err != nil {
-			return "", fmt.Errorf("load existing project key: %w", err)
-		}
-		return publicKey, nil
-	}
-
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("begin default key tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, int64(0x757267656e747279)); err != nil {
+		return "", fmt.Errorf("acquire default key lock: %w", err)
+	}
+
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM project_keys`).Scan(&count); err != nil {
+		return "", fmt.Errorf("count project keys: %w", err)
+	}
+	if count > 0 {
+		var publicKey string
+		if err := tx.QueryRowContext(ctx, `SELECT public_key FROM project_keys ORDER BY created_at ASC LIMIT 1`).Scan(&publicKey); err != nil {
+			return "", fmt.Errorf("load existing project key: %w", err)
+		}
+		return publicKey, nil
+	}
 
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO organizations (id, slug, name)
@@ -561,4 +569,3 @@ func scopesSlice(raw string) []string {
 	}
 	return scopes
 }
-
