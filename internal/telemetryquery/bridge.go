@@ -43,6 +43,10 @@ type bridgeService struct {
 	projectSlugsCache map[string]string
 	orgScopeMu        sync.Mutex
 	orgScopeCache     map[string]string // orgSlug -> orgID
+	projectScopeMu    sync.Mutex
+	projectScopeCache map[string]string // projectID -> orgID
+	discoverCtxMu     sync.Mutex
+	discoverCtxCache  map[string]bridgeDiscoverContext // organizationID -> cached project slug mappings
 }
 
 type Dependencies struct {
@@ -149,12 +153,27 @@ func (s *bridgeService) orgScope(ctx context.Context, orgSlug string) (telemetry
 
 func (s *bridgeService) projectScope(ctx context.Context, projectID string) (telemetrybridge.Scope, error) {
 	scope := telemetrybridge.Scope{ProjectID: projectID}
+	s.projectScopeMu.Lock()
+	if s.projectScopeCache != nil {
+		if orgID, ok := s.projectScopeCache[projectID]; ok {
+			s.projectScopeMu.Unlock()
+			scope.OrganizationID = orgID
+			return scope, nil
+		}
+	}
+	s.projectScopeMu.Unlock()
 	if err := s.sourceDB.QueryRowContext(ctx, `SELECT organization_id FROM projects WHERE id = ?`, projectID).Scan(&scope.OrganizationID); err != nil {
 		if err == sql.ErrNoRows {
 			return scope, store.ErrNotFound
 		}
 		return scope, fmt.Errorf("resolve project scope: %w", err)
 	}
+	s.projectScopeMu.Lock()
+	if s.projectScopeCache == nil {
+		s.projectScopeCache = make(map[string]string, 8)
+	}
+	s.projectScopeCache[projectID] = scope.OrganizationID
+	s.projectScopeMu.Unlock()
 	return scope, nil
 }
 
@@ -198,4 +217,23 @@ func clamp(value, minValue, maxValue int) int {
 		return maxValue
 	}
 	return value
+}
+
+func (s *bridgeService) cachedDiscoverContext(organizationID string) (bridgeDiscoverContext, bool) {
+	s.discoverCtxMu.Lock()
+	defer s.discoverCtxMu.Unlock()
+	if s.discoverCtxCache == nil {
+		return bridgeDiscoverContext{}, false
+	}
+	state, ok := s.discoverCtxCache[organizationID]
+	return state, ok
+}
+
+func (s *bridgeService) setCachedDiscoverContext(organizationID string, state bridgeDiscoverContext) {
+	s.discoverCtxMu.Lock()
+	defer s.discoverCtxMu.Unlock()
+	if s.discoverCtxCache == nil {
+		s.discoverCtxCache = make(map[string]bridgeDiscoverContext, 4)
+	}
+	s.discoverCtxCache[organizationID] = state
 }

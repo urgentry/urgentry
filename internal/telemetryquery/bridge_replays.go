@@ -143,7 +143,7 @@ func (s *bridgeService) GetReplay(ctx context.Context, projectID, replayID strin
 	if traceID != "" && len(manifest.TraceIDs) == 0 {
 		manifest.TraceIDs = []string{traceID}
 	}
-	timeline, err := s.ListReplayTimeline(ctx, projectID, replayID, store.ReplayTimelineFilter{Limit: 500})
+	timeline, err := s.listReplayTimeline(ctx, projectID, replayID, store.ReplayTimelineFilter{Limit: 500})
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +162,10 @@ func (s *bridgeService) ListReplayTimeline(ctx context.Context, projectID, repla
 	if err := s.ensureSurfaceFresh(ctx, QuerySurfaceReplays, scope, telemetrybridge.FamilyReplayTimeline); err != nil {
 		return nil, err
 	}
+	return s.listReplayTimeline(ctx, projectID, replayID, filter)
+}
+
+func (s *bridgeService) listReplayTimeline(ctx context.Context, projectID, replayID string, filter store.ReplayTimelineFilter) ([]store.ReplayTimelineItem, error) {
 	query := `
 		SELECT id, replay_id, offset_ms, kind, COALESCE(lane, ''), COALESCE(payload_json::text, '{}')
 		  FROM telemetry.replay_timeline_items

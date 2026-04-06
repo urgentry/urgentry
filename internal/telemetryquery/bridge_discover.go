@@ -106,6 +106,9 @@ func (s *bridgeService) resolveBridgeDiscoverContext(ctx context.Context, query 
 	default:
 		return state, fmt.Errorf("unsupported discover scope %q", query.Scope.Kind)
 	}
+	if cached, ok := s.cachedDiscoverContext(state.organizationID); ok {
+		return cached, nil
+	}
 	rows, err := s.sourceDB.QueryContext(ctx, `SELECT id, slug FROM projects WHERE organization_id = ?`, state.organizationID)
 	if err != nil {
 		return state, fmt.Errorf("list discover project slugs: %w", err)
@@ -119,7 +122,11 @@ func (s *bridgeService) resolveBridgeDiscoverContext(ctx context.Context, query 
 		state.projectSlugByID[id] = slug
 		state.projectIDsBySlug[slug] = append(state.projectIDsBySlug[slug], id)
 	}
-	return state, rows.Err()
+	if err := rows.Err(); err != nil {
+		return state, err
+	}
+	s.setCachedDiscoverContext(state.organizationID, state)
+	return state, nil
 }
 
 func (s *bridgeService) fetchBridgeDiscoverRows(ctx context.Context, query discover.Query, state bridgeDiscoverContext, limit int) ([]discover.TableRow, error) {
@@ -248,4 +255,3 @@ func compileBridgeProjectPredicate(pred discover.Predicate, builder *bridgeSQLBu
 		return "", fmt.Errorf("unsupported project predicate %q", pred.Op)
 	}
 }
-

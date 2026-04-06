@@ -47,18 +47,17 @@ func StoreHandlerWithMetrics(pipe *pipeline.Pipeline, met *metrics.Metrics) http
 			return
 		}
 
-		// Validate JSON.
-		var event map[string]json.RawMessage
-		if err := json.Unmarshal(body, &event); err != nil {
+		// Validate JSON without materializing the whole payload into a map.
+		if !json.Valid(body) {
 			if met != nil {
 				met.RecordIngest(len(body), err)
 			}
-			httputil.WriteError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			httputil.WriteError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
 
 		// Extract or generate event_id.
-		eventID := extractEventID(event)
+		eventID := extractEventID(body)
 		if eventID == "" {
 			eventID = id.New()
 		}
@@ -94,16 +93,14 @@ var errEmptyBody = fmt.Errorf("empty body")
 var errQueueFull = fmt.Errorf("queue full")
 var errSpikeThrottled = fmt.Errorf("spike throttled")
 
-// extractEventID pulls the event_id from a parsed event. Returns "" if absent
-// or not a string.
-func extractEventID(event map[string]json.RawMessage) string {
-	raw, ok := event["event_id"]
-	if !ok {
+// extractEventID pulls event_id from the raw payload. Returns "" if absent,
+// malformed, or not a string.
+func extractEventID(body []byte) string {
+	var event struct {
+		EventID string `json:"event_id"`
+	}
+	if err := json.Unmarshal(body, &event); err != nil {
 		return ""
 	}
-	var id string
-	if err := json.Unmarshal(raw, &id); err != nil {
-		return ""
-	}
-	return id
+	return event.EventID
 }

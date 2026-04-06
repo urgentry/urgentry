@@ -438,17 +438,20 @@ func (s *GroupStore) BatchIssueWorkflowStates(ctx context.Context, groupIDs []st
 		args = append(args, id)
 	}
 	inClause := strings.Join(placeholders, ",")
-	// User ID args for the subqueries, then group IDs for the IN clause.
+	// User ID args for the joins, then group IDs for the IN clause.
 	queryArgs := []any{userID, userID}
 	queryArgs = append(queryArgs, args...)
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT g.id,
-			COALESCE((SELECT 1 FROM issue_bookmarks WHERE group_id = g.id AND user_id = ?), 0),
-			COALESCE((SELECT 1 FROM issue_subscriptions WHERE group_id = g.id AND user_id = ?), 0),
+			CASE WHEN b.user_id IS NULL THEN 0 ELSE 1 END,
+			CASE WHEN s.user_id IS NULL THEN 0 ELSE 1 END,
 			COALESCE(g.merged_into_group_id, ''),
 			COALESCE(g.resolution_substatus, ''),
 			COALESCE(g.resolved_in_release, '')
-		FROM groups g WHERE g.id IN (`+inClause+`)`, queryArgs...)
+		FROM groups g
+		LEFT JOIN issue_bookmarks b ON b.group_id = g.id AND b.user_id = ?
+		LEFT JOIN issue_subscriptions s ON s.group_id = g.id AND s.user_id = ?
+		WHERE g.id IN (`+inClause+`)`, queryArgs...)
 	if err != nil {
 		return nil, err
 	}
