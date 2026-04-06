@@ -24,32 +24,68 @@ func NewEventStore(db *sql.DB) *EventStore {
 // SaveEvent persists a normalized event. Duplicate (project_id, event_id)
 // pairs are silently ignored via INSERT OR IGNORE.
 func (s *EventStore) SaveEvent(ctx context.Context, evt *store.StoredEvent) error {
-	if evt.EventType == "" {
-		evt.EventType = "error"
-	}
-	if evt.ProcessingStatus == "" {
-		evt.ProcessingStatus = store.EventProcessingStatusCompleted
-	}
-	tagsJSON, _ := json.Marshal(evt.Tags)
-	_, err := s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO events
-			(id, project_id, event_id, group_id, release, environment, platform, level, event_type,
-			 title, culprit, message, tags_json, payload_json, occurred_at, user_identifier, payload_key, processing_status, ingest_error)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		evt.ID, evt.ProjectID, evt.EventID, evt.GroupID, evt.ReleaseID, evt.Environment,
-		evt.Platform, evt.Level, evt.EventType, evt.Title, evt.Culprit, evt.Message,
-		string(tagsJSON), string(evt.NormalizedJSON),
-		evt.OccurredAt.UTC().Format(time.RFC3339),
-		evt.UserIdentifier,
-		evt.PayloadKey,
-		string(evt.ProcessingStatus),
-		evt.IngestError,
-	)
-	return err
+	tagsJSON, occurredAt := eventWriteFields(evt)
+	return withBusyRetry(30*time.Second, func() error {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO events
+				(id, project_id, event_id, group_id, release, environment, platform, level, event_type,
+				 title, culprit, message, tags_json, payload_json, occurred_at, user_identifier, payload_key, processing_status, ingest_error)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			evt.ID, evt.ProjectID, evt.EventID, evt.GroupID, evt.ReleaseID, evt.Environment,
+			evt.Platform, evt.Level, evt.EventType, evt.Title, evt.Culprit, evt.Message,
+			string(tagsJSON), string(evt.NormalizedJSON),
+			occurredAt,
+			evt.UserIdentifier,
+			evt.PayloadKey,
+			string(evt.ProcessingStatus),
+			evt.IngestError,
+		)
+		return err
+	})
 }
 
 // UpsertEvent persists a normalized event into a known row ID.
 func (s *EventStore) UpsertEvent(ctx context.Context, evt *store.StoredEvent) error {
+	tagsJSON, occurredAt := eventWriteFields(evt)
+	return withBusyRetry(30*time.Second, func() error {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO events
+				(id, project_id, event_id, group_id, release, environment, platform, level, event_type,
+				 title, culprit, message, tags_json, payload_json, occurred_at, user_identifier, payload_key, processing_status, ingest_error)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(id) DO UPDATE SET
+				project_id = excluded.project_id,
+				event_id = excluded.event_id,
+				group_id = excluded.group_id,
+				release = excluded.release,
+				environment = excluded.environment,
+				platform = excluded.platform,
+				level = excluded.level,
+				event_type = excluded.event_type,
+				title = excluded.title,
+				culprit = excluded.culprit,
+				message = excluded.message,
+				tags_json = excluded.tags_json,
+				payload_json = excluded.payload_json,
+				occurred_at = excluded.occurred_at,
+				user_identifier = excluded.user_identifier,
+				payload_key = excluded.payload_key,
+				processing_status = excluded.processing_status,
+				ingest_error = excluded.ingest_error`,
+			evt.ID, evt.ProjectID, evt.EventID, evt.GroupID, evt.ReleaseID, evt.Environment,
+			evt.Platform, evt.Level, evt.EventType, evt.Title, evt.Culprit, evt.Message,
+			string(tagsJSON), string(evt.NormalizedJSON),
+			occurredAt,
+			evt.UserIdentifier,
+			evt.PayloadKey,
+			string(evt.ProcessingStatus),
+			evt.IngestError,
+		)
+		return err
+	})
+}
+
+func eventWriteFields(evt *store.StoredEvent) ([]byte, string) {
 	if evt.EventType == "" {
 		evt.EventType = "error"
 	}
@@ -57,40 +93,7 @@ func (s *EventStore) UpsertEvent(ctx context.Context, evt *store.StoredEvent) er
 		evt.ProcessingStatus = store.EventProcessingStatusCompleted
 	}
 	tagsJSON, _ := json.Marshal(evt.Tags)
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO events
-			(id, project_id, event_id, group_id, release, environment, platform, level, event_type,
-			 title, culprit, message, tags_json, payload_json, occurred_at, user_identifier, payload_key, processing_status, ingest_error)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(id) DO UPDATE SET
-			project_id = excluded.project_id,
-			event_id = excluded.event_id,
-			group_id = excluded.group_id,
-			release = excluded.release,
-			environment = excluded.environment,
-			platform = excluded.platform,
-			level = excluded.level,
-			event_type = excluded.event_type,
-			title = excluded.title,
-			culprit = excluded.culprit,
-			message = excluded.message,
-			tags_json = excluded.tags_json,
-			payload_json = excluded.payload_json,
-			occurred_at = excluded.occurred_at,
-			user_identifier = excluded.user_identifier,
-			payload_key = excluded.payload_key,
-			processing_status = excluded.processing_status,
-			ingest_error = excluded.ingest_error`,
-		evt.ID, evt.ProjectID, evt.EventID, evt.GroupID, evt.ReleaseID, evt.Environment,
-		evt.Platform, evt.Level, evt.EventType, evt.Title, evt.Culprit, evt.Message,
-		string(tagsJSON), string(evt.NormalizedJSON),
-		evt.OccurredAt.UTC().Format(time.RFC3339),
-		evt.UserIdentifier,
-		evt.PayloadKey,
-		string(evt.ProcessingStatus),
-		evt.IngestError,
-	)
-	return err
+	return tagsJSON, evt.OccurredAt.UTC().Format(time.RFC3339)
 }
 
 func (s *EventStore) UpdateProcessingStatus(ctx context.Context, eventRowID string, status store.EventProcessingStatus, ingestError string) error {

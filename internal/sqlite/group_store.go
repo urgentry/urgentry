@@ -27,75 +27,73 @@ func NewGroupStore(db *sql.DB) *GroupStore {
 // it updates last_seen, times_seen, and last_event_id. Otherwise it inserts.
 // The group's ID field is set to the actual (possibly pre-existing) row ID.
 func (s *GroupStore) UpsertGroup(ctx context.Context, g *issue.Group) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Check for existing group.
-	var existingID string
-	err = tx.QueryRowContext(ctx,
-		"SELECT id FROM groups WHERE project_id = ? AND grouping_version = ? AND grouping_key = ?",
-		g.ProjectID, g.GroupingVersion, g.GroupingKey,
-	).Scan(&existingID)
-
-	if err == sql.ErrNoRows {
-		// Insert new group.
-		if g.ID == "" {
-			g.ID = generateID()
-		}
-		if g.TimesSeen == 0 {
-			g.TimesSeen = 1
-		}
-		if g.Status == "" {
-			g.Status = "unresolved"
-		}
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO groups (id, project_id, grouping_version, grouping_key, title, culprit, level, assignee, status, first_seen, last_seen, times_seen, last_event_id)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			g.ID, g.ProjectID, g.GroupingVersion, g.GroupingKey,
-			g.Title, g.Culprit, g.Level, g.Assignee, g.Status,
-			g.FirstSeen.UTC().Format(time.RFC3339),
-			g.LastSeen.UTC().Format(time.RFC3339),
-			g.TimesSeen, g.LastEventID,
-		)
+	return withBusyRetry(30*time.Second, func() error {
+		tx, err := s.db.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
-		// Assign the next sequential short_id.
+		defer func() { _ = tx.Rollback() }()
+
+		var existingID string
+		err = tx.QueryRowContext(ctx,
+			"SELECT id FROM groups WHERE project_id = ? AND grouping_version = ? AND grouping_key = ?",
+			g.ProjectID, g.GroupingVersion, g.GroupingKey,
+		).Scan(&existingID)
+
+		if err == sql.ErrNoRows {
+			if g.ID == "" {
+				g.ID = generateID()
+			}
+			if g.TimesSeen == 0 {
+				g.TimesSeen = 1
+			}
+			if g.Status == "" {
+				g.Status = "unresolved"
+			}
+			_, err = tx.ExecContext(ctx,
+				`INSERT INTO groups (id, project_id, grouping_version, grouping_key, title, culprit, level, assignee, status, first_seen, last_seen, times_seen, last_event_id)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				g.ID, g.ProjectID, g.GroupingVersion, g.GroupingKey,
+				g.Title, g.Culprit, g.Level, g.Assignee, g.Status,
+				g.FirstSeen.UTC().Format(time.RFC3339),
+				g.LastSeen.UTC().Format(time.RFC3339),
+				g.TimesSeen, g.LastEventID,
+			)
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(ctx,
+				`UPDATE groups SET short_id = (SELECT COALESCE(MAX(short_id), 0) + 1 FROM groups) WHERE id = ? AND short_id IS NULL`,
+				g.ID,
+			)
+			if err != nil {
+				return err
+			}
+			return tx.Commit()
+		}
+		if err != nil {
+			return err
+		}
+
+		g.ID = existingID
 		_, err = tx.ExecContext(ctx,
-			`UPDATE groups SET short_id = (SELECT COALESCE(MAX(short_id), 0) + 1 FROM groups) WHERE id = ? AND short_id IS NULL`,
-			g.ID,
+			`UPDATE groups SET
+				last_seen = ?,
+				times_seen = times_seen + 1,
+				last_event_id = ?,
+				title = ?,
+				culprit = ?,
+				level = ?
+			 WHERE id = ?`,
+			g.LastSeen.UTC().Format(time.RFC3339),
+			g.LastEventID, g.Title, g.Culprit, g.Level,
+			existingID,
 		)
 		if err != nil {
 			return err
 		}
 		return tx.Commit()
-	}
-	if err != nil {
-		return err
-	}
-
-	// Update existing group.
-	g.ID = existingID
-	_, err = tx.ExecContext(ctx,
-		`UPDATE groups SET
-			last_seen = ?,
-			times_seen = times_seen + 1,
-			last_event_id = ?,
-			title = ?,
-			culprit = ?,
-			level = ?
-		 WHERE id = ?`,
-		g.LastSeen.UTC().Format(time.RFC3339),
-		g.LastEventID, g.Title, g.Culprit, g.Level,
-		existingID,
-	)
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
+	})
 }
 
 // GetGroup retrieves a group by its ID.

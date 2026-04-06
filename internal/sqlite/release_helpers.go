@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"time"
 )
 
 func ensureReleaseForOwner(ctx context.Context, db *sql.DB, ownerID, version string) error {
@@ -17,11 +18,16 @@ func ensureReleaseForOwner(ctx context.Context, db *sql.DB, ownerID, version str
 	if err != nil || orgID == "" {
 		return err
 	}
-	res, err := db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO releases (id, organization_id, version)
-		 VALUES (?, ?, ?)`,
-		generateID(), orgID, version,
-	)
+	var res sql.Result
+	err = withBusyRetry(30*time.Second, func() error {
+		var execErr error
+		res, execErr = db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO releases (id, organization_id, version)
+			 VALUES (?, ?, ?)`,
+			generateID(), orgID, version,
+		)
+		return execErr
+	})
 	if err != nil {
 		return err
 	}
@@ -34,13 +40,15 @@ func ensureReleaseForOwner(ctx context.Context, db *sql.DB, ownerID, version str
 
 func releaseOwnerOrganizationID(ctx context.Context, db *sql.DB, ownerID string) (string, error) {
 	var orgID sql.NullString
-	err := db.QueryRowContext(ctx,
-		`SELECT COALESCE(
-			(SELECT id FROM organizations WHERE id = ?),
-			(SELECT organization_id FROM projects WHERE id = ?)
-		)`,
-		ownerID, ownerID,
-	).Scan(&orgID)
+	err := withBusyRetry(30*time.Second, func() error {
+		return db.QueryRowContext(ctx,
+			`SELECT COALESCE(
+				(SELECT id FROM organizations WHERE id = ?),
+				(SELECT organization_id FROM projects WHERE id = ?)
+			)`,
+			ownerID, ownerID,
+		).Scan(&orgID)
+	})
 	if err != nil {
 		return "", err
 	}
@@ -53,16 +61,18 @@ func bindResolvedNextReleaseIssues(ctx context.Context, db *sql.DB, orgID, versi
 	if orgID == "" || version == "" {
 		return nil
 	}
-	_, err := db.ExecContext(ctx,
-		`UPDATE groups
-		    SET resolved_in_release = ?
-		  WHERE status = 'resolved'
-		    AND COALESCE(resolution_substatus, '') = 'next_release'
-		    AND COALESCE(resolved_in_release, '') = ''
-		    AND project_id IN (
-		        SELECT id FROM projects WHERE organization_id = ?
-		    )`,
-		version, orgID,
-	)
-	return err
+	return withBusyRetry(30*time.Second, func() error {
+		_, err := db.ExecContext(ctx,
+			`UPDATE groups
+			    SET resolved_in_release = ?
+			  WHERE status = 'resolved'
+			    AND COALESCE(resolution_substatus, '') = 'next_release'
+			    AND COALESCE(resolved_in_release, '') = ''
+			    AND project_id IN (
+			        SELECT id FROM projects WHERE organization_id = ?
+			    )`,
+			version, orgID,
+		)
+		return err
+	})
 }
