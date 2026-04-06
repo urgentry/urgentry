@@ -98,6 +98,7 @@ func TestMonitorStoreSaveCheckInAndMarkMissed(t *testing.T) {
 		CheckInID:   "check-in-1",
 		MonitorSlug: "every-minute",
 		Status:      "ok",
+		Duration:    4.2,
 		Environment: "production",
 		DateCreated: base,
 	}, &sqlite.MonitorConfig{
@@ -117,6 +118,9 @@ func TestMonitorStoreSaveCheckInAndMarkMissed(t *testing.T) {
 	}
 	if len(checkIns) != 1 || checkIns[0].CheckInID != "check-in-1" {
 		t.Fatalf("unexpected initial check-ins: %+v", checkIns)
+	}
+	if checkIns[0].Duration != 4.2 {
+		t.Fatalf("initial check-in duration = %v, want 4.2", checkIns[0].Duration)
 	}
 
 	missed, err := store.MarkMissed(ctx, time.Now().UTC())

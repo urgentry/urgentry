@@ -59,6 +59,10 @@ func openRuntimeControlPlane(ctx context.Context, cfg config.Config, queryDB *sq
 			_ = control.close()
 			return runtimeControlPlane{}, fmt.Errorf("sync control-plane sqlite shadows: %w", err)
 		}
+		if err := syncPostgresCatalogShadows(ctx, control.services.Catalog, queryDB); err != nil {
+			_ = control.close()
+			return runtimeControlPlane{}, fmt.Errorf("sync control-plane sqlite catalog shadows: %w", err)
+		}
 		return control, nil
 	}
 	return buildSQLiteRuntimeControlPlane(queryDB), nil
@@ -116,8 +120,9 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 	authStore := newShadowingAuthStore(baseAuthStore, shadowStore)
 	groupStore := postgrescontrol.NewGroupStore(controlDB)
 	adminStore := newShadowingAdminStore(postgrescontrol.NewAdminStore(controlDB), shadowStore)
+	catalogStore := postgrescontrol.NewCatalogStore(controlDB)
 	services := controlplane.Services{
-		Catalog:      postgrescontrol.NewCatalogStore(controlDB),
+		Catalog:      catalogStore,
 		Admin:        adminStore,
 		Issues:       groupStore,
 		IssueReads:   postgrescontrol.NewIssueReadStore(controlDB, queryDB),
@@ -148,7 +153,14 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 		groupStore:       groupStore,
 		close:            controlDB.Close,
 		defaultKey: func(ctx context.Context) (string, error) {
-			return postgrescontrol.EnsureDefaultKey(ctx, controlDB)
+			publicKey, err := postgrescontrol.EnsureDefaultKey(ctx, controlDB)
+			if err != nil {
+				return "", err
+			}
+			if err := syncPostgresCatalogShadows(ctx, catalogStore, queryDB); err != nil {
+				return "", err
+			}
+			return publicKey, nil
 		},
 		bootstrap: func(ctx context.Context, cfg config.Config) (*bootstrapResult, error) {
 			result, err := baseAuthStore.EnsureBootstrapAccess(ctx, postgrescontrol.BootstrapOptions{
@@ -166,6 +178,9 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 					return nil, err
 				}
 				if err := syncPostgresControlPlaneShadows(ctx, controlDB, shadowStore); err != nil {
+					return nil, err
+				}
+				if err := syncPostgresCatalogShadows(ctx, catalogStore, queryDB); err != nil {
 					return nil, err
 				}
 			}

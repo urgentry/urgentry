@@ -25,6 +25,7 @@ type ArtifactFile struct {
 }
 
 func generateArtifactManifest(repoRoot string) (ArtifactManifest, error) {
+	_ = repoRoot
 	cases := []ArtifactCase{
 		{
 			ID:            "artifact/envelope_attachment_text",

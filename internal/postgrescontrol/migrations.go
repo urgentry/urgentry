@@ -840,6 +840,15 @@ CREATE INDEX IF NOT EXISTS idx_group_external_issues_installation
 	ON group_external_issues(installation_id, created_at DESC);
 `,
 	},
+	{
+		Version: 11,
+		Name:    "monitor-checkin-duration-precision",
+		SQL: `
+ALTER TABLE monitor_checkins
+	ALTER COLUMN duration_ms TYPE DOUBLE PRECISION
+	USING duration_ms::double precision;
+`,
+	},
 }
 
 func Open(ctx context.Context, dsn string) (*sql.DB, error) {

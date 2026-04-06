@@ -504,6 +504,7 @@ func fixtureName(family, filename string) string {
 }
 
 func expectedStatus(surface Surface, filename string) int {
+	_ = filename
 	if surface == SurfaceNegative {
 		return httpStatusBadRequest
 	}

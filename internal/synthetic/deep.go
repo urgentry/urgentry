@@ -25,6 +25,7 @@ type DeepCase struct {
 }
 
 func generateDeepManifest(repoRoot string) (DeepManifest, error) {
+	_ = repoRoot
 	cases := make([]DeepCase, 0, 16)
 
 	for _, fixture := range replayfixtures.Corpus() {

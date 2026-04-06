@@ -319,6 +319,62 @@ func syncPostgresControlPlaneShadows(ctx context.Context, controlDB *sql.DB, sha
 	return nil
 }
 
+func syncPostgresCatalogShadows(ctx context.Context, catalog controlplane.CatalogStore, queryDB *sql.DB) error {
+	if catalog == nil || queryDB == nil {
+		return nil
+	}
+
+	orgs, err := catalog.ListOrganizations(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range orgs {
+		org := orgs[i]
+		if _, err := queryDB.ExecContext(ctx,
+			`INSERT INTO organizations (id, slug, name, created_at)
+			 VALUES (?, ?, ?, ?)
+			 ON CONFLICT(id) DO UPDATE SET
+			 	slug = excluded.slug,
+			 	name = excluded.name`,
+			org.ID, org.Slug, org.Name, org.DateCreated.UTC().Format(time.RFC3339),
+		); err != nil {
+			return err
+		}
+	}
+
+	for i := range orgs {
+		org := orgs[i]
+		projects, err := catalog.ListProjects(ctx, org.Slug)
+		if err != nil {
+			return err
+		}
+		for j := range projects {
+			project := projects[j]
+			if _, err := queryDB.ExecContext(ctx,
+				`INSERT INTO projects (id, organization_id, slug, name, platform, status, created_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT(id) DO UPDATE SET
+				 	organization_id = excluded.organization_id,
+				 	slug = excluded.slug,
+				 	name = excluded.name,
+				 	platform = excluded.platform,
+				 	status = excluded.status`,
+				project.ID,
+				org.ID,
+				project.Slug,
+				project.Name,
+				project.Platform,
+				project.Status,
+				project.DateCreated.UTC().Format(time.RFC3339),
+			); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func syncBootstrapUserShadow(ctx context.Context, store *postgrescontrol.AuthStore, shadows *sqlite.PrincipalShadowStore, email, password string) error {
 	if store == nil || shadows == nil {
 		return nil

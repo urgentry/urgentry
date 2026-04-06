@@ -82,7 +82,6 @@ func RunPackFile(ctx context.Context, path string) (PackRunResult, error) {
 		return PackRunResult{}, err
 	}
 	results := make([]SuiteRunResult, 0, len(pack.Suites))
-	allPassed := true
 	for _, suite := range pack.Suites {
 		args := []string{"test", suite.Package, "-count=1"}
 		if len(suite.Tags) > 0 {
@@ -109,11 +108,10 @@ func RunPackFile(ctx context.Context, path string) (PackRunResult, error) {
 		}
 		results = append(results, result)
 		if err != nil {
-			allPassed = false
 			return PackRunResult{Pack: pack.Name, Passed: false, Results: results}, fmt.Errorf("%s failed: %w", suite.Name, err)
 		}
 	}
-	return PackRunResult{Pack: pack.Name, Passed: allPassed, Results: results}, nil
+	return PackRunResult{Pack: pack.Name, Passed: true, Results: results}, nil
 }
 
 func Audit(repoRoot string) (AuditReport, error) {

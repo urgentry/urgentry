@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"urgentry/internal/attachment"
 	"urgentry/internal/config"
 	"urgentry/internal/postgrescontrol"
 	"urgentry/internal/sqlite"
@@ -241,6 +242,9 @@ func TestOpenRuntimeControlPlaneSyncsControlUsersIntoQuerySQLite(t *testing.T) {
 	if _, err := controlDB.Exec(`INSERT INTO organizations (id, slug, name) VALUES ('org-1', 'acme', 'Acme')`); err != nil {
 		t.Fatalf("seed control organization: %v", err)
 	}
+	if _, err := controlDB.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status, created_at, updated_at) VALUES ('proj-1', 'org-1', 'backend', 'Backend', 'go', 'active', $1, $1)`, now); err != nil {
+		t.Fatalf("seed control project: %v", err)
+	}
 	if _, err := controlDB.Exec(`INSERT INTO users (id, email, display_name, is_active, created_at, updated_at) VALUES ('user-1', 'owner@example.com', 'Owner', TRUE, $1, $1)`, now); err != nil {
 		t.Fatalf("seed control user: %v", err)
 	}
@@ -262,7 +266,46 @@ func TestOpenRuntimeControlPlaneSyncsControlUsersIntoQuerySQLite(t *testing.T) {
 
 	assertCount(t, queryDB, "SELECT COUNT(*) FROM users WHERE id = 'user-1'", 1)
 	assertCount(t, queryDB, "SELECT COUNT(*) FROM organizations WHERE id = 'org-1'", 1)
+	assertCount(t, queryDB, "SELECT COUNT(*) FROM projects WHERE id = 'proj-1' AND organization_id = 'org-1'", 1)
 	assertCount(t, queryDB, "SELECT COUNT(*) FROM organization_members WHERE organization_id = 'org-1' AND user_id = 'user-1'", 1)
+}
+
+func TestPostgresDefaultKeySyncsQueryProjectShadowForAttachments(t *testing.T) {
+	provider := testpostgres.NewProvider("app-runtime-default-key")
+	controlDB, _ := provider.OpenDatabaseWithDSN(t, "control")
+	if err := postgrescontrol.Migrate(context.Background(), controlDB); err != nil {
+		t.Fatalf("postgres migrate: %v", err)
+	}
+
+	queryDB, err := sqlite.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("sqlite.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = queryDB.Close() })
+
+	control := buildPostgresRuntimeControlPlane(controlDB, queryDB)
+	t.Cleanup(func() { _ = control.close() })
+
+	publicKey, err := control.defaultKey(context.Background())
+	if err != nil {
+		t.Fatalf("defaultKey: %v", err)
+	}
+	if publicKey == "" {
+		t.Fatal("defaultKey returned empty public key")
+	}
+
+	attachments := sqlite.NewAttachmentStore(queryDB, sqliteTestBlobStore(t))
+	if err := attachments.SaveAttachment(context.Background(), &attachment.Attachment{
+		ProjectID: "default-project",
+		EventID:   "evt-shadow-attachment",
+		Name:      "baseline.txt",
+	}, []byte("synthetic attachment body")); err != nil {
+		t.Fatalf("SaveAttachment after defaultKey shadow sync: %v", err)
+	}
+
+	assertCount(t, queryDB, "SELECT COUNT(*) FROM organizations WHERE id = 'default-org'", 1)
+	assertCount(t, queryDB, "SELECT COUNT(*) FROM projects WHERE id = 'default-project' AND organization_id = 'default-org'", 1)
+	assertCount(t, queryDB, "SELECT COUNT(*) FROM event_attachments WHERE event_id = 'evt-shadow-attachment'", 1)
 }
 
 func TestNativeDebugFileStoreLookupReturnsWrappedFile(t *testing.T) {

@@ -136,7 +136,7 @@ func (s *MonitorStore) SaveCheckIn(ctx context.Context, checkIn *MonitorCheckIn,
 		checkIn.ProjectID,
 		checkIn.CheckInID,
 		checkIn.Status,
-		int64(checkIn.Duration),
+		checkIn.Duration,
 		canonicalEnvironment(firstNonEmpty(checkIn.Environment, monitor.Environment)),
 		checkIn.DateCreated.UTC(),
 	); err != nil {
@@ -245,7 +245,7 @@ func (s *MonitorStore) ListCheckIns(ctx context.Context, projectID, slug string,
 	items := make([]MonitorCheckIn, 0, limit)
 	for rows.Next() {
 		item := MonitorCheckIn{}
-		var durationMS int64
+		var durationMS float64
 		var occurredAt time.Time
 		var createdAt time.Time
 		if err := rows.Scan(
@@ -262,7 +262,7 @@ func (s *MonitorStore) ListCheckIns(ctx context.Context, projectID, slug string,
 		); err != nil {
 			return nil, fmt.Errorf("scan monitor check-in: %w", err)
 		}
-		item.Duration = float64(durationMS)
+		item.Duration = durationMS
 		item.DateCreated = createdAt.UTC()
 		items = append(items, item)
 	}
