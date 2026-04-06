@@ -1,4 +1,4 @@
-.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench
+.PHONY: build build-tiny build-debug check-links check-tidy test test-fast-with-timings test-compat test-merge test-race lint lint-full bench bench-budget selfhosted-bench selfhosted-eval run tiny-smoke tiny-launch-gate clean fuzz docker release tidy vulncheck profile profile-trace profile-bench synthetic-registry synthetic-registry-check
 
 # Default binary name
 BINARY := urgentry
@@ -142,6 +142,14 @@ profile:
 profile-trace:
 	$(PROFILE_RESET)
 	$(call PROFILE_RUN_SCENARIOS,trace)
+
+## synthetic-registry: Regenerate the checked-in synthetic surface/entity/query registries
+synthetic-registry:
+	go run ./tools/syntheticregistry --write
+
+## synthetic-registry-check: Fail if the checked-in synthetic registries are stale
+synthetic-registry-check:
+	go run ./tools/syntheticregistry --write=false --check
 
 ## fuzz: Run fuzz tests (30 seconds each)
 fuzz:
