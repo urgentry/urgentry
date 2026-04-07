@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,6 +53,15 @@ type BootstrapResult struct {
 // AuthStore handles local users, sessions, and bearer tokens.
 type AuthStore struct {
 	db *sql.DB
+
+	tokenCacheMu sync.Mutex
+	patCache     map[string]cachedPrincipal
+	autoCache    map[string]cachedPrincipal
+}
+
+type cachedPrincipal struct {
+	expiresAt time.Time
+	principal auth.Principal
 }
 
 // NewAuthStore creates a SQLite-backed auth store.
@@ -287,6 +297,9 @@ func (s *AuthStore) RevokeSession(ctx context.Context, sessionID string) error {
 
 // AuthenticatePAT validates a personal access token.
 func (s *AuthStore) AuthenticatePAT(ctx context.Context, rawToken string) (*auth.Principal, error) {
+	if principal, ok := s.cachedPAT(rawToken); ok {
+		return principal, nil
+	}
 	row := s.db.QueryRowContext(ctx,
 		`SELECT p.id, p.user_id, p.scopes_json, p.expires_at, u.email, u.display_name
 		 FROM personal_access_tokens p
@@ -294,11 +307,19 @@ func (s *AuthStore) AuthenticatePAT(ctx context.Context, rawToken string) (*auth
 		 WHERE p.token_hash = ? AND p.revoked_at IS NULL AND u.is_active = 1`,
 		hashToken(rawToken),
 	)
-	return s.scanUserTokenPrincipal(ctx, row, auth.CredentialPAT, rawToken, "personal_access_tokens")
+	principal, err := s.scanUserTokenPrincipal(ctx, row, auth.CredentialPAT, rawToken, "personal_access_tokens")
+	if err != nil {
+		return nil, err
+	}
+	s.storePAT(rawToken, principal)
+	return principal, nil
 }
 
 // AuthenticateAutomationToken validates a project automation token.
 func (s *AuthStore) AuthenticateAutomationToken(ctx context.Context, rawToken string) (*auth.Principal, error) {
+	if principal, ok := s.cachedAutomationToken(rawToken); ok {
+		return principal, nil
+	}
 	row := s.db.QueryRowContext(ctx,
 		`SELECT t.id, t.project_id, t.scopes_json, t.expires_at
 		 FROM project_automation_tokens t
@@ -328,7 +349,9 @@ func (s *AuthStore) AuthenticateAutomationToken(ctx context.Context, rawToken st
 		`UPDATE project_automation_tokens SET last_used_at = ? WHERE id = ?`,
 		time.Now().UTC().Format(time.RFC3339), principal.CredentialID,
 	)
-	return &principal, nil
+	result := clonePrincipal(&principal)
+	s.storeAutomationToken(rawToken, result)
+	return result, nil
 }
 
 // CreatePersonalAccessToken creates a PAT for a user and returns the raw token once.
@@ -461,6 +484,7 @@ func (s *AuthStore) RevokePersonalAccessToken(ctx context.Context, tokenID, user
 	}
 	rows, err := result.RowsAffected()
 	if err == nil && rows > 0 {
+		s.clearPATCache()
 		return s.insertAuditLog(ctx, auditLog{
 			CredentialType: string(auth.CredentialPAT),
 			CredentialID:   tokenID,
@@ -524,6 +548,7 @@ func (s *AuthStore) RevokeAutomationToken(ctx context.Context, tokenID, projectI
 	}
 	rows, err := result.RowsAffected()
 	if err == nil && rows > 0 {
+		s.clearAutomationCache()
 		return s.insertAuditLog(ctx, auditLog{
 			CredentialType: string(auth.CredentialAutomationToken),
 			CredentialID:   tokenID,
@@ -721,7 +746,94 @@ func (s *AuthStore) scanUserTokenPrincipal(ctx context.Context, row *sql.Row, ki
 		time.Now().UTC().Format(time.RFC3339), principal.CredentialID,
 	)
 	_ = rawToken
-	return &principal, nil
+	return clonePrincipal(&principal), nil
+}
+
+const authPrincipalCacheTTL = 250 * time.Millisecond
+
+func (s *AuthStore) cachedPAT(rawToken string) (*auth.Principal, bool) {
+	return s.cachedToken(rawToken, true)
+}
+
+func (s *AuthStore) cachedAutomationToken(rawToken string) (*auth.Principal, bool) {
+	return s.cachedToken(rawToken, false)
+}
+
+func (s *AuthStore) cachedToken(rawToken string, pat bool) (*auth.Principal, bool) {
+	key := hashToken(rawToken)
+	now := time.Now().UTC()
+	s.tokenCacheMu.Lock()
+	defer s.tokenCacheMu.Unlock()
+	cache := s.autoCache
+	if pat {
+		cache = s.patCache
+	}
+	if cache == nil {
+		return nil, false
+	}
+	item, ok := cache[key]
+	if !ok || now.After(item.expiresAt) {
+		return nil, false
+	}
+	return clonePrincipal(&item.principal), true
+}
+
+func (s *AuthStore) storePAT(rawToken string, principal *auth.Principal) {
+	s.storeToken(rawToken, principal, true)
+}
+
+func (s *AuthStore) storeAutomationToken(rawToken string, principal *auth.Principal) {
+	s.storeToken(rawToken, principal, false)
+}
+
+func (s *AuthStore) storeToken(rawToken string, principal *auth.Principal, pat bool) {
+	if principal == nil {
+		return
+	}
+	key := hashToken(rawToken)
+	s.tokenCacheMu.Lock()
+	defer s.tokenCacheMu.Unlock()
+	if pat {
+		if s.patCache == nil {
+			s.patCache = make(map[string]cachedPrincipal, 8)
+		}
+		s.patCache[key] = cachedPrincipal{expiresAt: time.Now().UTC().Add(authPrincipalCacheTTL), principal: *clonePrincipal(principal)}
+		return
+	}
+	if s.autoCache == nil {
+		s.autoCache = make(map[string]cachedPrincipal, 8)
+	}
+	s.autoCache[key] = cachedPrincipal{expiresAt: time.Now().UTC().Add(authPrincipalCacheTTL), principal: *clonePrincipal(principal)}
+}
+
+func (s *AuthStore) clearPATCache() {
+	s.tokenCacheMu.Lock()
+	defer s.tokenCacheMu.Unlock()
+	s.patCache = nil
+}
+
+func (s *AuthStore) clearAutomationCache() {
+	s.tokenCacheMu.Lock()
+	defer s.tokenCacheMu.Unlock()
+	s.autoCache = nil
+}
+
+func clonePrincipal(in *auth.Principal) *auth.Principal {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	if in.User != nil {
+		user := *in.User
+		out.User = &user
+	}
+	if len(in.Scopes) > 0 {
+		out.Scopes = make(map[string]struct{}, len(in.Scopes))
+		for scope := range in.Scopes {
+			out.Scopes[scope] = struct{}{}
+		}
+	}
+	return &out
 }
 
 func scanResolvedProject(row *sql.Row) (*auth.Project, error) {
