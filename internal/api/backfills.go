@@ -26,10 +26,20 @@ func handleListBackfills(db *sql.DB, backfills *sqlite.BackfillStore, authentica
 		if !authenticate(w, r) {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil || org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
+		var org *Organization
+		if catalog := catalogFromRequest(r); catalog != nil {
+			var ok bool
+			org, ok = getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
+			if !ok {
+				return
+			}
+		} else {
+			var err error
+			org, err = getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+			if err != nil || org == nil {
+				httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+				return
+			}
 		}
 		limit := 50
 		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
@@ -55,10 +65,20 @@ func handleCreateBackfill(db *sql.DB, backfills *sqlite.BackfillStore, native *s
 		if !authenticate(w, r) {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil || org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
+		var org *Organization
+		if catalog := catalogFromRequest(r); catalog != nil {
+			var ok bool
+			org, ok = getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
+			if !ok {
+				return
+			}
+		} else {
+			var err error
+			org, err = getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+			if err != nil || org == nil {
+				httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+				return
+			}
 		}
 		var body createBackfillRequest
 		if err := decodeJSON(r, &body); err != nil {
@@ -195,10 +215,20 @@ func handleGetBackfill(db *sql.DB, backfills *sqlite.BackfillStore, authenticate
 		if !authenticate(w, r) {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil || org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
+		var org *Organization
+		if catalog := catalogFromRequest(r); catalog != nil {
+			var ok bool
+			org, ok = getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
+			if !ok {
+				return
+			}
+		} else {
+			var err error
+			org, err = getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+			if err != nil || org == nil {
+				httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+				return
+			}
 		}
 		run, err := backfills.GetRun(r.Context(), org.ID, PathParam(r, "run_id"))
 		if err != nil {
@@ -218,10 +248,20 @@ func handleCancelBackfill(db *sql.DB, backfills *sqlite.BackfillStore, auditStor
 		if !authenticate(w, r) {
 			return
 		}
-		org, err := getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
-		if err != nil || org == nil {
-			httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
-			return
+		var org *Organization
+		if catalog := catalogFromRequest(r); catalog != nil {
+			var ok bool
+			org, ok = getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
+			if !ok {
+				return
+			}
+		} else {
+			var err error
+			org, err = getOrganizationFromDB(r, db, PathParam(r, "org_slug"))
+			if err != nil || org == nil {
+				httputil.WriteError(w, http.StatusNotFound, "Organization not found.")
+				return
+			}
 		}
 		run, err := backfills.CancelRun(r.Context(), org.ID, PathParam(r, "run_id"))
 		if err != nil {

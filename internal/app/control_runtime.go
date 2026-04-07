@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"urgentry/internal/alert"
 	"urgentry/internal/auth"
@@ -55,11 +56,15 @@ func openRuntimeControlPlane(ctx context.Context, cfg config.Config, queryDB *sq
 			return runtimeControlPlane{}, fmt.Errorf("open control plane: %w", err)
 		}
 		control := buildPostgresRuntimeControlPlane(controlDB, queryDB)
-		if err := syncPostgresControlPlaneShadows(ctx, controlDB, sqlite.NewPrincipalShadowStore(queryDB)); err != nil {
+		if err := retrySQLiteBusy(90*time.Second, func() error {
+			return syncPostgresControlPlaneShadows(ctx, controlDB, sqlite.NewPrincipalShadowStore(queryDB))
+		}); err != nil {
 			_ = control.close()
 			return runtimeControlPlane{}, fmt.Errorf("sync control-plane sqlite shadows: %w", err)
 		}
-		if err := syncPostgresCatalogShadows(ctx, control.services.Catalog, queryDB); err != nil {
+		if err := retrySQLiteBusy(90*time.Second, func() error {
+			return syncPostgresCatalogShadows(ctx, control.services.Catalog, queryDB)
+		}); err != nil {
 			_ = control.close()
 			return runtimeControlPlane{}, fmt.Errorf("sync control-plane sqlite catalog shadows: %w", err)
 		}
@@ -157,7 +162,9 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 			if err != nil {
 				return "", err
 			}
-			if err := syncPostgresCatalogShadows(ctx, catalogStore, queryDB); err != nil {
+			if err := retrySQLiteBusy(90*time.Second, func() error {
+				return syncPostgresCatalogShadows(ctx, catalogStore, queryDB)
+			}); err != nil {
 				return "", err
 			}
 			return publicKey, nil
@@ -177,10 +184,14 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 				if err := syncBootstrapUserShadow(ctx, baseAuthStore, shadowStore, result.Email, result.Password); err != nil {
 					return nil, err
 				}
-				if err := syncPostgresControlPlaneShadows(ctx, controlDB, shadowStore); err != nil {
+				if err := retrySQLiteBusy(90*time.Second, func() error {
+					return syncPostgresControlPlaneShadows(ctx, controlDB, shadowStore)
+				}); err != nil {
 					return nil, err
 				}
-				if err := syncPostgresCatalogShadows(ctx, catalogStore, queryDB); err != nil {
+				if err := retrySQLiteBusy(90*time.Second, func() error {
+					return syncPostgresCatalogShadows(ctx, catalogStore, queryDB)
+				}); err != nil {
 					return nil, err
 				}
 			}
@@ -191,5 +202,23 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 				PAT:      result.PAT,
 			}, nil
 		},
+	}
+}
+
+func retrySQLiteBusy(timeout time.Duration, fn func() error) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		msg := strings.ToLower(err.Error())
+		if !strings.Contains(msg, "sqlite_busy") && !strings.Contains(msg, "database is locked") {
+			return err
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 }

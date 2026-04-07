@@ -2,6 +2,7 @@ package telemetrybridge
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -158,9 +159,9 @@ func (w *ProjectionWorker) processJob(ctx context.Context, job *runtimeasync.Job
 		return nil
 	}
 
-	scope := Scope{
-		OrganizationID: pj.OrganizationID,
-		ProjectID:      pj.ProjectID,
+	scope, err := w.jobScope(ctx, pj)
+	if err != nil {
+		return err
 	}
 	families := make([]Family, 0, len(pj.Families))
 	for _, f := range pj.Families {
@@ -170,7 +171,7 @@ func (w *ProjectionWorker) processJob(ctx context.Context, job *runtimeasync.Job
 	// Step families rather than full sync -- this processes one batch per
 	// family and returns, keeping latency bounded. If there is more work
 	// the next job will pick it up.
-	_, err := w.projector.StepFamilies(ctx, scope, families...)
+	_, err = w.projector.StepFamilies(ctx, scope, families...)
 	if err != nil {
 		log.Error().Err(err).
 			Str("job_id", job.ID).
@@ -179,7 +180,36 @@ func (w *ProjectionWorker) processJob(ctx context.Context, job *runtimeasync.Job
 			Msg("bridge projection: step families failed")
 		return err
 	}
+	if scope.OrganizationID != "" && scope.ProjectID != "" {
+		_, err = w.projector.StepFamilies(ctx, Scope{OrganizationID: scope.OrganizationID}, families...)
+		if err != nil {
+			log.Error().Err(err).
+				Str("job_id", job.ID).
+				Str("organization_id", scope.OrganizationID).
+				Str("project_id", pj.ProjectID).
+				Strs("families", pj.Families).
+				Msg("bridge projection: step org families failed")
+			return err
+		}
+	}
 	return nil
+}
+
+func (w *ProjectionWorker) jobScope(ctx context.Context, pj ProjectionJob) (Scope, error) {
+	scope := Scope{
+		OrganizationID: strings.TrimSpace(pj.OrganizationID),
+		ProjectID:      strings.TrimSpace(pj.ProjectID),
+	}
+	if scope.OrganizationID != "" || scope.ProjectID == "" || w == nil || w.projector == nil || w.projector.source == nil {
+		return scope, nil
+	}
+	if err := w.projector.source.QueryRowContext(ctx, `SELECT organization_id FROM projects WHERE id = ?`, scope.ProjectID).Scan(&scope.OrganizationID); err != nil {
+		if err == sql.ErrNoRows {
+			return scope, fmt.Errorf("resolve projection job organization for project %q: %w", scope.ProjectID, err)
+		}
+		return scope, fmt.Errorf("resolve projection job organization for project %q: %w", scope.ProjectID, err)
+	}
+	return scope, nil
 }
 
 func projectionRetryDelay(attempts int) time.Duration {

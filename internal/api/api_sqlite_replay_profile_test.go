@@ -267,6 +267,57 @@ func TestAPIReplayPlaybackEndpoints_SQLite(t *testing.T) {
 	}
 }
 
+func TestAPIReplayAndProfileListsHonorLimit_SQLite(t *testing.T) {
+	db := openTestSQLite(t)
+	seedSQLiteAuth(t, db)
+	blobStore := store.NewMemoryBlobStore()
+	attachments := sqlite.NewAttachmentStore(db, blobStore)
+	replays := sqlite.NewReplayStore(db, blobStore)
+	profiles := sqlite.NewProfileStore(db, blobStore)
+
+	if _, err := replays.SaveEnvelopeReplay(t.Context(), "test-proj-id", "evt-limit-replay-1", []byte(`{"event_id":"evt-limit-replay-1","replay_id":"limit-replay-1","timestamp":"2026-03-29T12:00:00Z"}`)); err != nil {
+		t.Fatalf("SaveEnvelopeReplay(1): %v", err)
+	}
+	if err := replays.IndexReplay(t.Context(), "test-proj-id", "limit-replay-1"); err != nil {
+		t.Fatalf("IndexReplay(1): %v", err)
+	}
+	if _, err := replays.SaveEnvelopeReplay(t.Context(), "test-proj-id", "evt-limit-replay-2", []byte(`{"event_id":"evt-limit-replay-2","replay_id":"limit-replay-2","timestamp":"2026-03-29T12:01:00Z"}`)); err != nil {
+		t.Fatalf("SaveEnvelopeReplay(2): %v", err)
+	}
+	if err := replays.IndexReplay(t.Context(), "test-proj-id", "limit-replay-2"); err != nil {
+		t.Fatalf("IndexReplay(2): %v", err)
+	}
+
+	profilefixtures.Save(t, profiles, "test-proj-id", profilefixtures.SaveRead().Spec().WithIDs("evt-limit-profile-1", "limit-profile-1"))
+	profilefixtures.Save(t, profiles, "test-proj-id", profilefixtures.IOHeavy().Spec().WithIDs("evt-limit-profile-2", "limit-profile-2"))
+
+	ts := httptest.NewServer(NewRouter(sqliteAuthorizedDependencies(t, db, Dependencies{
+		Attachments: attachments,
+		BlobStore:   blobStore,
+	})))
+	defer ts.Close()
+
+	resp := authGet(t, ts, "/api/0/projects/test-org/test-project/replays/?limit=1")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("replays status = %d, want 200", resp.StatusCode)
+	}
+	var replayRows []Replay
+	decodeBody(t, resp, &replayRows)
+	if len(replayRows) != 1 {
+		t.Fatalf("len(replayRows) = %d, want 1", len(replayRows))
+	}
+
+	resp = authGet(t, ts, "/api/0/projects/test-org/test-project/profiles/?limit=1")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("profiles status = %d, want 200", resp.StatusCode)
+	}
+	var profileRows []Profile
+	decodeBody(t, resp, &profileRows)
+	if len(profileRows) != 1 {
+		t.Fatalf("len(profileRows) = %d, want 1", len(profileRows))
+	}
+}
+
 func TestAPIReplayDeletion_SQLite(t *testing.T) {
 	db := openTestSQLite(t)
 	seedSQLiteAuth(t, db)

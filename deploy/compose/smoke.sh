@@ -145,6 +145,18 @@ render_urls() {
   ingest_port="$(grep '^URGENTRY_INGEST_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
   worker_port="$(grep '^URGENTRY_WORKER_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
   scheduler_port="$(grep '^URGENTRY_SCHEDULER_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
+  if [[ -z "$api_port" || "$api_port" == "0" ]]; then
+    api_port="$(docker_host_port "${PROJECT_NAME}-urgentry-api-1" 8080)"
+  fi
+  if [[ -z "$ingest_port" || "$ingest_port" == "0" ]]; then
+    ingest_port="$(docker_host_port "${PROJECT_NAME}-urgentry-ingest-1" 8081)"
+  fi
+  if [[ -z "$worker_port" || "$worker_port" == "0" ]]; then
+    worker_port="$(docker_host_port "${PROJECT_NAME}-urgentry-worker-1" 8082)"
+  fi
+  if [[ -z "$scheduler_port" || "$scheduler_port" == "0" ]]; then
+    scheduler_port="$(docker_host_port "${PROJECT_NAME}-urgentry-scheduler-1" 8083)"
+  fi
   API_URL="http://127.0.0.1:${api_port}"
   INGEST_URL="http://127.0.0.1:${ingest_port}"
   WORKER_URL="http://127.0.0.1:${worker_port}"
@@ -215,8 +227,16 @@ wait_stack() {
 }
 
 check_storage_services() {
-  wait_http "http://127.0.0.1:${MINIO_API_PORT}/minio/health/live"
-  wait_http "http://127.0.0.1:${NATS_MONITOR_PORT}/healthz"
+  local minio_port="${MINIO_API_PORT:-}"
+  local nats_monitor_port="${NATS_MONITOR_PORT:-}"
+  if [[ -z "$minio_port" || "$minio_port" == "0" ]]; then
+    minio_port="$(docker_host_port "${PROJECT_NAME}-minio-1" 9000)"
+  fi
+  if [[ -z "$nats_monitor_port" || "$nats_monitor_port" == "0" ]]; then
+    nats_monitor_port="$(docker_host_port "${PROJECT_NAME}-nats-1" 8222)"
+  fi
+  wait_http "http://127.0.0.1:${minio_port}/minio/health/live"
+  wait_http "http://127.0.0.1:${nats_monitor_port}/healthz"
   compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null
   [[ "$(compose exec -T valkey valkey-cli ping | tr -d '\r')" == "PONG" ]]
 }

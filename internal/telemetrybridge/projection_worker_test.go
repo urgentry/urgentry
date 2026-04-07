@@ -174,3 +174,38 @@ func TestProjectionWorkerNilDepsBlocksUntilCancel(t *testing.T) {
 		t.Fatal("worker did not exit after context cancellation")
 	}
 }
+
+func TestProjectionWorkerResolvesOrganizationScopeFromProjectCatalog(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	source := openProjectorSourceDB(t)
+	seedProjectorSource(t, source)
+	bridge := openMigratedTelemetryTestDatabase(t)
+	projector := NewProjector(source, bridge)
+	projector.batchSize = 128
+	worker := NewProjectionWorker(projector, nil, "test-worker")
+
+	payload, err := json.Marshal(ProjectionJob{
+		ProjectID:  "proj-1",
+		Families:   []string{string(FamilyTransactions), string(FamilySpans)},
+		EventType:  "transaction",
+		EnqueuedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	})
+	if err != nil {
+		t.Fatalf("marshal projection job: %v", err)
+	}
+	if err := worker.processJob(ctx, &runtimeasync.Job{
+		ID:        "job-1",
+		Kind:      jobKindBridgeProjection,
+		ProjectID: "proj-1",
+		Payload:   payload,
+	}); err != nil {
+		t.Fatalf("processJob() error = %v", err)
+	}
+
+	assertBridgeCount(t, bridge, `SELECT COUNT(*) FROM telemetry.transaction_facts WHERE project_id = 'proj-1'`, 1)
+	assertBridgeCount(t, bridge, `SELECT COUNT(*) FROM telemetry.span_facts WHERE project_id = 'proj-1'`, 1)
+	assertBridgeCount(t, bridge, `SELECT COUNT(*) FROM telemetry.projector_cursors WHERE scope_id = 'proj-1' AND cursor_family IN ('transactions', 'spans')`, 2)
+	assertBridgeCount(t, bridge, `SELECT COUNT(*) FROM telemetry.projector_cursors WHERE scope_id = 'org-1' AND cursor_family IN ('transactions', 'spans')`, 2)
+}

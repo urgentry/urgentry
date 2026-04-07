@@ -52,13 +52,12 @@ func (p *Projector) assessFamilyFreshness(ctx context.Context, now time.Time, sc
 		UpdatedAt:   state.UpdatedAt,
 		LastError:   state.LastError,
 	}
-	// Determine staleness from cursor metadata only — bridge reads must
-	// not cross-query the source DB. The projector background loop is
-	// responsible for keeping cursors up to date; request-time reads
-	// trust the cursor's last update timestamp against the stale budget.
 	if !state.Found {
-		// No cursor means projection has never run for this family.
-		item.Pending = true
+		count, err := p.countFamily(ctx, scope, family)
+		if err != nil {
+			return FamilyFreshness{}, err
+		}
+		item.Pending = count > 0
 	} else if !state.UpdatedAt.IsZero() {
 		item.Lag = now.Sub(state.UpdatedAt.UTC())
 		if item.Lag < 0 {
@@ -140,4 +139,3 @@ func (p *Projector) loadCursorState(ctx context.Context, scope Scope, family Fam
 		LastError:  strings.TrimSpace(lastError),
 	}, nil
 }
-

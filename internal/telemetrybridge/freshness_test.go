@@ -64,6 +64,35 @@ func TestProjectorAssessFreshnessTracksCursorLagAndErrors(t *testing.T) {
 	}
 }
 
+func TestProjectorAssessFreshnessAllowsEmptyFamiliesWithoutCursors(t *testing.T) {
+	ctx := context.Background()
+	source := openProjectorSourceDB(t)
+	if _, err := source.Exec(`INSERT INTO organizations (id, slug, name) VALUES ('org-1', 'acme', 'Acme')`); err != nil {
+		t.Fatalf("seed organization: %v", err)
+	}
+	if _, err := source.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('proj-1', 'org-1', 'backend', 'Backend', 'go', 'active')`); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+	bridge := openMigratedTelemetryTestDatabase(t)
+	projector := NewProjector(source, bridge)
+
+	items, err := projector.AssessFreshness(ctx, Scope{OrganizationID: "org-1", ProjectID: "proj-1"}, FamilyLogs, FamilyReplays, FamilyProfiles)
+	if err != nil {
+		t.Fatalf("AssessFreshness empty families: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("len(items) = %d, want 3", len(items))
+	}
+	for _, item := range items {
+		if item.CursorFound {
+			t.Fatalf("%s CursorFound = true, want false", item.Family)
+		}
+		if item.Pending {
+			t.Fatalf("%s Pending = true, want false for empty family", item.Family)
+		}
+	}
+}
+
 func TestProjectorUnsupportedFamiliesReturnErrors(t *testing.T) {
 	ctx := context.Background()
 	source := openProjectorSourceDB(t)

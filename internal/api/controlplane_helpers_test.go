@@ -209,3 +209,42 @@ func TestResolveTraceScopeUsesControlCatalogWithoutSQLiteShadow(t *testing.T) {
 		t.Fatalf("resolveTraceScope() wrote sqlite shadow rows: orgs=%d projects=%d", orgCount, projectCount)
 	}
 }
+
+func TestResolveProjectAndOrgUsesControlCatalogWithoutSQLiteShadow(t *testing.T) {
+	db, err := sqlite.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("sqlite.Open() error = %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	req := httptest.NewRequest(http.MethodGet, "/api/0/projects/acme/checkout/profiles/", nil)
+	req.SetPathValue("org_slug", "acme")
+	req.SetPathValue("proj_slug", "checkout")
+	req = req.WithContext(context.WithValue(req.Context(), catalogContextKey{}, testCatalog{
+		org:     &sharedstore.Organization{ID: "org-123", Slug: "acme", Name: "Acme"},
+		project: &sharedstore.Project{ID: "proj-123", OrgSlug: "acme", Slug: "checkout", Name: "Checkout", Platform: "go", Status: "active"},
+	}))
+
+	rec := httptest.NewRecorder()
+	projectID, orgID, ok := resolveProjectAndOrg(rec, req, db)
+	if !ok {
+		t.Fatalf("resolveProjectAndOrg() ok = false, body=%s", rec.Body.String())
+	}
+	if projectID != "proj-123" {
+		t.Fatalf("resolveProjectAndOrg() projectID = %q, want proj-123", projectID)
+	}
+	if orgID != "org-123" {
+		t.Fatalf("resolveProjectAndOrg() orgID = %q, want org-123", orgID)
+	}
+
+	var orgCount, projectCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM organizations`).Scan(&orgCount); err != nil {
+		t.Fatalf("count organizations: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM projects`).Scan(&projectCount); err != nil {
+		t.Fatalf("count projects: %v", err)
+	}
+	if orgCount != 0 || projectCount != 0 {
+		t.Fatalf("resolveProjectAndOrg() wrote sqlite shadow rows: orgs=%d projects=%d", orgCount, projectCount)
+	}
+}

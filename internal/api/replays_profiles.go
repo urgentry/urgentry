@@ -17,6 +17,17 @@ import (
 // resolveProjectAndOrg resolves the project ID and organization for a request,
 // writing error responses and returning (projectID, orgID, ok).
 func resolveProjectAndOrg(w http.ResponseWriter, r *http.Request, db *sql.DB) (projectID, orgID string, ok bool) {
+	if catalog := catalogFromRequest(r); catalog != nil {
+		projectID, ok := resolveProjectIDWithCatalog(w, r, catalog)
+		if !ok {
+			return "", "", false
+		}
+		org, ok := getOrganizationFromCatalog(w, r, catalog, PathParam(r, "org_slug"))
+		if !ok {
+			return "", "", false
+		}
+		return projectID, org.ID, true
+	}
 	projectID, ok = resolveProjectID(w, r, db)
 	if !ok {
 		return "", "", false
@@ -42,13 +53,14 @@ func handleListReplays(db *sql.DB, queries telemetryquery.Service, guard sqlite.
 		if !ok {
 			return
 		}
+		limit := discoverLimit(r, 100)
 		if !enforceQueryGuard(w, r, guard, orgID, projectID, sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadReplays,
-			Limit:    100,
+			Limit:    limit,
 		}) {
 			return
 		}
-		items, err := queries.ListReplays(r.Context(), projectID, 100)
+		items, err := queries.ListReplays(r.Context(), projectID, limit)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list replays.")
 			return
@@ -103,13 +115,14 @@ func handleListProfiles(db *sql.DB, queries telemetryquery.Service, guard sqlite
 		if !ok {
 			return
 		}
+		limit := discoverLimit(r, 100)
 		if !enforceQueryGuard(w, r, guard, orgID, projectID, sqlite.QueryEstimate{
 			Workload: sqlite.QueryWorkloadProfiles,
-			Limit:    100,
+			Limit:    limit,
 		}) {
 			return
 		}
-		items, err := queries.ListProfiles(r.Context(), projectID, 100)
+		items, err := queries.ListProfiles(r.Context(), projectID, limit)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list profiles.")
 			return

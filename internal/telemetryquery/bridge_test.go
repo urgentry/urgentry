@@ -408,6 +408,54 @@ func TestBridgeProfilesReadAndQueryViews(t *testing.T) {
 	}
 }
 
+func TestBridgeEmptyFamiliesDoNotFailWithoutProjectionCursors(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	source := openBridgeQuerySourceDB(t)
+	if _, err := source.Exec(`INSERT INTO organizations (id, slug, name) VALUES ('org-1', 'acme', 'Acme')`); err != nil {
+		t.Fatalf("seed organization: %v", err)
+	}
+	if _, err := source.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('proj-1', 'org-1', 'backend', 'Backend', 'go', 'active')`); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+
+	bridge := openMigratedBridgeQueryTestDatabase(t)
+	service := newBridgeTestService(source, bridge, store.NewMemoryBlobStore(), nil)
+
+	logs, err := service.ListRecentLogs(ctx, "acme", 10)
+	if err != nil {
+		t.Fatalf("ListRecentLogs: %v", err)
+	}
+	if len(logs) != 0 {
+		t.Fatalf("len(logs) = %d, want 0", len(logs))
+	}
+
+	searchedLogs, err := service.SearchLogs(ctx, "acme", "worker", 10)
+	if err != nil {
+		t.Fatalf("SearchLogs: %v", err)
+	}
+	if len(searchedLogs) != 0 {
+		t.Fatalf("len(searchedLogs) = %d, want 0", len(searchedLogs))
+	}
+
+	replays, err := service.ListReplays(ctx, "proj-1", 10)
+	if err != nil {
+		t.Fatalf("ListReplays: %v", err)
+	}
+	if len(replays) != 0 {
+		t.Fatalf("len(replays) = %d, want 0", len(replays))
+	}
+
+	profiles, err := service.ListProfiles(ctx, "proj-1", 10)
+	if err != nil {
+		t.Fatalf("ListProfiles: %v", err)
+	}
+	if len(profiles) != 0 {
+		t.Fatalf("len(profiles) = %d, want 0", len(profiles))
+	}
+}
+
 func openBridgeQuerySourceDB(tb testing.TB) *sql.DB {
 	tb.Helper()
 	db, err := sqlite.Open(tb.TempDir())
