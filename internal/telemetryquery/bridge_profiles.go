@@ -18,7 +18,15 @@ func (s *bridgeService) GetProfile(ctx context.Context, projectID, profileID str
 	if err := s.syncProfileScope(ctx, projectID); err != nil {
 		return nil, err
 	}
-	return s.sourceProfiles.GetProfile(ctx, projectID, profileID)
+	if record, ok := s.cachedProfile(projectID, profileID); ok {
+		return record, nil
+	}
+	record, err := s.sourceProfiles.GetProfile(ctx, projectID, profileID)
+	if err != nil {
+		return nil, err
+	}
+	s.storeProfileCache(projectID, profileID, record)
+	return record, nil
 }
 
 func (s *bridgeService) FindProfilesByTrace(ctx context.Context, projectID, traceID string, limit int) ([]store.ProfileReference, error) {

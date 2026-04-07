@@ -105,6 +105,9 @@ func (s *bridgeService) GetReplay(ctx context.Context, projectID, replayID strin
 	if err := s.ensureSurfaceFresh(ctx, QuerySurfaceReplays, scope, telemetrybridge.FamilyReplays, telemetrybridge.FamilyReplayTimeline); err != nil {
 		return nil, err
 	}
+	if record, ok := s.cachedReplay(projectID, replayID); ok {
+		return record, nil
+	}
 	row := s.bridgeDB.QueryRowContext(ctx, `
 		SELECT id, project_id, replay_id, COALESCE(event_id, ''), COALESCE(trace_id, ''), COALESCE(release, ''),
 		       COALESCE(environment, ''), started_at, finished_at, duration_ms, segment_count, error_count,
@@ -151,7 +154,9 @@ func (s *bridgeService) GetReplay(ctx context.Context, projectID, replayID strin
 	if err != nil {
 		return nil, err
 	}
-	return &store.ReplayRecord{Manifest: manifest, Timeline: timeline, Assets: assets}, nil
+	record := &store.ReplayRecord{Manifest: manifest, Timeline: timeline, Assets: assets}
+	s.storeReplayCache(projectID, replayID, record)
+	return record, nil
 }
 
 func (s *bridgeService) ListReplayTimeline(ctx context.Context, projectID, replayID string, filter store.ReplayTimelineFilter) ([]store.ReplayTimelineItem, error) {

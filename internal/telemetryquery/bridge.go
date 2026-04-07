@@ -47,6 +47,11 @@ type bridgeService struct {
 	projectScopeCache map[string]string // projectID -> orgID
 	discoverCtxMu     sync.Mutex
 	discoverCtxCache  map[string]bridgeDiscoverContext // organizationID -> cached project slug mappings
+	readCacheMu       sync.Mutex
+	replayCache       map[string]cachedReplayRecord
+	profileCache      map[string]cachedProfileRecord
+	traceTxnCache     map[string]cachedTransactions
+	traceSpanCache    map[string]cachedSpans
 }
 
 type Dependencies struct {

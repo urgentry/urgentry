@@ -55,6 +55,9 @@ func (s *bridgeService) ListTransactionsByTrace(ctx context.Context, projectID, 
 	if err := s.ensureSurfaceFresh(ctx, QuerySurfaceTraces, scope, telemetrybridge.FamilyTransactions); err != nil {
 		return nil, err
 	}
+	if items, ok := s.cachedTraceTransactions(projectID, traceID); ok {
+		return items, nil
+	}
 	rows, err := s.bridgeDB.QueryContext(ctx, `
 		SELECT id, project_id, event_id, trace_id, span_id, COALESCE(parent_span_id, ''), transaction_name,
 		       COALESCE(op, ''), COALESCE(status, ''), '', COALESCE(environment, ''), COALESCE(release, ''),
@@ -68,7 +71,12 @@ func (s *bridgeService) ListTransactionsByTrace(ctx context.Context, projectID, 
 		return nil, fmt.Errorf("list bridge trace transactions: %w", err)
 	}
 	defer rows.Close()
-	return scanBridgeTransactions(rows)
+	items, err := scanBridgeTransactions(rows)
+	if err != nil {
+		return nil, err
+	}
+	s.storeTraceTransactions(projectID, traceID, items)
+	return items, nil
 }
 
 func (s *bridgeService) ListTraceSpans(ctx context.Context, projectID, traceID string) ([]store.StoredSpan, error) {
@@ -78,6 +86,9 @@ func (s *bridgeService) ListTraceSpans(ctx context.Context, projectID, traceID s
 	}
 	if err := s.ensureSurfaceFresh(ctx, QuerySurfaceTraces, scope, telemetrybridge.FamilySpans); err != nil {
 		return nil, err
+	}
+	if items, ok := s.cachedTraceSpans(projectID, traceID); ok {
+		return items, nil
 	}
 	rows, err := s.bridgeDB.QueryContext(ctx, `
 		SELECT id, project_id, transaction_event_id, trace_id, span_id, COALESCE(parent_span_id, ''),
@@ -92,7 +103,12 @@ func (s *bridgeService) ListTraceSpans(ctx context.Context, projectID, traceID s
 		return nil, fmt.Errorf("list bridge trace spans: %w", err)
 	}
 	defer rows.Close()
-	return scanBridgeSpans(rows)
+	items, err := scanBridgeSpans(rows)
+	if err != nil {
+		return nil, err
+	}
+	s.storeTraceSpans(projectID, traceID, items)
+	return items, nil
 }
 
 func (s *bridgeService) listTransactionsByOrg(ctx context.Context, orgSlug, rawQuery string, limit int) ([]store.DiscoverTransaction, error) {
