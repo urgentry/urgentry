@@ -104,3 +104,33 @@ func TestAuthStoreAutomationCacheInvalidatesOnRevoke(t *testing.T) {
 		t.Fatalf("AuthenticateAutomationToken after revoke = %v, want ErrInvalidCredentials", err)
 	}
 }
+
+func TestAuthStoreProjectResolutionCacheReturnsClones(t *testing.T) {
+	t.Parallel()
+
+	db := openStoreTestDB(t)
+	store := NewAuthStore(db)
+	if _, err := EnsureDefaultKey(context.Background(), db); err != nil {
+		t.Fatalf("EnsureDefaultKey: %v", err)
+	}
+
+	project, err := store.ResolveProjectBySlug(context.Background(), "urgentry-org", "default")
+	if err != nil {
+		t.Fatalf("ResolveProjectBySlug first: %v", err)
+	}
+	if project == nil {
+		t.Fatal("ResolveProjectBySlug returned nil")
+	}
+	project.OrganizationSlug = "mutated"
+
+	again, err := store.ResolveProjectBySlug(context.Background(), "urgentry-org", "default")
+	if err != nil {
+		t.Fatalf("ResolveProjectBySlug second: %v", err)
+	}
+	if again == nil {
+		t.Fatal("ResolveProjectBySlug second returned nil")
+	}
+	if again.OrganizationSlug != "urgentry-org" {
+		t.Fatalf("cached project leaked caller mutation: %+v", again)
+	}
+}

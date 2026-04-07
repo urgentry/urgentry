@@ -54,14 +54,28 @@ type BootstrapResult struct {
 type AuthStore struct {
 	db *sql.DB
 
-	tokenCacheMu sync.Mutex
-	patCache     map[string]cachedPrincipal
-	autoCache    map[string]cachedPrincipal
+	tokenCacheMu    sync.Mutex
+	patCache        map[string]cachedPrincipal
+	autoCache       map[string]cachedPrincipal
+	resourceCacheMu sync.Mutex
+	orgBySlugCache  map[string]cachedOrganization
+	projectByID     map[string]cachedProject
+	projectBySlug   map[string]cachedProject
 }
 
 type cachedPrincipal struct {
 	expiresAt time.Time
 	principal auth.Principal
+}
+
+type cachedOrganization struct {
+	expiresAt time.Time
+	org       auth.Organization
+}
+
+type cachedProject struct {
+	expiresAt time.Time
+	project   auth.Project
 }
 
 // NewAuthStore creates a SQLite-backed auth store.
@@ -561,6 +575,9 @@ func (s *AuthStore) RevokeAutomationToken(ctx context.Context, tokenID, projectI
 
 // ResolveOrganizationBySlug resolves an organization resource.
 func (s *AuthStore) ResolveOrganizationBySlug(ctx context.Context, slug string) (*auth.Organization, error) {
+	if org, ok := s.cachedOrganizationBySlug(slug); ok {
+		return org, nil
+	}
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, slug FROM organizations WHERE slug = ?`,
 		slug,
@@ -572,11 +589,16 @@ func (s *AuthStore) ResolveOrganizationBySlug(ctx context.Context, slug string) 
 		}
 		return nil, fmt.Errorf("resolve organization: %w", err)
 	}
-	return &org, nil
+	result := cloneOrganization(&org)
+	s.storeOrganizationBySlug(slug, result)
+	return result, nil
 }
 
 // ResolveProjectByID resolves a project resource by ID.
 func (s *AuthStore) ResolveProjectByID(ctx context.Context, projectID string) (*auth.Project, error) {
+	if project, ok := s.cachedProjectByID(projectID); ok {
+		return project, nil
+	}
 	row := s.db.QueryRowContext(ctx,
 		`SELECT p.id, p.slug, o.id, o.slug
 		 FROM projects p
@@ -584,11 +606,20 @@ func (s *AuthStore) ResolveProjectByID(ctx context.Context, projectID string) (*
 		 WHERE p.id = ?`,
 		projectID,
 	)
-	return scanResolvedProject(row)
+	project, err := scanResolvedProject(row)
+	if err != nil || project == nil {
+		return project, err
+	}
+	result := cloneProject(project)
+	s.storeProjectByID(projectID, result)
+	return result, nil
 }
 
 // ResolveProjectBySlug resolves a project resource by org/project slugs.
 func (s *AuthStore) ResolveProjectBySlug(ctx context.Context, orgSlug, projectSlug string) (*auth.Project, error) {
+	if project, ok := s.cachedProjectBySlug(orgSlug, projectSlug); ok {
+		return project, nil
+	}
 	row := s.db.QueryRowContext(ctx,
 		`SELECT p.id, p.slug, o.id, o.slug
 		 FROM projects p
@@ -596,7 +627,14 @@ func (s *AuthStore) ResolveProjectBySlug(ctx context.Context, orgSlug, projectSl
 		 WHERE o.slug = ? AND p.slug = ?`,
 		orgSlug, projectSlug,
 	)
-	return scanResolvedProject(row)
+	project, err := scanResolvedProject(row)
+	if err != nil || project == nil {
+		return project, err
+	}
+	result := cloneProject(project)
+	s.storeProjectBySlug(orgSlug, projectSlug, result)
+	s.storeProjectByID(result.ID, result)
+	return result, nil
 }
 
 // ResolveIssueProject resolves the owning project for an issue/group.
@@ -750,6 +788,7 @@ func (s *AuthStore) scanUserTokenPrincipal(ctx context.Context, row *sql.Row, ki
 }
 
 const authPrincipalCacheTTL = 250 * time.Millisecond
+const authResourceCacheTTL = 250 * time.Millisecond
 
 func (s *AuthStore) cachedPAT(rawToken string) (*auth.Principal, bool) {
 	return s.cachedToken(rawToken, true)
@@ -834,6 +873,110 @@ func clonePrincipal(in *auth.Principal) *auth.Principal {
 		}
 	}
 	return &out
+}
+
+func cloneOrganization(in *auth.Organization) *auth.Organization {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	return &out
+}
+
+func cloneProject(in *auth.Project) *auth.Project {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	return &out
+}
+
+func (s *AuthStore) cachedOrganizationBySlug(slug string) (*auth.Organization, bool) {
+	s.resourceCacheMu.Lock()
+	defer s.resourceCacheMu.Unlock()
+	if s.orgBySlugCache == nil {
+		return nil, false
+	}
+	item, ok := s.orgBySlugCache[strings.TrimSpace(slug)]
+	if !ok || time.Now().UTC().After(item.expiresAt) {
+		return nil, false
+	}
+	return cloneOrganization(&item.org), true
+}
+
+func (s *AuthStore) storeOrganizationBySlug(slug string, org *auth.Organization) {
+	if org == nil {
+		return
+	}
+	s.resourceCacheMu.Lock()
+	defer s.resourceCacheMu.Unlock()
+	if s.orgBySlugCache == nil {
+		s.orgBySlugCache = make(map[string]cachedOrganization, 8)
+	}
+	s.orgBySlugCache[strings.TrimSpace(slug)] = cachedOrganization{
+		expiresAt: time.Now().UTC().Add(authResourceCacheTTL),
+		org:       *org,
+	}
+}
+
+func (s *AuthStore) cachedProjectByID(projectID string) (*auth.Project, bool) {
+	s.resourceCacheMu.Lock()
+	defer s.resourceCacheMu.Unlock()
+	if s.projectByID == nil {
+		return nil, false
+	}
+	item, ok := s.projectByID[strings.TrimSpace(projectID)]
+	if !ok || time.Now().UTC().After(item.expiresAt) {
+		return nil, false
+	}
+	return cloneProject(&item.project), true
+}
+
+func (s *AuthStore) storeProjectByID(projectID string, project *auth.Project) {
+	if project == nil {
+		return
+	}
+	s.resourceCacheMu.Lock()
+	defer s.resourceCacheMu.Unlock()
+	if s.projectByID == nil {
+		s.projectByID = make(map[string]cachedProject, 8)
+	}
+	s.projectByID[strings.TrimSpace(projectID)] = cachedProject{
+		expiresAt: time.Now().UTC().Add(authResourceCacheTTL),
+		project:   *project,
+	}
+}
+
+func projectSlugCacheKey(orgSlug, projectSlug string) string {
+	return strings.TrimSpace(orgSlug) + "|" + strings.TrimSpace(projectSlug)
+}
+
+func (s *AuthStore) cachedProjectBySlug(orgSlug, projectSlug string) (*auth.Project, bool) {
+	s.resourceCacheMu.Lock()
+	defer s.resourceCacheMu.Unlock()
+	if s.projectBySlug == nil {
+		return nil, false
+	}
+	item, ok := s.projectBySlug[projectSlugCacheKey(orgSlug, projectSlug)]
+	if !ok || time.Now().UTC().After(item.expiresAt) {
+		return nil, false
+	}
+	return cloneProject(&item.project), true
+}
+
+func (s *AuthStore) storeProjectBySlug(orgSlug, projectSlug string, project *auth.Project) {
+	if project == nil {
+		return
+	}
+	s.resourceCacheMu.Lock()
+	defer s.resourceCacheMu.Unlock()
+	if s.projectBySlug == nil {
+		s.projectBySlug = make(map[string]cachedProject, 8)
+	}
+	s.projectBySlug[projectSlugCacheKey(orgSlug, projectSlug)] = cachedProject{
+		expiresAt: time.Now().UTC().Add(authResourceCacheTTL),
+		project:   *project,
+	}
 }
 
 func scanResolvedProject(row *sql.Row) (*auth.Project, error) {
