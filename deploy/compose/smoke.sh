@@ -7,6 +7,7 @@ ENV_TEMPLATE="$SCRIPT_DIR/.env.example"
 LIB_SH="$SCRIPT_DIR/lib.sh"
 PROJECT_NAME="${URGENTRY_SELF_HOSTED_PROJECT:-}"
 KEEP_STACK="${URGENTRY_SELF_HOSTED_KEEP_STACK:-false}"
+UP_ATTEMPTS="${URGENTRY_SELF_HOSTED_SMOKE_ATTEMPTS:-3}"
 
 # shellcheck disable=SC1090
 source "$LIB_SH"
@@ -282,6 +283,16 @@ boot_stack() {
   return 1
 }
 
+prepare_retry_attempt() {
+  compose down -v --remove-orphans >/dev/null 2>&1 || true
+  if [[ -z "${URGENTRY_SELF_HOSTED_ENV_FILE:-}" ]]; then
+    reset_generated_env_file
+    ensure_env_file
+    resolve_project_name
+    load_env
+  fi
+}
+
 assert_runtime_backends() {
   local response async_backend cache_backend
   response="$(curl -fsS "$API_URL/healthz")"
@@ -339,6 +350,18 @@ smoke_event_flow() {
   fi
 }
 
+run_smoke_flow() {
+  local command="$1"
+  if [[ "$command" == "up" ]]; then
+    boot_stack
+  fi
+  render_urls
+  wait_stack
+  check_storage_services
+  assert_runtime_backends
+  smoke_event_flow
+}
+
 main() {
   local command="${1:-up}"
   case "$command" in
@@ -353,14 +376,30 @@ main() {
 
   if [[ "$command" == "up" ]]; then
     trap cleanup EXIT
-    boot_stack
+    local attempt smoke_log status
+    for attempt in $(seq 1 "$UP_ATTEMPTS"); do
+      smoke_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-selfhosted-smoke.XXXXXX")"
+      set +e
+      run_smoke_flow "$command" >"$smoke_log" 2>&1
+      status=$?
+      set -e
+      if [[ "$status" == "0" ]]; then
+        cat "$smoke_log"
+        rm -f "$smoke_log"
+        break
+      fi
+      if [[ "$attempt" == "$UP_ATTEMPTS" ]]; then
+        cat "$smoke_log" >&2
+        rm -f "$smoke_log"
+        exit "$status"
+      fi
+      prepare_retry_attempt
+      rm -f "$smoke_log"
+      sleep 2
+    done
+  else
+    run_smoke_flow "$command"
   fi
-
-  render_urls
-  wait_stack
-  check_storage_services
-  assert_runtime_backends
-  smoke_event_flow
 
   cat <<EOF
 compose smoke passed
