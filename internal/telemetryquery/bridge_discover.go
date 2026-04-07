@@ -30,11 +30,20 @@ func (s *bridgeService) executeBridgeTable(ctx context.Context, query discover.Q
 	if err != nil {
 		return discover.TableResult{}, err
 	}
+	scope := telemetrybridgeScopeForQuery(query, state.organizationID)
+	if err := s.ensureSurfaceFresh(ctx, bridgeSurfaceForDataset(query.Dataset), scope, bridgeDiscoverFamily(query.Dataset)); err != nil {
+		return discover.TableResult{}, err
+	}
+	if result, ok := s.cachedTable(query); ok {
+		return result, nil
+	}
 	rows, err := s.fetchBridgeDiscoverRows(ctx, query, state, plan.ResultLimit)
 	if err != nil {
 		return discover.TableResult{}, err
 	}
-	return discovershared.BuildTableResult(query, cost, rows), nil
+	result := discovershared.BuildTableResult(query, cost, rows)
+	s.storeTable(query, result)
+	return result, nil
 }
 
 func (s *bridgeService) executeBridgeSeries(ctx context.Context, query discover.Query) (discover.SeriesResult, error) {

@@ -52,6 +52,8 @@ type bridgeService struct {
 	profileCache      map[string]cachedProfileRecord
 	traceTxnCache     map[string]cachedTransactions
 	traceSpanCache    map[string]cachedSpans
+	logsCache         map[string]cachedLogs
+	tableCache        map[string]cachedTableResult
 }
 
 type Dependencies struct {

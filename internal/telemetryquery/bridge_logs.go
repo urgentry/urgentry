@@ -29,6 +29,9 @@ func (s *bridgeService) listLogs(ctx context.Context, orgSlug, rawQuery string, 
 	if err := s.ensureSurfaceFresh(ctx, QuerySurfaceDiscoverLogs, scope, telemetrybridge.FamilyLogs); err != nil {
 		return nil, err
 	}
+	if items, ok := s.cachedLogsResult(orgSlug, rawQuery, limit); ok {
+		return items, nil
+	}
 	parsed := sqlite.ParseIssueSearch(rawQuery)
 	query := `
 		SELECT id, event_id, project_id, COALESCE(trace_id, ''), COALESCE(span_id, ''), COALESCE(release, ''),
@@ -95,5 +98,9 @@ func (s *bridgeService) listLogs(ctx context.Context, orgSlug, rawQuery string, 
 		item.Tags = sqlutil.ParseTags(attrsJSON)
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	s.storeLogsResult(orgSlug, rawQuery, limit, items)
+	return items, nil
 }

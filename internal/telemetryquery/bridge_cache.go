@@ -1,9 +1,11 @@
 package telemetryquery
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
+	"urgentry/internal/discover"
 	"urgentry/internal/store"
 )
 
@@ -29,6 +31,16 @@ type cachedSpans struct {
 	items     []store.StoredSpan
 }
 
+type cachedLogs struct {
+	expiresAt time.Time
+	items     []store.DiscoverLog
+}
+
+type cachedTableResult struct {
+	expiresAt time.Time
+	result    discover.TableResult
+}
+
 func replayCacheKey(projectID, replayID string) string {
 	return fmt.Sprintf("%s|%s", projectID, replayID)
 }
@@ -39,6 +51,18 @@ func profileCacheKey(projectID, profileID string) string {
 
 func traceCacheKey(projectID, traceID string) string {
 	return fmt.Sprintf("%s|%s", projectID, traceID)
+}
+
+func logsCacheKey(orgSlug, rawQuery string, limit int) string {
+	return fmt.Sprintf("%s|%s|%d", orgSlug, rawQuery, limit)
+}
+
+func tableCacheKey(query discover.Query) string {
+	body, err := json.Marshal(query)
+	if err != nil {
+		return ""
+	}
+	return string(body)
 }
 
 func (s *bridgeService) cachedReplay(projectID, replayID string) (*store.ReplayRecord, bool) {
@@ -147,6 +171,64 @@ func (s *bridgeService) storeTraceSpans(projectID, traceID string, items []store
 	}
 }
 
+func (s *bridgeService) cachedLogsResult(orgSlug, rawQuery string, limit int) ([]store.DiscoverLog, bool) {
+	s.readCacheMu.Lock()
+	defer s.readCacheMu.Unlock()
+	if s.logsCache == nil {
+		return nil, false
+	}
+	item, ok := s.logsCache[logsCacheKey(orgSlug, rawQuery, limit)]
+	if !ok || time.Now().UTC().After(item.expiresAt) {
+		return nil, false
+	}
+	return cloneLogs(item.items), true
+}
+
+func (s *bridgeService) storeLogsResult(orgSlug, rawQuery string, limit int, items []store.DiscoverLog) {
+	s.readCacheMu.Lock()
+	defer s.readCacheMu.Unlock()
+	if s.logsCache == nil {
+		s.logsCache = make(map[string]cachedLogs, 8)
+	}
+	s.logsCache[logsCacheKey(orgSlug, rawQuery, limit)] = cachedLogs{
+		expiresAt: time.Now().UTC().Add(bridgeReadCacheTTL),
+		items:     cloneLogs(items),
+	}
+}
+
+func (s *bridgeService) cachedTable(query discover.Query) (discover.TableResult, bool) {
+	key := tableCacheKey(query)
+	if key == "" {
+		return discover.TableResult{}, false
+	}
+	s.readCacheMu.Lock()
+	defer s.readCacheMu.Unlock()
+	if s.tableCache == nil {
+		return discover.TableResult{}, false
+	}
+	item, ok := s.tableCache[key]
+	if !ok || time.Now().UTC().After(item.expiresAt) {
+		return discover.TableResult{}, false
+	}
+	return cloneTableResult(item.result), true
+}
+
+func (s *bridgeService) storeTable(query discover.Query, result discover.TableResult) {
+	key := tableCacheKey(query)
+	if key == "" {
+		return
+	}
+	s.readCacheMu.Lock()
+	defer s.readCacheMu.Unlock()
+	if s.tableCache == nil {
+		s.tableCache = make(map[string]cachedTableResult, 8)
+	}
+	s.tableCache[key] = cachedTableResult{
+		expiresAt: time.Now().UTC().Add(bridgeReadCacheTTL),
+		result:    cloneTableResult(result),
+	}
+}
+
 func cloneReplayRecord(in *store.ReplayRecord) *store.ReplayRecord {
 	if in == nil {
 		return nil
@@ -245,6 +327,34 @@ func cloneMeasurements(in map[string]store.StoredMeasurement) map[string]store.S
 	out := make(map[string]store.StoredMeasurement, len(in))
 	for k, v := range in {
 		out[k] = v
+	}
+	return out
+}
+
+func cloneLogs(items []store.DiscoverLog) []store.DiscoverLog {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]store.DiscoverLog, len(items))
+	for i := range items {
+		out[i] = items[i]
+		out[i].Tags = cloneStringMap(items[i].Tags)
+	}
+	return out
+}
+
+func cloneTableResult(in discover.TableResult) discover.TableResult {
+	out := in
+	out.Columns = append([]discover.Column(nil), in.Columns...)
+	if len(in.Rows) > 0 {
+		out.Rows = make([]discover.TableRow, len(in.Rows))
+		for i := range in.Rows {
+			row := make(discover.TableRow, len(in.Rows[i]))
+			for k, v := range in.Rows[i] {
+				row[k] = v
+			}
+			out.Rows[i] = row
+		}
 	}
 	return out
 }
