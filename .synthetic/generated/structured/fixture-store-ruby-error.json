@@ -1,0 +1,108 @@
+{
+  "event_id": "f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "ruby",
+  "level": "error",
+  "release": "myapp-rails@4.0.0",
+  "environment": "production",
+  "server_name": "web-03.prod",
+  "tags": {
+    "ruby.version": "3.3.0",
+    "rails.version": "7.1"
+  },
+  "sdk": {
+    "name": "sentry.ruby.rails",
+    "version": "5.16.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "ActiveRecord::RecordNotFound",
+        "value": "Couldn't find User with 'id'=999",
+        "module": "ActiveRecord",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "app/controllers/users_controller.rb",
+              "function": "show",
+              "module": "UsersController",
+              "lineno": 12,
+              "abs_path": "/srv/app/controllers/users_controller.rb",
+              "in_app": true
+            },
+            {
+              "filename": "app/models/user.rb",
+              "function": "find_by_id!",
+              "module": "User",
+              "lineno": 8,
+              "abs_path": "/srv/app/models/user.rb",
+              "in_app": true
+            },
+            {
+              "filename": "activerecord/lib/active_record/core.rb",
+              "function": "find",
+              "module": "ActiveRecord::Core",
+              "lineno": 258,
+              "in_app": false
+            }
+          ]
+        },
+        "mechanism": {
+          "type": "generic",
+          "handled": true
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "type": "http",
+        "category": "http",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:58.000Z",
+        "message": "GET /users/999",
+        "data": {
+          "method": "GET",
+          "url": "/users/999",
+          "status_code": 404
+        }
+      },
+      {
+        "type": "default",
+        "category": "query",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:59.000Z",
+        "message": "SELECT \"users\".* FROM \"users\" WHERE \"users\".\"id\" = $1",
+        "data": {
+          "db.system": "postgresql"
+        }
+      },
+      {
+        "type": "default",
+        "category": "log",
+        "level": "warning",
+        "timestamp": "2026-03-25T11:59:59.500Z",
+        "message": "User not found with id=999"
+      }
+    ]
+  },
+  "request": {
+    "url": "https://app.example.com/users/999",
+    "method": "GET",
+    "headers": {
+      "Host": "app.example.com",
+      "Accept": "text/html"
+    }
+  },
+  "contexts": {
+    "os": {
+      "name": "Linux",
+      "version": "6.1"
+    },
+    "runtime": {
+      "name": "CRuby",
+      "version": "3.3.0"
+    }
+  }
+}

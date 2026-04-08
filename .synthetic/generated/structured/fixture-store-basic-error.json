@@ -1,0 +1,101 @@
+{
+  "event_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "python",
+  "level": "error",
+  "logger": "root",
+  "release": "myapp@1.0.0",
+  "environment": "production",
+  "server_name": "web-01",
+  "tags": {
+    "os": "Linux",
+    "browser": "Chrome"
+  },
+  "extra": {
+    "request_count": 42
+  },
+  "user": {
+    "id": "user-123",
+    "email": "user@example.com",
+    "ip_address": "192.168.1.1"
+  },
+  "request": {
+    "url": "https://example.com/api/users",
+    "method": "GET",
+    "headers": {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "application/json"
+    }
+  },
+  "sdk": {
+    "name": "sentry.python",
+    "version": "2.1.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "ValueError",
+        "value": "invalid literal for int() with base 10: 'abc'",
+        "module": "builtins",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "app/main.py",
+              "function": "main",
+              "module": "app.main",
+              "lineno": 42,
+              "colno": 8,
+              "abs_path": "/srv/app/main.py",
+              "in_app": true,
+              "context_line": "    result = int(user_input)",
+              "pre_context": ["    user_input = request.args.get('count')", ""],
+              "post_context": ["    return jsonify({'result': result})", ""]
+            },
+            {
+              "filename": "app/utils.py",
+              "function": "parse_input",
+              "module": "app.utils",
+              "lineno": 15,
+              "abs_path": "/srv/app/utils.py",
+              "in_app": true,
+              "context_line": "    return int(value)"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "timestamp": "2026-03-25T11:59:59.000Z",
+        "type": "http",
+        "category": "http",
+        "message": "GET /api/users",
+        "data": {
+          "url": "https://example.com/api/users",
+          "method": "GET",
+          "status_code": 200
+        },
+        "level": "info"
+      },
+      {
+        "timestamp": "2026-03-25T11:59:59.500Z",
+        "type": "default",
+        "category": "query",
+        "message": "SELECT * FROM users WHERE id = ?",
+        "level": "debug"
+      }
+    ]
+  },
+  "contexts": {
+    "os": {
+      "name": "Linux",
+      "version": "5.15.0"
+    },
+    "runtime": {
+      "name": "CPython",
+      "version": "3.11.5"
+    }
+  }
+}

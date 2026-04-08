@@ -1,0 +1,10 @@
+--urgentry-synthetic-boundary
+Content-Disposition: form-data; name="uuid"
+
+aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee
+--urgentry-synthetic-boundary
+Content-Disposition: form-data; name="file"; filename="mapping.txt"
+Content-Type: text/plain
+
+com.example.Foo -> a:
+--urgentry-synthetic-boundary--

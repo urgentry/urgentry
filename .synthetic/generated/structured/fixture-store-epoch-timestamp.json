@@ -1,0 +1,79 @@
+{
+  "event_id": "031b031b031b031b031b031b031b031b",
+  "timestamp": 1774699200.123,
+  "platform": "python",
+  "level": "error",
+  "release": "myapp@1.5.0",
+  "environment": "production",
+  "server_name": "api-07",
+  "tags": {
+    "handler": "celery",
+    "queue": "default"
+  },
+  "sdk": {
+    "name": "sentry.python",
+    "version": "2.1.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "ZeroDivisionError",
+        "value": "division by zero",
+        "module": "builtins",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "app/tasks.py",
+              "function": "compute_average",
+              "module": "app.tasks",
+              "lineno": 48,
+              "abs_path": "/srv/app/tasks.py",
+              "in_app": true,
+              "context_line": "    return total / count"
+            },
+            {
+              "filename": "app/workers.py",
+              "function": "run_task",
+              "module": "app.workers",
+              "lineno": 92,
+              "abs_path": "/srv/app/workers.py",
+              "in_app": true,
+              "context_line": "    result = task_func(*args, **kwargs)"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "timestamp": 1774699199.800,
+        "type": "default",
+        "category": "celery.task",
+        "message": "Starting task compute_average",
+        "level": "info"
+      },
+      {
+        "timestamp": 1774699200.000,
+        "type": "default",
+        "category": "query",
+        "message": "SELECT SUM(amount), COUNT(*) FROM transactions WHERE batch_id = ?",
+        "level": "debug"
+      }
+    ]
+  },
+  "contexts": {
+    "os": {
+      "name": "Linux",
+      "version": "6.1.0"
+    },
+    "runtime": {
+      "name": "CPython",
+      "version": "3.11.8"
+    }
+  },
+  "_test_meta": {
+    "description": "Timestamp as Unix epoch float instead of ISO 8601 — store must normalize both formats"
+  }
+}

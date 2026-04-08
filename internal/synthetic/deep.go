@@ -85,11 +85,11 @@ func generateDeepManifest(repoRoot string) (DeepManifest, error) {
 
 	return DeepManifest{
 		SourceFiles: []string{
-			"apps/urgentry/internal/testfixtures/replays/fixtures.go",
-			"apps/urgentry/internal/testfixtures/profiles/fixtures.go",
-			"apps/urgentry/internal/testfixtures/nativecrash/fixtures.go",
-			"apps/urgentry/internal/testfixtures/minidump/minidump.go",
-			"apps/urgentry/internal/testfixtures/nativesym/elf.go",
+			"internal/testfixtures/replays/fixtures.go",
+			"internal/testfixtures/profiles/fixtures.go",
+			"internal/testfixtures/nativecrash/fixtures.go",
+			"internal/testfixtures/minidump/minidump.go",
+			"internal/testfixtures/nativesym/elf.go",
 		},
 		Cases: cases,
 	}, nil

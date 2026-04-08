@@ -1,0 +1,7 @@
+{"event_id":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","dsn":"https://abc123@o1.ingest.example.com/1","sdk":{"name":"sentry.javascript.browser","version":"7.100.0"},"sent_at":"2026-03-25T12:00:00.000Z"}
+{"type":"event","length":312}
+{"event_id":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","timestamp":"2026-03-25T12:00:00Z","platform":"javascript","level":"error","release":"fe@2.0","exception":{"values":[{"type":"TypeError","value":"null is not an object","stacktrace":{"frames":[{"filename":"app.js","function":"render","lineno":5,"in_app":true}]}}]}}
+{"type":"attachment","length":23,"filename":"console.log","content_type":"text/plain"}
+[ERROR] null is not obj
+{"type":"user_report","length":101}
+{"event_id":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","name":"Bob","email":"bob@co.com","comments":"broken"}

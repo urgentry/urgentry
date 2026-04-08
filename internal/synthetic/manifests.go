@@ -55,7 +55,7 @@ func CheckOutputs(outDir string, outputs GeneratedOutputs) error {
 		"deep.json":      outputs.Deep,
 	} {
 		if err := checkJSONFile(filepath.Join(outDir, name), value); err != nil {
-			return fmt.Errorf("%w; rerun `urgentry synthetic generate --write` or `cd apps/urgentry && make synthetic-generate`", err)
+			return fmt.Errorf("%w; rerun `urgentry synthetic generate --write` or `make synthetic-generate`", err)
 		}
 	}
 	return nil

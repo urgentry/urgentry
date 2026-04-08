@@ -1,0 +1,464 @@
+{
+  "source_files": [
+    "internal/discover/catalog.go"
+  ],
+  "dataset_count": 4,
+  "aggregate_count": 12,
+  "datasets": [
+    {
+      "name": "issues",
+      "fields": [
+        {
+          "name": "assignee",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "count",
+          "type": "number",
+          "measure": true
+        },
+        {
+          "name": "culprit",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "event.type",
+          "type": "enum",
+          "groupable": true
+        },
+        {
+          "name": "first_seen",
+          "type": "timestamp",
+          "groupable": true
+        },
+        {
+          "name": "issue.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "issue.short_id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "last_seen",
+          "type": "timestamp",
+          "groupable": true
+        },
+        {
+          "name": "level",
+          "type": "enum",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "project.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "release",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "groupable": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        }
+      ]
+    },
+    {
+      "name": "logs",
+      "fields": [
+        {
+          "name": "count",
+          "type": "number",
+          "measure": true
+        },
+        {
+          "name": "culprit",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "event.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "event.type",
+          "type": "enum",
+          "groupable": true
+        },
+        {
+          "name": "level",
+          "type": "enum",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "logger",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "platform",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "project.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "release",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "span.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "groupable": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "trace.id",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        }
+      ]
+    },
+    {
+      "name": "transactions",
+      "fields": [
+        {
+          "name": "count",
+          "type": "number",
+          "measure": true
+        },
+        {
+          "name": "duration.ms",
+          "type": "number",
+          "measure": true
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "event.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "event.type",
+          "type": "enum",
+          "groupable": true
+        },
+        {
+          "name": "op",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "platform",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "project.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "release",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "span.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "groupable": true
+        },
+        {
+          "name": "trace.id",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "transaction",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        }
+      ]
+    },
+    {
+      "name": "spans",
+      "fields": [
+        {
+          "name": "count",
+          "type": "number",
+          "measure": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "searchable": true
+        },
+        {
+          "name": "duration.ms",
+          "type": "number",
+          "measure": true
+        },
+        {
+          "name": "op",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "parent.span_id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "project.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "span.id",
+          "type": "string",
+          "groupable": true
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "timestamp",
+          "type": "timestamp",
+          "groupable": true
+        },
+        {
+          "name": "trace.id",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        },
+        {
+          "name": "transaction",
+          "type": "string",
+          "groupable": true,
+          "searchable": true
+        }
+      ]
+    }
+  ],
+  "aggregates": [
+    {
+      "name": "apdex",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "avg",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "count",
+      "datasets": [
+        "issues",
+        "logs",
+        "spans",
+        "transactions"
+      ],
+      "args": 0
+    },
+    {
+      "name": "count_unique",
+      "datasets": [
+        "issues",
+        "logs",
+        "spans",
+        "transactions"
+      ],
+      "args": 1
+    },
+    {
+      "name": "failure_rate",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 0
+    },
+    {
+      "name": "max",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "min",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "p50",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "p75",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "p95",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "p99",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    },
+    {
+      "name": "sum",
+      "datasets": [
+        "spans",
+        "transactions"
+      ],
+      "args": 1,
+      "default_field": "duration.ms"
+    }
+  ]
+}

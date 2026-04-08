@@ -1,0 +1,23 @@
+{
+  "case": {
+    "id": "artifact/source_map_basic",
+    "family": "source_map",
+    "method": "POST",
+    "route_template": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/files/",
+    "content_type": "multipart/form-data",
+    "builder": "source_map_basic",
+    "files": [
+      {
+        "field_name": "file",
+        "file_name": "app.min.js.map",
+        "content_type": "application/json"
+      }
+    ],
+    "scenario_hints": [
+      "compat",
+      "artifacts",
+      "source-maps"
+    ]
+  },
+  "content_type": "multipart/form-data; boundary=urgentry-synthetic-boundary"
+}

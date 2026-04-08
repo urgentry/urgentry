@@ -1,0 +1,20 @@
+{
+  "name": "admin-pack",
+  "description": "Execute the admin/control-plane synthetic scenario pack.",
+  "alias_of": "admin-control-lifecycle",
+  "suites": [
+    {
+      "name": "admin-lifecycle-smoke",
+      "package": "./internal/synthetic",
+      "run": "TestRunnerAdminLifecycleSmokeScenario"
+    }
+  ],
+  "covers": {
+    "route_sections": [
+      "Management REST API"
+    ],
+    "telemetry_surfaces": [
+      "errors"
+    ]
+  }
+}

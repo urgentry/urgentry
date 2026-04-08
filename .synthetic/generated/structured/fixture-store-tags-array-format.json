@@ -1,0 +1,100 @@
+{
+  "event_id": "030a030a030a030a030a030a030a030a",
+  "timestamp": "2026-03-25T14:30:00.000Z",
+  "platform": "python",
+  "level": "error",
+  "release": "myapp@2.3.1",
+  "environment": "staging",
+  "server_name": "worker-03",
+  "tags": [
+    ["browser", "Chrome"],
+    ["os", "Linux"],
+    ["custom_tag", "value"]
+  ],
+  "user": {
+    "id": "user-991",
+    "email": "alice@example.com",
+    "ip_address": "10.20.30.40"
+  },
+  "request": {
+    "url": "https://api.example.com/v2/orders",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer [Filtered]",
+      "User-Agent": "python-requests/2.31.0"
+    },
+    "data": {"order_id": 77012, "items": [{"sku": "ABC-100", "qty": 2}]}
+  },
+  "sdk": {
+    "name": "sentry.python",
+    "version": "2.1.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "ConnectionError",
+        "value": "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+        "module": "requests.exceptions",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "app/orders.py",
+              "function": "create_order",
+              "module": "app.orders",
+              "lineno": 134,
+              "abs_path": "/srv/app/orders.py",
+              "in_app": true,
+              "context_line": "    response = requests.post(gateway_url, json=payload)"
+            },
+            {
+              "filename": "app/gateway.py",
+              "function": "send",
+              "module": "app.gateway",
+              "lineno": 56,
+              "abs_path": "/srv/app/gateway.py",
+              "in_app": true,
+              "context_line": "    return session.post(url, json=data, timeout=30)"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "timestamp": "2026-03-25T14:29:58.000Z",
+        "type": "http",
+        "category": "http",
+        "message": "POST https://payment-gateway.example.com/charge",
+        "data": {
+          "url": "https://payment-gateway.example.com/charge",
+          "method": "POST",
+          "status_code": 502
+        },
+        "level": "error"
+      },
+      {
+        "timestamp": "2026-03-25T14:29:59.500Z",
+        "type": "default",
+        "category": "query",
+        "message": "INSERT INTO orders (user_id, total) VALUES (?, ?)",
+        "level": "debug"
+      }
+    ]
+  },
+  "contexts": {
+    "os": {
+      "name": "Linux",
+      "version": "6.1.0"
+    },
+    "runtime": {
+      "name": "CPython",
+      "version": "3.12.1"
+    }
+  },
+  "_test_meta": {
+    "description": "Tags in array-of-pairs format instead of object format — store must handle both"
+  }
+}

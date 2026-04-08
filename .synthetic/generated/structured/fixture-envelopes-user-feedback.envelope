@@ -1,0 +1,3 @@
+{"event_id":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","dsn":"https://abc123@o1.ingest.example.com/1","sent_at":"2026-03-25T12:00:00.000Z"}
+{"type":"user_report","length":144}
+{"event_id":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","name":"Jane Doe","email":"jane@example.com","comments":"The page crashed when I clicked submit"}

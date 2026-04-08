@@ -1,0 +1,136 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "cmd/**"
+      - "configs/**"
+      - "deploy/**"
+      - "internal/**"
+      - "pkg/**"
+      - "scripts/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "Dockerfile"
+      - "bench/**"
+      - "eval/**"
+      - "scripts/check-go-mod-tidy.sh"
+      - "scripts/check-markdown-links.sh"
+      - "VERSION"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "cmd/**"
+      - "configs/**"
+      - "deploy/**"
+      - "internal/**"
+      - "pkg/**"
+      - "scripts/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "Dockerfile"
+      - "bench/**"
+      - "eval/**"
+      - "scripts/check-go-mod-tidy.sh"
+      - "scripts/check-markdown-links.sh"
+      - "VERSION"
+  workflow_dispatch:
+    inputs:
+      run_selfhosted:
+        description: "Also run the expensive self-hosted eval lane"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  merge-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: |
+            go.sum
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - name: Merge gate
+        run: make test-merge
+      - name: Upload fast-suite timing artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-suite-timings
+          path: |
+            test-results/fast-suite.jsonl
+            test-results/fast-suite-timings.json
+          if-no-files-found: warn
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: .
+          version: v1.64.5
+
+  pr-perf:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: |
+            go.sum
+      - name: PR performance budget
+        run: make bench-budget
+      - name: Upload PR performance artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-pr-latest
+          path: test-results/bench-pr-latest.txt
+          if-no-files-found: warn
+
+  selfhosted:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_selfhosted
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: |
+            go.sum
+      - name: Verify docker is available
+        run: docker version
+      - uses: azure/setup-kubectl@v4
+      - name: Install kind
+        working-directory: .
+        run: |
+          go install sigs.k8s.io/kind@v0.29.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Serious self-hosted eval
+        run: make selfhosted-eval

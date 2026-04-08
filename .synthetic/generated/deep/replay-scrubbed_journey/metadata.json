@@ -1,0 +1,11 @@
+{
+  "EventID": "22222222222222222222222222222222",
+  "ReplayID": "22222222222222222222222222222222",
+  "Timestamp": "2026-03-29T10:05:00Z",
+  "Platform": "javascript",
+  "Release": "web@1.2.4",
+  "Environment": "production",
+  "RequestURL": "https://shop.example.com/account?token=secret",
+  "UserEmail": "secret@example.com",
+  "TraceID": "fedcba9876543210fedcba9876543210"
+}

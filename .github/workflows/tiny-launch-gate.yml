@@ -1,0 +1,27 @@
+name: Tiny Launch Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tiny-launch-gate
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.1"
+          cache-dependency-path: |
+            go.sum
+
+      - name: Run Tiny launch gate
+        run: make tiny-launch-gate

@@ -1,0 +1,39 @@
+{
+  "Name": "apple_multimodule",
+  "Release": "ios@1.2.3",
+  "Platform": "cocoa",
+  "DumpFilename": "apple-multimodule.dmp",
+  "Dump": "TURNUJOnAAACAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAA3AAAADgAAAAGAAAAIAAAABQBAAACAAAAABAAAAAAAAAAAgAAAAAAADQBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAABAAAAAAAAD4BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAGAAAAQQBwAHAACgAAAFUASQBLAGkAdAA=",
+  "Images": [
+    {
+      "CodeFile": "App",
+      "Module": "App",
+      "DebugID": "DEBUG-APPLE-1",
+      "CodeID": "CODE-APPLE-1",
+      "ImageAddr": "0x1000",
+      "ImageSize": "0x200",
+      "Arch": "arm64"
+    },
+    {
+      "CodeFile": "UIKit",
+      "Module": "UIKit",
+      "DebugID": "DEBUG-APPLE-2",
+      "CodeID": "CODE-APPLE-2",
+      "ImageAddr": "0x2000",
+      "ImageSize": "0x400",
+      "Arch": "arm64"
+    }
+  ],
+  "Symbols": [
+    {
+      "Kind": "macho",
+      "Name": "App.sym",
+      "DebugID": "DEBUG-APPLE-1",
+      "CodeID": "CODE-APPLE-1",
+      "Body": "TU9EVUxFIG1hYyBhcm02NCBERUJVRy1BUFBMRS0xIEFwcApGSUxFIDAgc3JjL0FwcERlbGVnYXRlLnN3aWZ0CkZVTkMgMTAxMCAxMCAwIG1haW4KMTAxMCAxMCA0MiAwCg=="
+    }
+  ],
+  "GoldenFrames": "apple_multimodule.frames.json",
+  "WantResolvedFrames": 1,
+  "WantUnresolved": 1
+}

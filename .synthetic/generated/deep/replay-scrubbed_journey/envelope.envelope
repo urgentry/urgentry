@@ -1,0 +1,5 @@
+{"event_id":"22222222222222222222222222222222"}
+{"type":"replay_event","length":0}
+{"event_id":"22222222222222222222222222222222","replay_id":"22222222222222222222222222222222","timestamp":"2026-03-29T10:05:00Z","platform":"javascript","release":"web@1.2.4","environment":"production","request":{"url":"https://shop.example.com/account?token=secret"},"user":{"email":"secret@example.com"},"contexts":{"trace":{"trace_id":"fedcba9876543210fedcba9876543210"}}}
+{"type":"replay_recording","length":0,"filename":"segment-1.rrweb","content_type":"application/json"}
+{"events":[{"type":"navigation","offset_ms":10,"data":{"url":"https://shop.example.com/account?token=secret"}},{"type":"click","offset_ms":20,"data":{"selector":".secret","text":"4111111111111111","value":"super-secret"}},{"type":"console","offset_ms":30,"level":"info","data":{"message":"account loaded"}}]}

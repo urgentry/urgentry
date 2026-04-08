@@ -1,0 +1,706 @@
+{
+  "source_files": [
+    "eval/fixtures/store/",
+    "eval/fixtures/envelopes/",
+    "eval/fixtures/negative/",
+    "eval/compat/sdk_harness.go",
+    "internal/compat/compat_test.go",
+    "internal/compat/otlp_conformance_test.go",
+    "internal/compat/security_report_conformance_test.go"
+  ],
+  "cases": [
+    {
+      "id": "dynamic/check_in_basic",
+      "family": "check_in",
+      "format": "json-envelope-item",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "builder": "check_in_basic",
+      "expected": {
+        "status_code": 200,
+        "check_in_slug": "synthetic-cron"
+      },
+      "scenario_hints": [
+        "compat",
+        "monitors"
+      ]
+    },
+    {
+      "id": "dynamic/client_report_basic",
+      "family": "client_report",
+      "format": "json-envelope-item",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "builder": "client_report_basic",
+      "expected": {
+        "status_code": 200
+      },
+      "scenario_hints": [
+        "compat",
+        "outcomes"
+      ]
+    },
+    {
+      "id": "dynamic/otlp_log_basic",
+      "family": "otlp_logs",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/otlp/v1/logs/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "builder": "otlp_log_basic",
+      "expected": {
+        "status_code": 200,
+        "event_type": "log"
+      },
+      "scenario_hints": [
+        "compat",
+        "logs"
+      ]
+    },
+    {
+      "id": "dynamic/otlp_trace_basic",
+      "family": "otlp_traces",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/otlp/v1/traces/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "builder": "otlp_trace_basic",
+      "expected": {
+        "status_code": 200,
+        "trace_id": "0102030405060708090a0b0c0d0e0f10"
+      },
+      "scenario_hints": [
+        "compat",
+        "traces"
+      ]
+    },
+    {
+      "id": "dynamic/security_csp_basic",
+      "family": "security_report",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/security/?sentry_key={project_key}",
+      "content_type": "application/csp-report",
+      "auth_mode": "query_sentry_key",
+      "builder": "security_csp_basic",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "security"
+      ]
+    },
+    {
+      "id": "dynamic/session_aggregate_basic",
+      "family": "session",
+      "format": "json-envelope-item",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "builder": "session_aggregate_basic",
+      "expected": {
+        "status_code": 200,
+        "session_release": "synthetic@2.0.0"
+      },
+      "scenario_hints": [
+        "compat",
+        "release-health"
+      ]
+    },
+    {
+      "id": "dynamic/session_basic",
+      "family": "session",
+      "format": "json-envelope-item",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "builder": "session_basic",
+      "expected": {
+        "status_code": 200,
+        "session_release": "synthetic@1.0.0"
+      },
+      "scenario_hints": [
+        "compat",
+        "release-health"
+      ]
+    },
+    {
+      "id": "dynamic/user_feedback_basic",
+      "family": "feedback",
+      "format": "json-envelope-item",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "builder": "user_feedback_basic",
+      "expected": {
+        "status_code": 200,
+        "feedback_name": "Synthetic Reporter"
+      },
+      "scenario_hints": [
+        "compat",
+        "feedback"
+      ]
+    },
+    {
+      "id": "envelope/check_in",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/check_in.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/compressed_note",
+      "family": "envelope",
+      "format": "md",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/compressed_note.md",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/empty",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/empty.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/error_with_attachment",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/error_with_attachment.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/go_sdk_error",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/go_sdk_error.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/malformed_header",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/malformed_header.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/multi_item",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/multi_item.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/single_error",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/single_error.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/user_feedback",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/user_feedback.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "envelope/with_client_report",
+      "family": "envelope",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/envelope/",
+      "content_type": "application/x-sentry-envelope",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/envelopes/with_client_report.envelope",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "envelope"
+      ]
+    },
+    {
+      "id": "negative/binary_garbage",
+      "family": "negative",
+      "format": "bin",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/octet-stream",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/binary_garbage.bin",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/deeply_nested",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/deeply_nested.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/duplicate_event",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/duplicate_event.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/future_timestamp",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/future_timestamp.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/malformed_json",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/malformed_json.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/missing_event_id",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/missing_event_id.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/oversized_event_id",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/oversized_event_id.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/truncated_envelope",
+      "family": "negative",
+      "format": "envelope",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/truncated_envelope.envelope",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/unicode_edge_cases",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/unicode_edge_cases.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "negative/wrong_content_type",
+      "family": "negative",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/negative/wrong_content_type.json",
+      "expected": {
+        "status_code": 400
+      },
+      "scenario_hints": [
+        "compat",
+        "negative"
+      ]
+    },
+    {
+      "id": "store/basic_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/basic_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/dotnet_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/dotnet_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/epoch_timestamp",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/epoch_timestamp.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/go_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/go_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/java_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/java_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/js_browser_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/js_browser_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/js_node_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/js_node_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/python_full_realistic",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/python_full_realistic.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/ruby_error",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/ruby_error.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    },
+    {
+      "id": "store/tags_array_format",
+      "family": "store",
+      "format": "json",
+      "method": "POST",
+      "route_template": "/api/{project_id}/store/",
+      "content_type": "application/json",
+      "auth_mode": "sentry_auth",
+      "source_path": "eval/fixtures/store/tags_array_format.json",
+      "expected": {
+        "status_code": 200,
+        "project_event_goal": 1
+      },
+      "scenario_hints": [
+        "compat",
+        "ingest",
+        "errors"
+      ]
+    }
+  ]
+}

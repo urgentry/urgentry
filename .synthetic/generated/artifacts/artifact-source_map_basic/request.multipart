@@ -1,0 +1,10 @@
+--urgentry-synthetic-boundary
+Content-Disposition: form-data; name="name"
+
+app.min.js.map
+--urgentry-synthetic-boundary
+Content-Disposition: form-data; name="file"; filename="app.min.js.map"
+Content-Type: application/json
+
+{"version":3,"file":"app.min.js","sources":["app.ts"],"names":[],"mappings":"AAAA"}
+--urgentry-synthetic-boundary--

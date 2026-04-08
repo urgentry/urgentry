@@ -1,0 +1,1 @@
+{"type":"expect-ct","url":"https://example.com","body":{"hostname":"example.com","port":443,"effective-expiration-date":"2026-12-31T00:00:00Z","served-certificate-chain":["..."],"validated-certificate-chain":["..."],"scts":[]}}

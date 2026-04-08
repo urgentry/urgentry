@@ -1,0 +1,15 @@
+{
+  "case": {
+    "id": "artifact/import_bundle_minimal",
+    "family": "import_export",
+    "method": "POST",
+    "route_template": "/api/0/organizations/{org_slug}/import/",
+    "content_type": "application/json",
+    "builder": "import_bundle_minimal",
+    "scenario_hints": [
+      "api",
+      "import-export"
+    ]
+  },
+  "content_type": "application/json"
+}

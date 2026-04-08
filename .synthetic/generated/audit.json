@@ -1,0 +1,66 @@
+{
+  "payload_case_count": 38,
+  "artifact_case_count": 5,
+  "deep_case_count": 8,
+  "scenario_pack_count": 5,
+  "coverage": {
+    "route_sections": {
+      "covered": [
+        "Ingest",
+        "Management REST API",
+        "System",
+        "Web UI"
+      ],
+      "uncovered": null
+    },
+    "telemetry_surfaces": {
+      "covered": [
+        "attachments",
+        "debug_files",
+        "errors",
+        "logs",
+        "outcomes",
+        "profiles",
+        "replays",
+        "traces"
+      ],
+      "uncovered": null
+    },
+    "artifact_families": {
+      "covered": [
+        "attachments",
+        "debug_files",
+        "import_export_blobs",
+        "preprod_artifacts",
+        "profile_payloads",
+        "release_files",
+        "replay_assets"
+      ],
+      "uncovered": null
+    },
+    "datasets": {
+      "covered": [
+        "issues",
+        "logs",
+        "spans",
+        "transactions"
+      ],
+      "uncovered": null
+    },
+    "entity_families": {
+      "covered": [
+        "artifacts_symbolication",
+        "control_ops",
+        "identity_auth",
+        "ingest_telemetry",
+        "integrations_forwarding",
+        "issue_workflow",
+        "prevent",
+        "project_catalog",
+        "query_analytics",
+        "releases_alerting_ops"
+      ],
+      "uncovered": null
+    }
+  }
+}

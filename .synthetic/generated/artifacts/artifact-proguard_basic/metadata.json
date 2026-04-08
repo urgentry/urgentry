@@ -1,0 +1,23 @@
+{
+  "case": {
+    "id": "artifact/proguard_basic",
+    "family": "proguard",
+    "method": "POST",
+    "route_template": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/proguard/",
+    "content_type": "multipart/form-data",
+    "builder": "proguard_basic",
+    "files": [
+      {
+        "field_name": "file",
+        "file_name": "mapping.txt",
+        "content_type": "text/plain"
+      }
+    ],
+    "scenario_hints": [
+      "compat",
+      "artifacts",
+      "proguard"
+    ]
+  },
+  "content_type": "multipart/form-data; boundary=urgentry-synthetic-boundary"
+}

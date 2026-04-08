@@ -1,0 +1,1 @@
+{"events":[{"type":"navigation","offset_ms":10,"data":{"url":"https://shop.example.com/account?token=secret"}},{"type":"click","offset_ms":20,"data":{"selector":".secret","text":"4111111111111111","value":"super-secret"}},{"type":"console","offset_ms":30,"level":"info","data":{"message":"account loaded"}}]}

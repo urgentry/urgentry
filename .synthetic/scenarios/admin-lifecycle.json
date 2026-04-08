@@ -1,0 +1,106 @@
+{
+  "name": "admin-lifecycle",
+  "description": "Synthetic admin, auth, lifecycle, and artifact coverage pack over existing compat suites.",
+  "covers": {
+    "route_sections": [
+      "System",
+      "Management REST API",
+      "Web UI",
+      "Ingest"
+    ],
+    "route_prefixes": [
+      "organizations",
+      "projects",
+      "teams"
+    ],
+    "telemetry_surfaces": [
+      "errors",
+      "attachments",
+      "outcomes",
+      "debug_files"
+    ],
+    "artifact_families": [
+      "attachments",
+      "release_files",
+      "debug_files",
+      "import_export_blobs",
+      "preprod_artifacts"
+    ],
+    "entity_families": [
+      "artifacts_symbolication",
+      "control_ops",
+      "identity_auth",
+      "integrations_forwarding",
+      "misc",
+      "prevent",
+      "project_catalog",
+      "releases_alerting_ops"
+    ],
+    "datasets": [
+      "issues"
+    ]
+  },
+  "suites": [
+    {
+      "name": "system-health",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestSelfHostedHealthEndpoint$"
+    },
+    {
+      "name": "preprod-artifacts",
+      "package": "./internal/api",
+      "run": "TestAPIPreprodArtifacts_SQLite$"
+    },
+    {
+      "name": "api-crud-core",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestCRUD(Projects|Organizations|Teams|AlertRules|Releases|ProjectKeys)$"
+    },
+    {
+      "name": "login-and-api-auth",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestE2E(LoginBootstrap|LoginInvalidPassword|LoginCSRFProtection|SessionCookie|Logout|BootstrapPAT|APIAuthRequired|APIWithPAT)$"
+    },
+    {
+      "name": "attachment-conformance",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestAttachment(ViaEnvelope|LargeFile|Multiple|ContentTypes|Retrieval|AuthRequired)$"
+    },
+    {
+      "name": "session-conformance",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestSession(ViaEnvelope|Init|Update|Exited|Crashed|Aggregates|AuthRequired|ReleaseAssociation)$"
+    },
+    {
+      "name": "feedback-and-monitors",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "Test(FeedbackViaEnvelope|FeedbackViaUserReport|FeedbackRetrieval|FeedbackWithContact|FeedbackLinkedToEvent|FeedbackAuthRequired|MonitorCheckInViaEnvelope|MonitorCheckInOK|MonitorCheckInError|MonitorCheckInInProgress|MonitorCheckInDuration|MonitorListAPI|MonitorAuthRequired)$"
+    },
+    {
+      "name": "security-and-native",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "Test(CSPReport|CSPReportCTJSON|CSPReportCTReportsAPI|ExpectCTReport|HPKPReport|SecurityReportAuthRequired|SecurityReportCreatesEvent|NativeMinidumpAppleCompat|NativeMinidumpLinuxCompat|NativeMinidumpFallbackCompat|NativeReprocessRoundtrip)$"
+    }
+  ]
+}

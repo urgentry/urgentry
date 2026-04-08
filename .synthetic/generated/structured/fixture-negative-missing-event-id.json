@@ -1,0 +1,8 @@
+{
+  "platform": "python",
+  "level": "error",
+  "message": "Event without an event_id — server should generate one",
+  "_test_meta": {
+    "description": "Missing event_id — server must generate a valid UUID and still accept the event"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "case": {
+    "id": "artifact/envelope_attachment_text",
+    "family": "attachment",
+    "method": "POST",
+    "route_template": "/api/{project_id}/envelope/",
+    "content_type": "application/x-sentry-envelope",
+    "builder": "envelope_attachment_text",
+    "scenario_hints": [
+      "compat",
+      "attachments"
+    ]
+  },
+  "content_type": "application/x-sentry-envelope"
+}

@@ -1,0 +1,4 @@
+MODULE mac arm64 DEBUG-APPLE-1 App
+FILE 0 src/AppDelegate.swift
+FUNC 1010 10 0 main
+1010 10 42 0

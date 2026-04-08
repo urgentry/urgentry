@@ -1,0 +1,36 @@
+name: admin-lifecycle-smoke
+description: Exercise a small auth-sensitive admin mutation plus its follow-up reads.
+server:
+  start_workers: true
+steps:
+  - name: list-project-keys
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/projects/urgentry-org/default/keys/
+    expect_status: 200
+  - name: create-monitor
+    action: request
+    method: POST
+    auth: pat
+    path: /api/0/projects/urgentry-org/default/monitors/
+    content_type: application/json
+    body: |
+      {"slug":"synthetic-nightly","status":"active","environment":"production","config":{"schedule":{"type":"interval","value":5,"unit":"minute"},"timezone":"UTC"}}
+    expect_status: 201
+  - name: get-monitor
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/projects/urgentry-org/default/monitors/synthetic-nightly/
+    expect_status: 200
+    expect_contains:
+      - synthetic-nightly
+  - name: list-monitors
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/projects/urgentry-org/default/monitors/
+    expect_status: 200
+    expect_contains:
+      - synthetic-nightly

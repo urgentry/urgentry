@@ -1,0 +1,11 @@
+{
+  "EventID": "11111111111111111111111111111111",
+  "ReplayID": "11111111111111111111111111111111",
+  "Timestamp": "2026-03-29T10:00:00Z",
+  "Platform": "javascript",
+  "Release": "web@1.2.3",
+  "Environment": "production",
+  "RequestURL": "https://shop.example.com/checkout",
+  "UserEmail": "buyer@example.com",
+  "TraceID": "0123456789abcdef0123456789abcdef"
+}

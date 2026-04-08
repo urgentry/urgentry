@@ -1,0 +1,1 @@
+{"csp-report":{"document-uri":"https://example.com","violated-directive":"script-src","blocked-uri":"https://evil.test/app.js","original-policy":"default-src 'self'"}}

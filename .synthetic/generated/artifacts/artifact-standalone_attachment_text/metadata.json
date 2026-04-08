@@ -1,0 +1,25 @@
+{
+  "case": {
+    "id": "artifact/standalone_attachment_text",
+    "family": "standalone_attachment",
+    "method": "POST",
+    "route_template": "/api/0/projects/{org_slug}/{proj_slug}/attachments/",
+    "content_type": "multipart/form-data",
+    "builder": "standalone_attachment_text",
+    "files": [
+      {
+        "field_name": "file",
+        "file_name": "standalone.log",
+        "content_type": "text/plain"
+      }
+    ],
+    "extra_fields": {
+      "event_id": "b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1"
+    },
+    "scenario_hints": [
+      "compat",
+      "attachments"
+    ]
+  },
+  "content_type": "multipart/form-data; boundary=urgentry-synthetic-boundary"
+}

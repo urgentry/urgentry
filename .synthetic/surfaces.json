@@ -1,0 +1,4007 @@
+{
+  "source_files": [
+    "research/sentry-openapi-schema.json",
+    "docs/reference/auth-schema-and-route-matrix.md",
+    "internal/store/catalog.go"
+  ],
+  "openapi": {
+    "operation_count": 218,
+    "tag_counts": [
+      {
+        "name": "Projects",
+        "count": 35
+      },
+      {
+        "name": "Releases",
+        "count": 22
+      },
+      {
+        "name": "Events",
+        "count": 17
+      },
+      {
+        "name": "Organizations",
+        "count": 16
+      },
+      {
+        "name": "Alerts",
+        "count": 15
+      },
+      {
+        "name": "Integrations",
+        "count": 14
+      },
+      {
+        "name": "Monitors",
+        "count": 14
+      },
+      {
+        "name": "Replays",
+        "count": 12
+      },
+      {
+        "name": "Teams",
+        "count": 12
+      },
+      {
+        "name": "Crons",
+        "count": 10
+      },
+      {
+        "name": "Prevent",
+        "count": 10
+      },
+      {
+        "name": "SCIM",
+        "count": 10
+      },
+      {
+        "name": "Integration",
+        "count": 8
+      },
+      {
+        "name": "Dashboards",
+        "count": 5
+      },
+      {
+        "name": "Discover",
+        "count": 5
+      },
+      {
+        "name": "Environments",
+        "count": 4
+      },
+      {
+        "name": "Mobile Builds",
+        "count": 3
+      },
+      {
+        "name": "Seer",
+        "count": 3
+      },
+      {
+        "name": "Explore",
+        "count": 2
+      },
+      {
+        "name": "Users",
+        "count": 1
+      }
+    ],
+    "prefix_counts": [
+      {
+        "name": "organizations",
+        "count": 137
+      },
+      {
+        "name": "projects",
+        "count": 66
+      },
+      {
+        "name": "teams",
+        "count": 9
+      },
+      {
+        "name": "sentry-apps",
+        "count": 3
+      },
+      {
+        "name": "sentry-app-installations",
+        "count": 2
+      },
+      {
+        "name": "seer",
+        "count": 1
+      }
+    ],
+    "operations": [
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/",
+        "tag": "Users",
+        "operation_id": "List Your Organizations",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/",
+        "tag": "Organizations",
+        "operation_id": "Retrieve an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/",
+        "tag": "Organizations",
+        "operation_id": "Update an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/alert-rules/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) List an Organization's Metric Alert Rules",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/alert-rules/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Create a Metric Alert Rule for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/alert-rules/{alert_rule_id}/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Delete a Metric Alert Rule",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/alert-rules/{alert_rule_id}/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Retrieve a Metric Alert Rule for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/alert-rules/{alert_rule_id}/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Update a Metric Alert Rule",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/config/integrations/",
+        "tag": "Integrations",
+        "operation_id": "Get Integration Provider Information",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/dashboards/",
+        "tag": "Dashboards",
+        "operation_id": "List an Organization's Custom Dashboards",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/dashboards/",
+        "tag": "Dashboards",
+        "operation_id": "Create a New Dashboard for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/dashboards/{dashboard_id}/",
+        "tag": "Dashboards",
+        "operation_id": "Delete an Organization's Custom Dashboard",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/dashboards/{dashboard_id}/",
+        "tag": "Dashboards",
+        "operation_id": "Retrieve an Organization's Custom Dashboard",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/dashboards/{dashboard_id}/",
+        "tag": "Dashboards",
+        "operation_id": "Edit an Organization's Custom Dashboard",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/",
+        "tag": "Monitors",
+        "operation_id": "Bulk Delete Monitors",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/",
+        "tag": "Monitors",
+        "operation_id": "Fetch an Organization's Monitors",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/",
+        "tag": "Monitors",
+        "operation_id": "Create a Monitor for a Project",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/",
+        "tag": "Monitors",
+        "operation_id": "Mutate an Organization's Monitors",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/{detector_id}/",
+        "tag": "Monitors",
+        "operation_id": "Delete a Monitor",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/{detector_id}/",
+        "tag": "Monitors",
+        "operation_id": "Fetch a Monitor",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/detectors/{detector_id}/",
+        "tag": "Monitors",
+        "operation_id": "Update a Monitor by ID",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/discover/saved/",
+        "tag": "Discover",
+        "operation_id": "List an Organization's Discover Saved Queries",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/discover/saved/",
+        "tag": "Discover",
+        "operation_id": "Create a New Saved Query",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/discover/saved/{query_id}/",
+        "tag": "Discover",
+        "operation_id": "Delete an Organization's Discover Saved Query",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/discover/saved/{query_id}/",
+        "tag": "Discover",
+        "operation_id": "Retrieve an Organization's Discover Saved Query",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/discover/saved/{query_id}/",
+        "tag": "Discover",
+        "operation_id": "Edit an Organization's Discover Saved Query",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/environments/",
+        "tag": "Environments",
+        "operation_id": "List an Organization's Environments",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/eventids/{event_id}/",
+        "tag": "Organizations",
+        "operation_id": "Resolve an Event ID",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/events-timeseries/",
+        "tag": "Explore",
+        "operation_id": "Query Explore Events in Timeseries Format",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/events/",
+        "tag": "Explore",
+        "operation_id": "Query Explore Events in Table Format",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/external-users/",
+        "tag": "Integrations",
+        "operation_id": "Create an External User",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/external-users/{external_user_id}/",
+        "tag": "Integrations",
+        "operation_id": "Delete an External User",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/external-users/{external_user_id}/",
+        "tag": "Integrations",
+        "operation_id": "Update an External User",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/forwarding/",
+        "tag": "Integrations",
+        "operation_id": "Retrieve Data Forwarders for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/forwarding/",
+        "tag": "Integrations",
+        "operation_id": "Create a Data Forwarder for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/forwarding/{data_forwarder_id}/",
+        "tag": "Integrations",
+        "operation_id": "Delete a Data Forwarder for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/forwarding/{data_forwarder_id}/",
+        "tag": "Integrations",
+        "operation_id": "Update a Data Forwarder for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/integrations/",
+        "tag": "Integrations",
+        "operation_id": "List an Organization's Available Integrations",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/integrations/{integration_id}/",
+        "tag": "Integrations",
+        "operation_id": "Delete an Integration for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/integrations/{integration_id}/",
+        "tag": "Integrations",
+        "operation_id": "Retrieve an Integration for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/",
+        "tag": "Events",
+        "operation_id": "Bulk Remove an Organization's Issues",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/",
+        "tag": "Events",
+        "operation_id": "List an Organization's Issues",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/",
+        "tag": "Events",
+        "operation_id": "Bulk Mutate an Organization's Issues",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/",
+        "tag": "Events",
+        "operation_id": "Remove an Issue",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/",
+        "tag": "Events",
+        "operation_id": "Retrieve an Issue",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/",
+        "tag": "Events",
+        "operation_id": "Update an Issue",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/autofix/",
+        "tag": "Seer",
+        "operation_id": "Retrieve Seer Issue Fix State",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/autofix/",
+        "tag": "Seer",
+        "operation_id": "Start Seer Issue Fix",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/events/",
+        "tag": "Events",
+        "operation_id": "List an Issue's Events",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/events/{event_id}/",
+        "tag": "Events",
+        "operation_id": "Retrieve an Issue Event",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/external-issues/",
+        "tag": "Integration",
+        "operation_id": "Retrieve custom integration issue links for the given Sentry issue",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/hashes/",
+        "tag": "Events",
+        "operation_id": "List an Issue's Hashes",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/tags/{key}/",
+        "tag": "Events",
+        "operation_id": "Retrieve Tag Details",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/issues/{issue_id}/tags/{key}/values/",
+        "tag": "Events",
+        "operation_id": "List a Tag's Values for an Issue",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/",
+        "tag": "Organizations",
+        "operation_id": "List an Organization's Members",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/",
+        "tag": "Organizations",
+        "operation_id": "Add a Member to an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/{member_id}/",
+        "tag": "Organizations",
+        "operation_id": "Delete an Organization Member",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/{member_id}/",
+        "tag": "Organizations",
+        "operation_id": "Retrieve an Organization Member",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/{member_id}/",
+        "tag": "Organizations",
+        "operation_id": "Update an Organization Member's Roles",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/{member_id}/teams/{team_id_or_slug}/",
+        "tag": "Teams",
+        "operation_id": "Delete an Organization Member from a Team",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/{member_id}/teams/{team_id_or_slug}/",
+        "tag": "Teams",
+        "operation_id": "Add an Organization Member to a Team",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/members/{member_id}/teams/{team_id_or_slug}/",
+        "tag": "Teams",
+        "operation_id": "Update an Organization Member's Team Role",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/monitors/",
+        "tag": "Crons",
+        "operation_id": "Retrieve Monitors for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/monitors/",
+        "tag": "Crons",
+        "operation_id": "Create a Monitor",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/monitors/{monitor_id_or_slug}/",
+        "tag": "Crons",
+        "operation_id": "Delete a Monitor or Monitor Environments",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/monitors/{monitor_id_or_slug}/",
+        "tag": "Crons",
+        "operation_id": "Retrieve a Monitor",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/monitors/{monitor_id_or_slug}/",
+        "tag": "Crons",
+        "operation_id": "Update a Monitor",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/monitors/{monitor_id_or_slug}/checkins/",
+        "tag": "Crons",
+        "operation_id": "Retrieve Check-Ins for a Monitor",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/notifications/actions/",
+        "tag": "Alerts",
+        "operation_id": "List Spike Protection Notifications",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/notifications/actions/",
+        "tag": "Alerts",
+        "operation_id": "Create a Spike Protection Notification Action",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/notifications/actions/{action_id}/",
+        "tag": "Alerts",
+        "operation_id": "Delete a Spike Protection Notification Action",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/notifications/actions/{action_id}/",
+        "tag": "Alerts",
+        "operation_id": "Retrieve a Spike Protection Notification Action",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/notifications/actions/{action_id}/",
+        "tag": "Alerts",
+        "operation_id": "Update a Spike Protection Notification Action",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/preprodartifacts/{artifact_id}/install-details/",
+        "tag": "Mobile Builds",
+        "operation_id": "Retrieve install info for a given artifact",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/preprodartifacts/{artifact_id}/size-analysis/",
+        "tag": "Mobile Builds",
+        "operation_id": "Retrieve Size Analysis results for a given artifact",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repositories/",
+        "tag": "Prevent",
+        "operation_id": "Retrieves list of repositories for a given owner",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repositories/sync/",
+        "tag": "Prevent",
+        "operation_id": "Gets syncing status for repositories for an integrated org",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repositories/sync/",
+        "tag": "Prevent",
+        "operation_id": "Syncs repositories from an integrated org with GitHub",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repositories/tokens/",
+        "tag": "Prevent",
+        "operation_id": "Retrieves a paginated list of repository tokens for a given owner",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repository/{repository}/",
+        "tag": "Prevent",
+        "operation_id": "Retrieves a single repository for a given owner",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repository/{repository}/branches/",
+        "tag": "Prevent",
+        "operation_id": "Retrieves list of branches for a given owner and repository",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repository/{repository}/test-results-aggregates/",
+        "tag": "Prevent",
+        "operation_id": "Retrieve aggregated test result metrics for repository, owner, and organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repository/{repository}/test-results/",
+        "tag": "Prevent",
+        "operation_id": "Retrieve paginated list of test results for repository, owner, and organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repository/{repository}/test-suites/",
+        "tag": "Prevent",
+        "operation_id": "Retrieve test suites belonging to a repository's test results",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/prevent/owner/{owner}/repository/{repository}/token/regenerate/",
+        "tag": "Prevent",
+        "operation_id": "Regenerates a repository upload token and returns the new token",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/project-keys/",
+        "tag": "Organizations",
+        "operation_id": "List an Organization's Client Keys",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/projects/",
+        "tag": "Organizations",
+        "operation_id": "List an Organization's Projects",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/relay_usage/",
+        "tag": "Organizations",
+        "operation_id": "List an Organization's trusted Relays",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/release-threshold-statuses/",
+        "tag": "Releases",
+        "operation_id": "Retrieve Statuses of Release Thresholds (Alpha)",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/",
+        "tag": "Releases",
+        "operation_id": "List an Organization's Releases",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/",
+        "tag": "Releases",
+        "operation_id": "Create a New Release for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/",
+        "tag": "Releases",
+        "operation_id": "Delete an Organization's Release",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/",
+        "tag": "Releases",
+        "operation_id": "Retrieve an Organization's Release",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/",
+        "tag": "Releases",
+        "operation_id": "Update an Organization's Release",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/commitfiles/",
+        "tag": "Releases",
+        "operation_id": "Retrieve Files Changed in a Release's Commits",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/commits/",
+        "tag": "Releases",
+        "operation_id": "List an Organization Release's Commits",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/deploys/",
+        "tag": "Releases",
+        "operation_id": "List a Release's Deploys",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/deploys/",
+        "tag": "Releases",
+        "operation_id": "Create a Deploy",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/files/",
+        "tag": "Releases",
+        "operation_id": "List an Organization's Release Files",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/files/",
+        "tag": "Releases",
+        "operation_id": "Upload a New Organization Release File",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/files/{file_id}/",
+        "tag": "Releases",
+        "operation_id": "Delete an Organization Release's File",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/files/{file_id}/",
+        "tag": "Releases",
+        "operation_id": "Retrieve an Organization Release's File",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/releases/{version}/files/{file_id}/",
+        "tag": "Releases",
+        "operation_id": "Update an Organization Release File",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/replay-count/",
+        "tag": "Replays",
+        "operation_id": "Retrieve a Count of Replays for a Given Issue or Transaction",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/replay-selectors/",
+        "tag": "Replays",
+        "operation_id": "List an Organization's Selectors",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/replays/",
+        "tag": "Replays",
+        "operation_id": "List an Organization's Replays",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/replays/{replay_id}/",
+        "tag": "Replays",
+        "operation_id": "Retrieve a Replay Instance",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/repos/",
+        "tag": "Organizations",
+        "operation_id": "List an Organization's Repositories",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/repos/{repo_id}/commits/",
+        "tag": "Organizations",
+        "operation_id": "List a Repository's Commits",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Groups",
+        "tag": "SCIM",
+        "operation_id": "List an Organization's Paginated Teams",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Groups",
+        "tag": "SCIM",
+        "operation_id": "Provision a New Team",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Groups/{team_id_or_slug}",
+        "tag": "SCIM",
+        "operation_id": "Delete an Individual Team",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Groups/{team_id_or_slug}",
+        "tag": "SCIM",
+        "operation_id": "Query an Individual Team",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Groups/{team_id_or_slug}",
+        "tag": "SCIM",
+        "operation_id": "Update a Team's Attributes",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Users",
+        "tag": "SCIM",
+        "operation_id": "List an Organization's SCIM Members",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Users",
+        "tag": "SCIM",
+        "operation_id": "Provision a New Organization Member",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Users/{member_id}",
+        "tag": "SCIM",
+        "operation_id": "Delete an Organization Member via SCIM",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Users/{member_id}",
+        "tag": "SCIM",
+        "operation_id": "Query an Individual Organization Member",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/0/organizations/{organization_id_or_slug}/scim/v2/Users/{member_id}",
+        "tag": "SCIM",
+        "operation_id": "Update an Organization Member's Attributes",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/sentry-app-installations/",
+        "tag": "Integration",
+        "operation_id": "List an Organization's Integration Platform Installations",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/sentry-apps/",
+        "tag": "Integration",
+        "operation_id": "Retrieve the custom integrations created by an organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/sessions/",
+        "tag": "Releases",
+        "operation_id": "Retrieve Release Health Session Statistics",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/shortids/{issue_id}/",
+        "tag": "Organizations",
+        "operation_id": "Resolve a Short ID",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/spike-protections/",
+        "tag": "Projects",
+        "operation_id": "Disable Spike Protection",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/spike-protections/",
+        "tag": "Projects",
+        "operation_id": "Enable Spike Protection",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/stats-summary/",
+        "tag": "Organizations",
+        "operation_id": "Retrieve an Organization's Events Count by Project",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/stats_v2/",
+        "tag": "Organizations",
+        "operation_id": "Retrieve Event Counts for an Organization (v2)",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/teams/",
+        "tag": "Teams",
+        "operation_id": "List an Organization's Teams",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/teams/",
+        "tag": "Teams",
+        "operation_id": "Create a New Team",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/user-teams/",
+        "tag": "Teams",
+        "operation_id": "List a User's Teams for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/",
+        "tag": "Monitors",
+        "operation_id": "Bulk Delete Alerts",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/",
+        "tag": "Monitors",
+        "operation_id": "Fetch Alerts",
+        "prefix": "organizations"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/",
+        "tag": "Monitors",
+        "operation_id": "Create an Alert for an Organization",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/",
+        "tag": "Monitors",
+        "operation_id": "Mutate an Organization's Alerts",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/{workflow_id}/",
+        "tag": "Monitors",
+        "operation_id": "Delete an Alert",
+        "prefix": "organizations"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/{workflow_id}/",
+        "tag": "Monitors",
+        "operation_id": "Fetch an Alert",
+        "prefix": "organizations"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/organizations/{organization_id_or_slug}/workflows/{workflow_id}/",
+        "tag": "Monitors",
+        "operation_id": "Update an Alert by ID",
+        "prefix": "organizations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/",
+        "tag": "Projects",
+        "operation_id": "Delete a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/",
+        "tag": "Projects",
+        "operation_id": "Retrieve a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/",
+        "tag": "Projects",
+        "operation_id": "Update a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/environments/",
+        "tag": "Environments",
+        "operation_id": "List a Project's Environments",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/environments/{environment}/",
+        "tag": "Environments",
+        "operation_id": "Retrieve a Project Environment",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/environments/{environment}/",
+        "tag": "Environments",
+        "operation_id": "Update a Project Environment",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/events/",
+        "tag": "Events",
+        "operation_id": "List a Project's Error Events",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/events/{event_id}/",
+        "tag": "Events",
+        "operation_id": "Retrieve an Event for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/events/{event_id}/source-map-debug/",
+        "tag": "Events",
+        "operation_id": "Debug Issues Related to Source Maps for a Given Event",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/files/dsyms/",
+        "tag": "Projects",
+        "operation_id": "Delete a Specific Project's Debug Information File",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/files/dsyms/",
+        "tag": "Projects",
+        "operation_id": "List a Project's Debug Information Files",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/files/dsyms/",
+        "tag": "Projects",
+        "operation_id": "Upload a New File",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/filters/",
+        "tag": "Projects",
+        "operation_id": "List a Project's Data Filters",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/filters/{filter_id}/",
+        "tag": "Projects",
+        "operation_id": "Update an Inbound Data Filter",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/hooks/",
+        "tag": "Projects",
+        "operation_id": "List a Project's Service Hooks",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/hooks/",
+        "tag": "Projects",
+        "operation_id": "Register a New Service Hook",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/hooks/{hook_id}/",
+        "tag": "Projects",
+        "operation_id": "Remove a Service Hook",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/hooks/{hook_id}/",
+        "tag": "Projects",
+        "operation_id": "Retrieve a Service Hook",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/hooks/{hook_id}/",
+        "tag": "Projects",
+        "operation_id": "Update a Service Hook",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/issues/",
+        "tag": "Events",
+        "operation_id": "Bulk Remove a List of Issues",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/issues/",
+        "tag": "Events",
+        "operation_id": "List a Project's Issues",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/issues/",
+        "tag": "Events",
+        "operation_id": "Bulk Mutate a List of Issues",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/keys/",
+        "tag": "Projects",
+        "operation_id": "List a Project's Client Keys",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/keys/",
+        "tag": "Projects",
+        "operation_id": "Create a New Client Key",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/keys/{key_id}/",
+        "tag": "Projects",
+        "operation_id": "Delete a Client Key",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/keys/{key_id}/",
+        "tag": "Projects",
+        "operation_id": "Retrieve a Client Key",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/keys/{key_id}/",
+        "tag": "Projects",
+        "operation_id": "Update a Client Key",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/members/",
+        "tag": "Projects",
+        "operation_id": "List a Project's Organization Members",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/monitors/{monitor_id_or_slug}/",
+        "tag": "Crons",
+        "operation_id": "Delete a Monitor or Monitor Environments for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/monitors/{monitor_id_or_slug}/",
+        "tag": "Crons",
+        "operation_id": "Retrieve a Monitor for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/monitors/{monitor_id_or_slug}/",
+        "tag": "Crons",
+        "operation_id": "Update a Monitor for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/monitors/{monitor_id_or_slug}/checkins/",
+        "tag": "Crons",
+        "operation_id": "Retrieve Check-Ins for a Monitor by Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/ownership/",
+        "tag": "Projects",
+        "operation_id": "Retrieve Ownership Configuration for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/ownership/",
+        "tag": "Projects",
+        "operation_id": "Update Ownership Configuration for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/preprodartifacts/build-distribution/latest/",
+        "tag": "Mobile Builds",
+        "operation_id": "Get the latest installable build for a project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/releases/{version}/commits/",
+        "tag": "Releases",
+        "operation_id": "List a Project Release's Commits",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/releases/{version}/files/",
+        "tag": "Releases",
+        "operation_id": "List a Project's Release Files",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/releases/{version}/files/",
+        "tag": "Releases",
+        "operation_id": "Upload a New Project Release File",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/releases/{version}/files/{file_id}/",
+        "tag": "Releases",
+        "operation_id": "Delete a Project Release's File",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/releases/{version}/files/{file_id}/",
+        "tag": "Releases",
+        "operation_id": "Retrieve a Project Release's File",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/releases/{version}/files/{file_id}/",
+        "tag": "Releases",
+        "operation_id": "Update a Project Release File",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/jobs/delete/",
+        "tag": "Replays",
+        "operation_id": "List Replay Batch-Deletion Jobs",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/jobs/delete/",
+        "tag": "Replays",
+        "operation_id": "Create Replay Batch Deletion Job",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/jobs/delete/{job_id}/",
+        "tag": "Replays",
+        "operation_id": "Retrieve a Replay Batch-Deletion Job",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/{replay_id}/",
+        "tag": "Replays",
+        "operation_id": "Delete a Replay Instance",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/{replay_id}/clicks/",
+        "tag": "Replays",
+        "operation_id": "List Clicked Nodes",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/{replay_id}/recording-segments/",
+        "tag": "Replays",
+        "operation_id": "List Recording Segments",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/{replay_id}/recording-segments/{segment_id}/",
+        "tag": "Replays",
+        "operation_id": "Retrieve a Recording Segment",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/replays/{replay_id}/viewed-by/",
+        "tag": "Replays",
+        "operation_id": "List Users Who Have Viewed a Replay",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/rules/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) List a Project's Issue Alert Rules",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/rules/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Create an Issue Alert Rule for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/rules/{rule_id}/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Delete an Issue Alert Rule",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/rules/{rule_id}/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Retrieve an Issue Alert Rule for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/rules/{rule_id}/",
+        "tag": "Alerts",
+        "operation_id": "(DEPRECATED) Update an Issue Alert Rule",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/stats/",
+        "tag": "Projects",
+        "operation_id": "Retrieve Event Counts for a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/symbol-sources/",
+        "tag": "Projects",
+        "operation_id": "Delete a Symbol Source from a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/symbol-sources/",
+        "tag": "Projects",
+        "operation_id": "Retrieve a Project's Symbol Sources",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/symbol-sources/",
+        "tag": "Projects",
+        "operation_id": "Add a Symbol Source to a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/symbol-sources/",
+        "tag": "Projects",
+        "operation_id": "Update a Project's Symbol Source",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/tags/{key}/values/",
+        "tag": "Projects",
+        "operation_id": "List a Tag's Values",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/teams/",
+        "tag": "Teams",
+        "operation_id": "List a Project's Teams",
+        "prefix": "projects"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/teams/{team_id_or_slug}/",
+        "tag": "Projects",
+        "operation_id": "Delete a Team from a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/teams/{team_id_or_slug}/",
+        "tag": "Projects",
+        "operation_id": "Add a Team to a Project",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/user-feedback/",
+        "tag": "Projects",
+        "operation_id": "List a Project's User Feedback",
+        "prefix": "projects"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/user-feedback/",
+        "tag": "Projects",
+        "operation_id": "Submit User Feedback",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/projects/{organization_id_or_slug}/{project_id_or_slug}/users/",
+        "tag": "Projects",
+        "operation_id": "List a Project's Users",
+        "prefix": "projects"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/seer/models/",
+        "tag": "Seer",
+        "operation_id": "List Seer AI Models",
+        "prefix": "seer"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/sentry-app-installations/{uuid}/external-issues/",
+        "tag": "Integration",
+        "operation_id": "Create or update an External Issue",
+        "prefix": "sentry-app-installations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/sentry-app-installations/{uuid}/external-issues/{external_issue_id}/",
+        "tag": "Integration",
+        "operation_id": "Delete an External Issue",
+        "prefix": "sentry-app-installations"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/sentry-apps/{sentry_app_id_or_slug}/",
+        "tag": "Integration",
+        "operation_id": "Delete a custom integration.",
+        "prefix": "sentry-apps"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/sentry-apps/{sentry_app_id_or_slug}/",
+        "tag": "Integration",
+        "operation_id": "Retrieve a custom integration by ID or slug.",
+        "prefix": "sentry-apps"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/sentry-apps/{sentry_app_id_or_slug}/",
+        "tag": "Integration",
+        "operation_id": "Update an existing custom integration.",
+        "prefix": "sentry-apps"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/",
+        "tag": "Teams",
+        "operation_id": "Delete a Team",
+        "prefix": "teams"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/",
+        "tag": "Teams",
+        "operation_id": "Retrieve a Team",
+        "prefix": "teams"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/",
+        "tag": "Teams",
+        "operation_id": "Update a Team",
+        "prefix": "teams"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/external-teams/",
+        "tag": "Integrations",
+        "operation_id": "Create an External Team",
+        "prefix": "teams"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/external-teams/{external_team_id}/",
+        "tag": "Integrations",
+        "operation_id": "Delete an External Team",
+        "prefix": "teams"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/external-teams/{external_team_id}/",
+        "tag": "Integrations",
+        "operation_id": "Update an External Team",
+        "prefix": "teams"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/members/",
+        "tag": "Teams",
+        "operation_id": "List a Team's Members",
+        "prefix": "teams"
+      },
+      {
+        "method": "GET",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/projects/",
+        "tag": "Teams",
+        "operation_id": "List a Team's Projects",
+        "prefix": "teams"
+      },
+      {
+        "method": "POST",
+        "path": "/api/0/teams/{organization_id_or_slug}/{team_id_or_slug}/projects/",
+        "tag": "Projects",
+        "operation_id": "Create a New Project",
+        "prefix": "teams"
+      }
+    ]
+  },
+  "route_matrix": {
+    "route_count": 121,
+    "section_counts": [
+      {
+        "name": "System",
+        "count": 3
+      },
+      {
+        "name": "Ingest",
+        "count": 2
+      },
+      {
+        "name": "Management REST API",
+        "count": 66
+      },
+      {
+        "name": "Web UI",
+        "count": 50
+      }
+    ],
+    "routes": [
+      {
+        "section": "System",
+        "path": "/healthz",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "none"
+        ],
+        "accepted_credentials_raw": "none",
+        "required_scope": "none",
+        "mounted_in_roles": [
+          "all roles"
+        ],
+        "mounted_in_roles_raw": "all roles",
+        "notes": "public liveness"
+      },
+      {
+        "section": "System",
+        "path": "/readyz",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "none"
+        ],
+        "accepted_credentials_raw": "none",
+        "required_scope": "none",
+        "mounted_in_roles": [
+          "all roles"
+        ],
+        "mounted_in_roles_raw": "all roles",
+        "notes": "public readiness"
+      },
+      {
+        "section": "System",
+        "path": "/metrics",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "localhost or metrics bearer token"
+        ],
+        "accepted_credentials_raw": "localhost or metrics bearer token",
+        "required_scope": "none",
+        "mounted_in_roles": [
+          "all roles"
+        ],
+        "mounted_in_roles_raw": "all roles",
+        "notes": "not part of app RBAC"
+      },
+      {
+        "section": "Ingest",
+        "path": "/api/{project_id}/store/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "project key"
+        ],
+        "accepted_credentials_raw": "project key",
+        "required_scope": "none beyond exact project match",
+        "mounted_in_roles": [
+          "all",
+          "`ingest"
+        ],
+        "mounted_in_roles_raw": "all`, `ingest",
+        "notes": "reject on project mismatch"
+      },
+      {
+        "section": "Ingest",
+        "path": "/api/{project_id}/envelope/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "project key"
+        ],
+        "accepted_credentials_raw": "project key",
+        "required_scope": "none beyond exact project match",
+        "mounted_in_roles": [
+          "all",
+          "`ingest"
+        ],
+        "mounted_in_roles_raw": "all`, `ingest",
+        "notes": "reject on project mismatch"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "list only orgs visible to caller"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "authorize against path org"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/projects/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org-scoped project list only"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/teams/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "team:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org-scoped team list only"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/issues/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "cross-project issue query surface; query-cost and quota guarded; supports `filter`, `query`, `environment`, `project`, `sort`, `limit`, and `statsPeriod"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/discover/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "cross-project discover surface; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/logs/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "cross-project log query surface; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "lists org-shared dashboards plus caller-owned private dashboards; org admins can see all"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a dashboard owned by the caller, including persisted refresh cadence, dashboard-level filters, and annotations; viewers may not write even if the token carries the scope"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/{dashboard_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "loads one dashboard with widgets; private dashboards stay owner/admin-only"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/{dashboard_id}/",
+        "methods": [
+          "PUT"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "updates one dashboard, including sharing, refresh cadence, dashboard-level filters, and annotations; only owner or org admin may mutate"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/{dashboard_id}/",
+        "methods": [
+          "DELETE"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "deletes one dashboard plus its widget rows"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/{dashboard_id}/widgets/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a widget backed by Discover AST or a caller-owned saved search, with optional stat-threshold config"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/{dashboard_id}/widgets/{widget_id}/",
+        "methods": [
+          "PUT"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "updates one widget, including optional stat-threshold config; stored queries stay AST-backed, never raw SQL"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/dashboards/{dashboard_id}/widgets/{widget_id}/",
+        "methods": [
+          "DELETE"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "deletes one widget row"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/releases/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "release:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org-scoped releases only"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/releases/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "release:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "current path is org-scoped, so project automation tokens are intentionally not accepted"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/backfills/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:admin",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only operator view for durable backfill and reprocess runs"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/backfills/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:admin",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only durable backfill launch; request must be bounded by project, release, or time range, and returns `409` when an overlapping active run already owns that scope"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/backfills/{run_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:admin",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only polling surface for status, counters, cursor, and last error"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/backfills/{run_id}/cancel/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:admin",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only cancel for pending runs; running work must finish its current claimed step"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "list only visible projects"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/",
+        "methods": [
+          "PUT"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "root project metadata update surface; accepts Sentry-style fields and applies persisted project metadata"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/users/me/personal-access-tokens/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "session only; lists redacted PAT metadata for the current user"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/users/me/personal-access-tokens/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "session only; CSRF required; returns raw PAT once"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/users/me/personal-access-tokens/{token_id}/",
+        "methods": [
+          "DELETE"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "session only; CSRF required; revokes caller-owned PAT"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/keys/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:keys:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "never project key"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/keys/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:keys:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "never automation token"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/automation-tokens/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:tokens:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "session only; lists redacted token metadata for the bound project"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/automation-tokens/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:tokens:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "session only; CSRF required; returns raw automation token once"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/automation-tokens/{token_id}/",
+        "methods": [
+          "DELETE"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:tokens:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "session only; CSRF required; revokes a token bound to the path project"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/ownership/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped ownership rules"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/ownership/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "create ownership rule"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/ownership/",
+        "methods": [
+          "PUT"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "Sentry-compatible alias for ownership rule creation"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/ownership/{rule_id}/",
+        "methods": [
+          "DELETE"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "delete ownership rule"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/issues/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "issue:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "must filter by exact project"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/events/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "event:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "must filter by exact project"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/events/{event_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "event:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "event must belong to exact project"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/transactions/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped telemetry query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/traces/{trace_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped trace detail; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/replays/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped replay query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "replay detail; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped profile query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/{profile_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "profile detail; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/top-down/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "normalized call-tree query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/bottom-up/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "normalized hotspot query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/flamegraph/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "render-oriented profile tree query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/hot-path/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "dominant-path profile query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/profiles/compare/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "two-profile comparison query; query-cost and quota guarded"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/retention/{surface}/archives/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "list recent archive rows for one telemetry surface; operator-visible retention audit surface"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/retention/{surface}/archive/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "execute one retention archive/delete pass for the requested surface and return recent archive rows"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/retention/{surface}/restore/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "restore recent archive rows for the requested surface and return updated archive state"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/attachments/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT",
+          "automation token"
+        ],
+        "accepted_credentials_raw": "session, PAT, automation token",
+        "required_scope": "project:artifacts:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "multipart standalone event attachment upload; `event_id` must belong to the exact project"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "list stored debug-file metadata for one release"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT",
+          "automation token"
+        ],
+        "accepted_credentials_raw": "session, PAT, automation token",
+        "required_scope": "project:artifacts:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "upload symbol sources only; does not rewrite historical events inline"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/{debug_file_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "download one stored debug file"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/{debug_file_id}/reprocess/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:admin",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only historical native reprocess trigger; returns `202` with a durable `native_reprocess` run keyed to the exact debug file, or `409` when a broader or matching native reprocess already owns that release scope"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/teams/{org_slug}/{team_slug}/projects/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "project:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org/team membership required"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/issues/{issue_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "issue:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "load issue -\u003e derive project/org -\u003e authorize"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/issues/{issue_id}/",
+        "methods": [
+          "PUT"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "issue:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "load issue -\u003e derive project/org -\u003e authorize"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/issues/{issue_id}/events/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "event:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "load issue first"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/issues/{issue_id}/events/latest/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "event:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "load issue first"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/import/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:import:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "no project keys, no automation tokens; supports `?dry_run=1` for checksum-aware validation without persistence"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/organizations/{org_slug}/export/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT"
+        ],
+        "accepted_credentials_raw": "session, PAT",
+        "required_scope": "org:export:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org-scoped export with blob-backed artifact bodies plus checksum metadata"
+      },
+      {
+        "section": "Management REST API",
+        "path": "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/files/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session",
+          "PAT",
+          "automation token"
+        ],
+        "accepted_credentials_raw": "session, PAT, automation token",
+        "required_scope": "project:artifacts:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "exact project binding required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "issue:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "dashboard"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org-wide discover surface; query-cost and quota guarded, with in-page explain and denial feedback"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/starters/{slug}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "opinionated discover starter view for slow endpoints and failing endpoints; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/save-query",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "persists a caller-owned saved Discover query in the caller's org with private or org-shared visibility; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "saved-query detail page with metadata, live preview, explain output, and `?export=csv"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/favorite",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "toggles the caller's favorite state for a visible saved query; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/update",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only saved-query metadata and tag update; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/clone",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "clones a visible saved query into a caller-owned saved query; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/delete",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only saved-query delete; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/reports",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a caller-owned scheduled report for a visible saved query; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "dashboard list for caller-visible org dashboards"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a dashboard in the caller's default org; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "dashboard detail with widget execution, saved-query reuse, dashboard-level filters and annotations, auto-refresh, and widget export links"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets/{widget_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "widget drilldown page with source contract, effective filters, query explain, live result, export links, and snapshot action"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets/{widget_id}/export",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "exports one rendered widget result as CSV or JSON via `?format=csv"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/update",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "updates dashboard metadata, sharing, refresh cadence, dashboard-level filters, and annotations; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/duplicate",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a private copy for the caller; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/delete",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "deletes a dashboard and its widgets; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/starter/{slug}/create",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a starter dashboard pack with prebuilt widgets; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a widget from a Discover AST or saved query, with optional stat thresholds; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets/{widget_id}/snapshot",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "freezes the effective widget result, including dashboard-level filters, into a shareable snapshot; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets/{widget_id}/reports",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "creates a caller-owned scheduled report for that widget drilldown source; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets/{widget_id}/delete",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "deletes one widget; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/snapshot",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "freezes a saved-query result into a shareable snapshot; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/discover/queries/{id}/reports/{report_id}/delete",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "deletes one caller-owned scheduled report for that saved query; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/dashboards/{id}/widgets/{widget_id}/reports/{report_id}/delete",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "deletes one caller-owned scheduled report for that widget; CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/analytics/snapshots/{token}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "public link"
+        ],
+        "accepted_credentials_raw": "public link",
+        "required_scope": "none",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "renders a frozen snapshot without requiring a live session"
+      },
+      {
+        "section": "Web UI",
+        "path": "/logs/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "org-wide log surface; query-cost and quota guarded; supports `?export=csv"
+      },
+      {
+        "section": "Web UI",
+        "path": "/logs/starters/{slug}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "org:query:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "opinionated logs starter view for noisy loggers; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/issues/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "issue:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "issue list"
+      },
+      {
+        "section": "Web UI",
+        "path": "/issues/{id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "issue:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "load issue -\u003e derive project/org"
+      },
+      {
+        "section": "Web UI",
+        "path": "/issues/{id}/status",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "issue:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/issues/{id}/assign",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "issue:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/issues/{id}/priority",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "issue:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "CSRF required"
+      },
+      {
+        "section": "Web UI",
+        "path": "/events/{id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "event:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "load event -\u003e derive project/org"
+      },
+      {
+        "section": "Web UI",
+        "path": "/alerts/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "alert:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "alert UI with persisted delivery history; notifications may carry related profile summaries"
+      },
+      {
+        "section": "Web UI",
+        "path": "/feedback/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "feedback:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project/org-scoped only"
+      },
+      {
+        "section": "Web UI",
+        "path": "/releases/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "release:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project/org-scoped only"
+      },
+      {
+        "section": "Web UI",
+        "path": "/replays/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped replay query; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/replays/{id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "replay detail; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/profiles/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "project-scoped profile query; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/profiles/{id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "profile detail; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/traces/{trace_id}/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "trace detail page with related profiles and stored transactions/spans; query-cost and quota guarded"
+      },
+      {
+        "section": "Web UI",
+        "path": "/settings/",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "project:settings:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "later split by org/project settings sections"
+      },
+      {
+        "section": "Web UI",
+        "path": "/api/search",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "UI helper endpoint"
+      },
+      {
+        "section": "Web UI",
+        "path": "/api/ui/searches",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "web saved-search create with private or org-shared visibility in the caller's default org"
+      },
+      {
+        "section": "Web UI",
+        "path": "/api/ui/searches/{id}",
+        "methods": [
+          "GET"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:read",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "web saved-search detail with reusable open/detail URLs"
+      },
+      {
+        "section": "Web UI",
+        "path": "/api/ui/searches/{id}",
+        "methods": [
+          "PUT"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "owner-only saved-search update with metadata, tags, and favorite state"
+      },
+      {
+        "section": "Web UI",
+        "path": "/api/ui/searches/clone/{id}",
+        "methods": [
+          "POST"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "clones a visible saved search into a caller-owned saved search"
+      },
+      {
+        "section": "Web UI",
+        "path": "/api/ui/searches/{id}",
+        "methods": [
+          "DELETE"
+        ],
+        "accepted_credentials": [
+          "session"
+        ],
+        "accepted_credentials_raw": "session",
+        "required_scope": "search:write",
+        "mounted_in_roles": [
+          "all",
+          "`api"
+        ],
+        "mounted_in_roles_raw": "all`, `api",
+        "notes": "web saved search delete"
+      }
+    ]
+  },
+  "telemetry_surfaces": [
+    "attachments",
+    "debug_files",
+    "errors",
+    "logs",
+    "outcomes",
+    "profiles",
+    "replays",
+    "traces"
+  ],
+  "artifact_families": [
+    {
+      "name": "attachments",
+      "description": "Standalone and envelope-backed event attachments.",
+      "routes": [
+        "/api/{project_id}/envelope/",
+        "/api/0/projects/{org_slug}/{proj_slug}/attachments/"
+      ],
+      "tables": [
+        "artifacts",
+        "event_attachments"
+      ]
+    },
+    {
+      "name": "release_files",
+      "description": "Release-scoped generic artifact uploads such as source maps, ProGuard mappings, and artifact bundles.",
+      "routes": [
+        "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/files/"
+      ],
+      "tables": [
+        "artifacts"
+      ]
+    },
+    {
+      "name": "debug_files",
+      "description": "Release-scoped native debug files, symbol sources, and native reprocess inputs.",
+      "routes": [
+        "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/",
+        "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/{debug_file_id}/",
+        "/api/0/projects/{org_slug}/{proj_slug}/releases/{version}/debug-files/{debug_file_id}/reprocess/"
+      ],
+      "tables": [
+        "debug_files",
+        "native_symbol_sources",
+        "native_crashes",
+        "native_crash_images",
+        "project_symbol_sources"
+      ]
+    },
+    {
+      "name": "replay_assets",
+      "description": "Replay manifests, playback assets, and pane-aware timeline items.",
+      "routes": [
+        "/api/{project_id}/envelope/",
+        "/api/0/projects/{org_slug}/{proj_slug}/replays/",
+        "/api/0/projects/{org_slug}/{proj_slug}/replays/{replay_id}/"
+      ],
+      "tables": [
+        "replay_manifests",
+        "replay_assets",
+        "replay_timeline_items",
+        "project_replay_configs"
+      ]
+    },
+    {
+      "name": "profile_payloads",
+      "description": "Canonical profile manifests plus normalized thread, frame, stack, and sample graphs.",
+      "routes": [
+        "/api/{project_id}/envelope/",
+        "/api/0/projects/{org_slug}/{proj_slug}/profiles/",
+        "/api/0/projects/{org_slug}/{proj_slug}/profiles/{profile_id}/"
+      ],
+      "tables": [
+        "profile_manifests",
+        "profile_threads",
+        "profile_frames",
+        "profile_stacks",
+        "profile_stack_frames",
+        "profile_samples"
+      ]
+    },
+    {
+      "name": "preprod_artifacts",
+      "description": "Pre-production mobile build artifacts and install-detail metadata.",
+      "tables": [
+        "preprod_artifacts"
+      ]
+    },
+    {
+      "name": "import_export_blobs",
+      "description": "Organization import and export bundles with artifact bodies and checksum manifests.",
+      "routes": [
+        "/api/0/organizations/{org_slug}/import/",
+        "/api/0/organizations/{org_slug}/export/"
+      ],
+      "tables": [
+        "artifacts"
+      ]
+    }
+  ]
+}

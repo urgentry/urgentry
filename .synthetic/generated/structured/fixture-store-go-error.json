@@ -1,0 +1,98 @@
+{
+  "event_id": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "go",
+  "level": "error",
+  "release": "api-server@0.5.0",
+  "environment": "staging",
+  "server_name": "api-01.staging",
+  "tags": {
+    "go_version": "go1.22",
+    "handler": "/api/v1/users"
+  },
+  "user": {
+    "id": "service-account-1",
+    "ip_address": "172.16.0.5"
+  },
+  "sdk": {
+    "name": "sentry.go",
+    "version": "0.30.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "*json.UnmarshalTypeError",
+        "value": "json: cannot unmarshal string into Go struct field User.Age of type int",
+        "module": "encoding/json",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "handlers/user.go",
+              "function": "HandleCreateUser",
+              "module": "myapp/handlers",
+              "lineno": 45,
+              "abs_path": "/go/src/myapp/handlers/user.go",
+              "in_app": true
+            },
+            {
+              "filename": "middleware/recover.go",
+              "function": "RecoverMiddleware.func1",
+              "module": "myapp/middleware",
+              "lineno": 22,
+              "abs_path": "/go/src/myapp/middleware/recover.go",
+              "in_app": true
+            },
+            {
+              "filename": "net/http/server.go",
+              "function": "(*conn).serve",
+              "module": "net/http",
+              "lineno": 1995,
+              "in_app": false
+            }
+          ]
+        },
+        "mechanism": {
+          "type": "generic",
+          "handled": false
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "type": "http",
+        "category": "http",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:59.000Z",
+        "message": "POST /api/v1/users",
+        "data": {
+          "method": "POST",
+          "url": "/api/v1/users",
+          "status_code": 500
+        }
+      },
+      {
+        "type": "default",
+        "category": "log",
+        "level": "error",
+        "timestamp": "2026-03-25T11:59:59.500Z",
+        "message": "failed to decode request body"
+      }
+    ]
+  },
+  "contexts": {
+    "os": {
+      "name": "Linux",
+      "version": "6.1.0",
+      "kernel_version": "6.1.0-20-amd64"
+    },
+    "runtime": {
+      "name": "go",
+      "version": "go1.22.0"
+    },
+    "device": {
+      "arch": "amd64"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "event_id": "a7b8c9d0e1f2a7b8c9d0e1f2a7b8c9d0",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "node",
+  "level": "error",
+  "release": "api-service@1.2.3",
+  "environment": "production",
+  "server_name": "node-worker-01",
+  "tags": {
+    "node_version": "20.11.0",
+    "express_route": "GET /api/data"
+  },
+  "sdk": {
+    "name": "sentry.javascript.node",
+    "version": "7.100.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "Error",
+        "value": "ECONNREFUSED 127.0.0.1:5432",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "/srv/app/src/db.ts",
+              "function": "connectToDatabase",
+              "module": "src.db",
+              "lineno": 23,
+              "colno": 15,
+              "abs_path": "/srv/app/src/db.ts",
+              "in_app": true
+            },
+            {
+              "filename": "/srv/app/src/routes/data.ts",
+              "function": "getData",
+              "module": "src.routes.data",
+              "lineno": 45,
+              "colno": 20,
+              "abs_path": "/srv/app/src/routes/data.ts",
+              "in_app": true
+            },
+            {
+              "filename": "node_modules/express/lib/router/layer.js",
+              "function": "handle",
+              "lineno": 95,
+              "in_app": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "timestamp": "2026-03-25T11:59:59.000Z",
+        "type": "http",
+        "category": "http",
+        "data": {
+          "url": "http://localhost:5432",
+          "method": "GET",
+          "status_code": 0
+        },
+        "level": "error"
+      }
+    ]
+  },
+  "contexts": {
+    "runtime": {
+      "name": "node",
+      "version": "v20.11.0"
+    },
+    "os": {
+      "name": "Linux",
+      "version": "6.1.0"
+    }
+  }
+}

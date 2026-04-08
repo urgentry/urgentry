@@ -1,0 +1,5 @@
+{"event_id":"11111111111111111111111111111111"}
+{"type":"replay_event","length":0}
+{"event_id":"11111111111111111111111111111111","replay_id":"11111111111111111111111111111111","timestamp":"2026-03-29T10:00:00Z","platform":"javascript","release":"web@1.2.3","environment":"production","request":{"url":"https://shop.example.com/checkout"},"user":{"email":"buyer@example.com"},"contexts":{"trace":{"trace_id":"0123456789abcdef0123456789abcdef"}}}
+{"type":"replay_recording","length":0,"filename":"segment-1.rrweb","content_type":"application/json"}
+{"events":[{"type":"navigation","offset_ms":10,"data":{"url":"https://shop.example.com/cart"}},{"type":"console","offset_ms":20,"level":"warning","data":{"message":"cart loaded"}},{"type":"network","offset_ms":35,"data":{"url":"https://api.example.com/checkout","method":"POST","status_code":500,"duration_ms":123}},{"type":"click","offset_ms":40,"data":{"selector":"button#pay","text":"Pay now"}},{"type":"error","offset_ms":55,"data":{"message":"Payment failed","linked_event_id":"evt-replay-linked-1","trace_id":"0123456789abcdef0123456789abcdef"}}]}

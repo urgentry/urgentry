@@ -1,0 +1,89 @@
+{
+  "event_id": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "java",
+  "level": "error",
+  "release": "com.example.app@3.2.1",
+  "environment": "production",
+  "tags": {
+    "java.version": "17",
+    "android.api": "34"
+  },
+  "sdk": {
+    "name": "sentry.java.android",
+    "version": "7.5.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "java.lang.NullPointerException",
+        "value": "Attempt to invoke virtual method 'int java.lang.String.length()' on a null object reference",
+        "module": "java.lang",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "MainActivity.java",
+              "function": "onCreate",
+              "module": "com.example.app.MainActivity",
+              "lineno": 42,
+              "in_app": true
+            },
+            {
+              "filename": "UserService.java",
+              "function": "getDisplayName",
+              "module": "com.example.app.services.UserService",
+              "lineno": 88,
+              "in_app": true
+            },
+            {
+              "filename": "Activity.java",
+              "function": "performCreate",
+              "module": "android.app.Activity",
+              "lineno": 8051,
+              "in_app": false
+            }
+          ]
+        },
+        "mechanism": {
+          "type": "generic",
+          "handled": true
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "type": "default",
+        "category": "log",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:58.000Z",
+        "message": "Activity created: MainActivity"
+      },
+      {
+        "type": "default",
+        "category": "ui",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:59.000Z",
+        "message": "tap on button#submit"
+      }
+    ]
+  },
+  "contexts": {
+    "os": {
+      "name": "Android",
+      "version": "14"
+    },
+    "device": {
+      "name": "Pixel 8",
+      "family": "Pixel",
+      "model": "Pixel 8",
+      "brand": "Google",
+      "arch": "arm64-v8a"
+    },
+    "runtime": {
+      "name": "ART",
+      "version": "14.0.0"
+    }
+  }
+}

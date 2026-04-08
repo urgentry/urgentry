@@ -1,0 +1,146 @@
+{
+  "source_files": [
+    "internal/testfixtures/replays/fixtures.go",
+    "internal/testfixtures/profiles/fixtures.go",
+    "internal/testfixtures/nativecrash/fixtures.go",
+    "internal/testfixtures/minidump/minidump.go",
+    "internal/testfixtures/nativesym/elf.go"
+  ],
+  "cases": [
+    {
+      "id": "replay/core_journey",
+      "family": "replay",
+      "name": "core_journey",
+      "release": "web@1.2.3",
+      "platform": "javascript",
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "scenario_hints": [
+        "replays",
+        "query",
+        "privacy"
+      ],
+      "expected_highlights": [
+        "console_count=1",
+        "network_count=1",
+        "error_count=1"
+      ]
+    },
+    {
+      "id": "replay/scrubbed_journey",
+      "family": "replay",
+      "name": "scrubbed_journey",
+      "release": "web@1.2.4",
+      "platform": "javascript",
+      "trace_id": "fedcba9876543210fedcba9876543210",
+      "scenario_hints": [
+        "replays",
+        "query",
+        "privacy"
+      ],
+      "expected_highlights": [
+        "console_count=1",
+        "network_count=0",
+        "error_count=0"
+      ]
+    },
+    {
+      "id": "profile/cpu_heavy",
+      "family": "profile",
+      "name": "cpu_heavy",
+      "release": "backend@1.2.3",
+      "platform": "go",
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "scenario_hints": [
+        "profiles",
+        "query"
+      ],
+      "expected_highlights": [
+        "samples=7",
+        "frames=4",
+        "functions=4"
+      ]
+    },
+    {
+      "id": "profile/io_heavy",
+      "family": "profile",
+      "name": "io_heavy",
+      "release": "backend@1.2.3",
+      "platform": "go",
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "scenario_hints": [
+        "profiles",
+        "query"
+      ],
+      "expected_highlights": [
+        "samples=8",
+        "frames=4",
+        "functions=4"
+      ]
+    },
+    {
+      "id": "profile/mixed_language",
+      "family": "profile",
+      "name": "mixed_language",
+      "release": "backend@1.2.3",
+      "platform": "mixed",
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "scenario_hints": [
+        "profiles",
+        "query"
+      ],
+      "expected_highlights": [
+        "samples=9",
+        "frames=4",
+        "functions=4"
+      ]
+    },
+    {
+      "id": "native/apple_multimodule",
+      "family": "native",
+      "name": "apple_multimodule",
+      "release": "ios@1.2.3",
+      "platform": "cocoa",
+      "scenario_hints": [
+        "native",
+        "debug-files",
+        "reprocess"
+      ],
+      "expected_highlights": [
+        "resolved=1",
+        "unresolved=1"
+      ]
+    },
+    {
+      "id": "native/linux_elf",
+      "family": "native",
+      "name": "linux_elf",
+      "release": "linux@1.2.3",
+      "platform": "native",
+      "scenario_hints": [
+        "native",
+        "debug-files",
+        "reprocess"
+      ],
+      "expected_highlights": [
+        "resolved=1",
+        "unresolved=0"
+      ]
+    },
+    {
+      "id": "native/fallback_module_only",
+      "family": "native",
+      "name": "fallback_module_only",
+      "release": "ios@9.9.9",
+      "platform": "cocoa",
+      "scenario_hints": [
+        "native",
+        "debug-files",
+        "reprocess"
+      ],
+      "expected_highlights": [
+        "resolved=0",
+        "unresolved=2"
+      ]
+    }
+  ]
+}

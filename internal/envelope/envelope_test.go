@@ -15,7 +15,7 @@ func fixturesDir(t *testing.T) string {
 	if !ok {
 		t.Fatal("cannot determine test file location")
 	}
-	// thisFile = .../apps/urgentry/internal/envelope/envelope_test.go
+	// thisFile = .../internal/envelope/envelope_test.go
 	// fixtures = .../eval/fixtures/envelopes/
 	return filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "..", "eval", "fixtures", "envelopes")
 }

@@ -1,0 +1,39 @@
+{
+  "EventID": "11111111111111111111111111111111",
+  "ProfileID": "21212121212121212121212121212121",
+  "Transaction": "checkout",
+  "TraceID": "0123456789abcdef0123456789abcdef",
+  "Release": "backend@1.2.3",
+  "Environment": "production",
+  "Platform": "go",
+  "Timestamp": "2026-03-29T10:00:00Z",
+  "DurationNS": 28000000,
+  "Body": {
+    "frames": [
+      {
+        "function": "checkout",
+        "filename": "checkout.go",
+        "lineno": 41
+      },
+      {
+        "function": "dbQuery",
+        "filename": "db.go",
+        "lineno": 12
+      }
+    ],
+    "samples": [
+      {
+        "frames": [
+          0
+        ],
+        "weight": 3
+      },
+      {
+        "frames": [
+          1
+        ],
+        "weight": 7
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "_test_note": "Send this payload with Content-Type: text/xml to test content-type handling",
+  "event_id": "bb11cc22dd33ee44ff55aa66bb77cc88",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "python",
+  "level": "error",
+  "exception": {
+    "values": [
+      {
+        "type": "RuntimeError",
+        "value": "unexpected failure",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "app.py",
+              "function": "main",
+              "lineno": 5,
+              "in_app": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

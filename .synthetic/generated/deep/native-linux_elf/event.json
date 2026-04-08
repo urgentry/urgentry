@@ -1,0 +1,1 @@
+{"debug_meta":{"images":[{"arch":"x86_64","code_file":"server","code_id":"ELF-CODE-1","image_addr":"0x1","image_size":"0x20","module":"server"}]},"event_id":"15151515151515151515151515151515","level":"fatal","message":"Native crash","platform":"native","release":"linux@1.2.3","tags":{"ingest.kind":"minidump"}}

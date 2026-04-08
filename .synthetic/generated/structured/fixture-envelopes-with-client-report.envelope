@@ -1,0 +1,5 @@
+{"event_id":"e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5","dsn":"https://abc123@o1.ingest.example.com/1","sdk":{"name":"sentry.python","version":"2.1.0"},"sent_at":"2026-03-25T12:00:00.000Z"}
+{"type":"event","length":199}
+{"event_id":"e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5","timestamp":"2026-03-25T12:00:00Z","platform":"python","level":"error","exception":{"values":[{"type":"ZeroDivisionError","value":"division by zero"}]}}
+{"type":"client_report","length":114}
+{"timestamp":"2026-03-25T12:00:00Z","discarded_events":[{"reason":"sample_rate","category":"error","quantity":5}]}

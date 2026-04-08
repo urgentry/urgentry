@@ -1,0 +1,15 @@
+{
+  "EventID": "12121212121212121212121212121212",
+  "ProfileID": "22222222222222222222222222222222",
+  "Transaction": "checkout",
+  "TraceID": "0123456789abcdef0123456789abcdef",
+  "Release": "backend@1.2.3",
+  "Environment": "production",
+  "Platform": "go",
+  "Timestamp": "2026-03-29T10:00:00Z",
+  "DurationNS": 1000000,
+  "Body": {
+    "frames": [],
+    "samples": []
+  }
+}

@@ -6,7 +6,7 @@ Deploy Urgentry to Railway with zero config. Persistent volume for SQLite.
 
 1. Fork [github.com/ehmo/gentry](https://github.com/ehmo/gentry)
 2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
-3. Select your fork, set root directory to `apps/urgentry`
+3. Select your fork, set root directory to repo root
 4. Add a persistent volume mounted at `/data`
 5. Deploy
 

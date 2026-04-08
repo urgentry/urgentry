@@ -1,0 +1,46 @@
+{
+  "name": "full-p0",
+  "description": "Core synthetic smoke across ingest, query, and admin runner scenarios.",
+  "suites": [
+    {
+      "name": "synthetic-runner-p0",
+      "package": "./internal/synthetic",
+      "run": "TestRunner(CoreStoreRoundtripScenario|QueryReadSmokeScenario|AdminLifecycleSmokeScenario)"
+    }
+  ],
+  "covers": {
+    "route_sections": [
+      "Ingest",
+      "Management REST API",
+      "Web UI"
+    ],
+    "route_prefixes": [
+      "projects",
+      "organizations",
+      "issues",
+      "events",
+      "monitors",
+      "discover",
+      "logs"
+    ],
+    "telemetry_surfaces": [
+      "errors",
+      "logs",
+      "traces"
+    ],
+    "artifact_families": [
+      "attachments"
+    ],
+    "datasets": [
+      "issues",
+      "logs",
+      "transactions"
+    ],
+    "entity_families": [
+      "identity_auth",
+      "ingest_telemetry",
+      "issue_workflow",
+      "project_catalog"
+    ]
+  }
+}

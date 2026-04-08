@@ -1,0 +1,20 @@
+{
+  "name": "core-pack",
+  "description": "Execute the core synthetic ingest runner test.",
+  "alias_of": "full-p0",
+  "suites": [
+    {
+      "name": "core-store-roundtrip",
+      "package": "./internal/synthetic",
+      "run": "TestRunnerCoreStoreRoundtripScenario"
+    }
+  ],
+  "covers": {
+    "route_sections": [
+      "Ingest"
+    ],
+    "telemetry_surfaces": [
+      "errors"
+    ]
+  }
+}

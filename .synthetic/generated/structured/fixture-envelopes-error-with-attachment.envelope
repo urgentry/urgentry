@@ -1,0 +1,5 @@
+{"event_id":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","dsn":"https://abc123@o1.ingest.example.com/1","sdk":{"name":"sentry.python","version":"2.1.0"},"sent_at":"2026-03-25T12:00:00.000Z"}
+{"type":"event","length":269}
+{"event_id":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","timestamp":"2026-03-25T12:00:00Z","platform":"python","level":"error","exception":{"values":[{"type":"RuntimeError","value":"crash","stacktrace":{"frames":[{"filename":"a.py","function":"f","lineno":1,"in_app":true}]}}]}}
+{"type":"attachment","length":18,"filename":"log.txt","content_type":"text/plain"}
+this is a log file

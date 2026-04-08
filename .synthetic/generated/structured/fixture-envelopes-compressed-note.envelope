@@ -1,0 +1,1 @@
+Compressed envelope fixtures cannot be stored as text files. The test harness should compress the `single_error.envelope` with gzip at test time and send it with Content-Encoding: gzip header. No separate compressed fixture file is needed.

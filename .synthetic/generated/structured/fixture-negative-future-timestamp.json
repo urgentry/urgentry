@@ -1,0 +1,10 @@
+{
+  "event_id": "neg004neg004neg004neg004neg004ne",
+  "timestamp": "2099-12-31T23:59:59.000Z",
+  "platform": "python",
+  "level": "error",
+  "message": "Event from the far future",
+  "_test_meta": {
+    "description": "Timestamp far in the future — server should accept but may normalize the timestamp"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "EventID": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+  "ProfileID": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+  "Transaction": "checkout",
+  "TraceID": "0123456789abcdef0123456789abcdef",
+  "Release": "backend@1.2.3",
+  "Environment": "production",
+  "Platform": "go",
+  "Timestamp": "2026-03-29T10:00:00Z",
+  "DurationNS": 15000000,
+  "Body": {
+    "frames": [
+      {
+        "function": "jsonMarshal",
+        "filename": "encode.go",
+        "lineno": 55
+      },
+      {
+        "function": "scoreRules",
+        "filename": "rules.go",
+        "lineno": 21
+      },
+      {
+        "function": "checkout",
+        "filename": "checkout.go",
+        "lineno": 41
+      },
+      {
+        "function": "rootHandler",
+        "filename": "app.go",
+        "lineno": 1
+      }
+    ],
+    "samples": [
+      {
+        "frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "weight": 4
+      },
+      {
+        "frames": [
+          1,
+          2,
+          3
+        ],
+        "weight": 3
+      }
+    ]
+  }
+}

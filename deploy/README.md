@@ -62,7 +62,7 @@ For production teams needing horizontal scaling and durability.
 ### Quick Start — Docker Compose
 
 ```bash
-cd apps/urgentry/deploy/compose
+cd deploy/compose
 cp .env.example .env
 # Edit .env with your passwords
 docker compose up -d

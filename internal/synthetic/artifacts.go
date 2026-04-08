@@ -91,13 +91,13 @@ func generateArtifactManifest(repoRoot string) (ArtifactManifest, error) {
 	}
 	return ArtifactManifest{
 		SourceFiles: []string{
-			"apps/urgentry/internal/compat/attachment_conformance_test.go",
-			"apps/urgentry/internal/compat/compat_test.go",
-			"apps/urgentry/internal/api/import_export_test.go",
-			"apps/urgentry/internal/api/proguard_test.go",
-			"apps/urgentry/internal/sqlite/import_export_store_test.go",
-			"apps/urgentry/internal/issue/sourcemap_test.go",
-			"apps/urgentry/internal/issue/proguard_test.go",
+			"internal/compat/attachment_conformance_test.go",
+			"internal/compat/compat_test.go",
+			"internal/api/import_export_test.go",
+			"internal/api/proguard_test.go",
+			"internal/sqlite/import_export_store_test.go",
+			"internal/issue/sourcemap_test.go",
+			"internal/issue/proguard_test.go",
 		},
 		Cases: cases,
 	}, nil

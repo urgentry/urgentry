@@ -1,0 +1,75 @@
+{
+  "name": "query-analytics",
+  "description": "Synthetic query and analytics coverage pack over compat and runner lanes.",
+  "covers": {
+    "route_sections": [
+      "Management REST API",
+      "Web UI"
+    ],
+    "route_prefixes": [
+      "organizations",
+      "projects"
+    ],
+    "telemetry_surfaces": [
+      "errors",
+      "logs",
+      "traces",
+      "replays",
+      "profiles"
+    ],
+    "artifact_families": [
+      "replay_assets",
+      "profile_payloads"
+    ],
+    "entity_families": [
+      "ingest_telemetry",
+      "issue_workflow",
+      "query_analytics"
+    ],
+    "datasets": [
+      "issues",
+      "logs",
+      "transactions",
+      "spans"
+    ]
+  },
+  "suites": [
+    {
+      "name": "runner-core-store-roundtrip",
+      "package": "./internal/synthetic",
+      "run": "TestRunnerCoreStoreRoundtripScenario"
+    },
+    {
+      "name": "discover-e2e",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestDiscover(BasicQuery|FieldsList|Aggregation|Filtering|Sorting|Pagination|AuthRequired|InvalidQuery)$"
+    },
+    {
+      "name": "discover-compat-harness",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestDiscoverCompatibilityHarness$"
+    },
+    {
+      "name": "dashboard-and-saved-search-crud",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestCRUD(Dashboards|SavedSearches)$"
+    },
+    {
+      "name": "api-pagination",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "TestAPIPagination$"
+    }
+  ]
+}

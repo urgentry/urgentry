@@ -220,9 +220,9 @@ func generatePayloadManifest(repoRoot string) (PayloadManifest, error) {
 			"eval/fixtures/envelopes/",
 			"eval/fixtures/negative/",
 			"eval/compat/sdk_harness.go",
-			"apps/urgentry/internal/compat/compat_test.go",
-			"apps/urgentry/internal/compat/otlp_conformance_test.go",
-			"apps/urgentry/internal/compat/security_report_conformance_test.go",
+			"internal/compat/compat_test.go",
+			"internal/compat/otlp_conformance_test.go",
+			"internal/compat/security_report_conformance_test.go",
 		},
 		Cases: cases,
 	}, nil

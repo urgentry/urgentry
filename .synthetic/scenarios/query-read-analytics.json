@@ -1,0 +1,76 @@
+{
+  "name": "query-read-analytics",
+  "description": "Query, read, analytics, and observability regression pack backed by the synthetic runner and existing compat/API/web suites.",
+  "suites": [
+    {
+      "name": "synthetic-query-read-smoke",
+      "package": "./internal/synthetic",
+      "run": "TestRunnerQueryReadSmokeScenario"
+    },
+    {
+      "name": "compat-query-observability",
+      "package": "./internal/compat",
+      "tags": [
+        "integration"
+      ],
+      "run": "Test(SearchLanguageCompatibility|TransactionEnvelopeIngest|OTLPTraceIngest|OTLPLogIngest|FeedbackRoundtrip|AttachmentRoundtrip|StandaloneAttachmentUpload|MonitorCheckInIngest|SecurityReportIngest)"
+    },
+    {
+      "name": "api-query-read",
+      "package": "./internal/api",
+      "run": "Test(APIListEvents_SQLite|APIListProjectEvents_SQLite_PaginationContinuity|APIGetProjectEvent_SQLite|APIListOrgEvents_SQLite|APIListMonitorsAndCheckIns_SQLite|APIListTransactionsAndTrace_SQLite|DashboardAPISharingAndWidgetCRUD|ProjectReleaseHealthAndSessions_SQLite|APIOwnershipAndReleaseWorkflow_SQLite|APIPreprodArtifacts_SQLite)"
+    },
+    {
+      "name": "web-query-read",
+      "package": "./internal/web",
+      "run": "Test(DiscoverAndLogsPages|DiscoverSavedQueryAndDashboardFlows|DashboardPage|DashboardSavedQueryWidgets|ReplayAndProfilePages|ExplorePage|IssueListPage|IssueDetailPage|MonitorsPage|MonitorDetailPage)"
+    }
+  ],
+  "covers": {
+    "route_sections": [
+      "Ingest",
+      "Management REST API",
+      "Web UI"
+    ],
+    "route_prefixes": [
+      "organizations",
+      "projects",
+      "issues",
+      "events",
+      "dashboards",
+      "discover",
+      "logs",
+      "replays",
+      "profiles",
+      "traces",
+      "monitors"
+    ],
+    "telemetry_surfaces": [
+      "errors",
+      "logs",
+      "replays",
+      "profiles",
+      "traces",
+      "outcomes",
+      "attachments"
+    ],
+    "artifact_families": [
+      "attachments",
+      "replay_assets",
+      "profile_payloads",
+      "preprod_artifacts"
+    ],
+    "datasets": [
+      "issues",
+      "logs",
+      "transactions",
+      "spans"
+    ],
+    "entity_families": [
+      "ingest_telemetry",
+      "issue_workflow",
+      "query_analytics",
+      "releases_alerting_ops"
+    ]
+  }
+}

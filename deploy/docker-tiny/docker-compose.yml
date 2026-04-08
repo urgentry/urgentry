@@ -1,7 +1,7 @@
 # Urgentry Tiny Mode — single-container Docker Compose.
 #
 # Usage:
-#   cd apps/urgentry/deploy/docker-tiny
+#   cd deploy/docker-tiny
 #   docker compose up -d
 #
 # Then open http://localhost:8080

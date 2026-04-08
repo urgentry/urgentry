@@ -1,0 +1,29 @@
+{
+  "event_id": "neg002neg002neg002neg002neg002ne",
+  "platform": "python",
+  "level": "error",
+  "message": "Error with emoji 🔥💀 and RTL ‮text‬ and zero-width \u200b chars and null \u0000 byte",
+  "tags": {
+    "emoji_tag": "🎉",
+    "rtl_tag": "مرحبا",
+    "cjk_tag": "你好世界",
+    "combining": "é̸̡̛̻"
+  },
+  "exception": {
+    "values": [{
+      "type": "UnicodeError",
+      "value": "can't encode character '\\U0001f525' in position 0: surrogates not allowed",
+      "stacktrace": {
+        "frames": [{
+          "filename": "app/i18n.py",
+          "function": "format_message_日本語",
+          "lineno": 42,
+          "in_app": true
+        }]
+      }
+    }]
+  },
+  "_test_meta": {
+    "description": "Unicode edge cases in all string fields — must be preserved, not corrupted"
+  }
+}

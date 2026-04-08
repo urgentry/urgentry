@@ -1,0 +1,1 @@
+{"event_id":"12121212121212121212121212121212","profile_id":"22222222222222222222222222222222","transaction":"checkout","trace_id":"0123456789abcdef0123456789abcdef","release":"backend@1.2.3","environment":"production","platform":"go","timestamp":"2026-03-29T10:00:00Z","duration_ns":1000000,"profile":{"frames":[],"samples":[]}}

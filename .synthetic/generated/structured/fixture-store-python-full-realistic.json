@@ -1,0 +1,400 @@
+{
+  "event_id": "032c032c032c032c032c032c032c032c",
+  "timestamp": "2026-03-25T09:14:33.274Z",
+  "platform": "python",
+  "level": "error",
+  "logger": "django.request",
+  "transaction": "POST /api/v2/checkout/complete",
+  "server_name": "web-prod-04.us-east-1.ec2.internal",
+  "release": "ecommerce-backend@3.14.2+build.8891",
+  "dist": "8891",
+  "environment": "production",
+  "fingerprint": ["{{ default }}"],
+  "modules": {
+    "django": "4.2.9",
+    "celery": "5.3.6",
+    "redis": "5.0.1",
+    "psycopg2": "2.9.9",
+    "stripe": "7.12.0",
+    "requests": "2.31.0",
+    "sentry-sdk": "2.1.0",
+    "gunicorn": "21.2.0",
+    "boto3": "1.34.14",
+    "pydantic": "2.5.3"
+  },
+  "sdk": {
+    "name": "sentry.python",
+    "version": "2.1.0",
+    "integrations": ["django", "celery", "redis", "sqlalchemy", "logging"],
+    "packages": [
+      {"name": "pypi:sentry-sdk", "version": "2.1.0"}
+    ]
+  },
+  "tags": {
+    "browser": "Chrome 122.0.6261",
+    "os": "Linux",
+    "os.name": "Linux",
+    "runtime": "CPython 3.12.1",
+    "runtime.name": "CPython",
+    "server_name": "web-prod-04",
+    "transaction": "POST /api/v2/checkout/complete",
+    "url": "https://shop.example.com/api/v2/checkout/complete",
+    "handled": "yes",
+    "mechanism": "django",
+    "customer_tier": "premium",
+    "region": "us-east-1"
+  },
+  "user": {
+    "id": "8827361",
+    "email": "jdoe@example.com",
+    "username": "jdoe",
+    "ip_address": "203.0.113.42",
+    "geo": {
+      "city": "Portland",
+      "region": "Oregon",
+      "country_code": "US"
+    }
+  },
+  "request": {
+    "url": "https://shop.example.com/api/v2/checkout/complete",
+    "method": "POST",
+    "headers": {
+      "Accept": "application/json",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Content-Type": "application/json",
+      "Host": "shop.example.com",
+      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.94 Safari/537.36",
+      "X-Forwarded-For": "203.0.113.42",
+      "X-Request-Id": "req_8f3a1b2c4d5e"
+    },
+    "query_string": "ref=cart&promo=SPRING20",
+    "data": {
+      "cart_id": "cart_5f9a2e",
+      "payment_method": "stripe",
+      "shipping_address_id": "addr_112"
+    },
+    "cookies": {
+      "session_id": "[Filtered]",
+      "csrftoken": "[Filtered]",
+      "_ga": "GA1.2.1234567890.1700000000"
+    },
+    "env": {
+      "SERVER_NAME": "web-prod-04",
+      "SERVER_PORT": "8000"
+    }
+  },
+  "contexts": {
+    "os": {
+      "name": "Linux",
+      "version": "6.1.0-17-cloud-amd64",
+      "build": "#1 SMP PREEMPT_DYNAMIC Debian 6.1.69-1",
+      "kernel_version": "6.1.69"
+    },
+    "runtime": {
+      "name": "CPython",
+      "version": "3.12.1",
+      "build": "3.12.1 (main, Jan 10 2026, 00:00:00) [GCC 12.2.0]"
+    },
+    "device": {
+      "family": "Other",
+      "model": "t3.large",
+      "arch": "x86_64",
+      "memory_size": 8589934592
+    },
+    "browser": {
+      "name": "Chrome",
+      "version": "122.0.6261"
+    },
+    "app": {
+      "app_name": "ecommerce-backend",
+      "app_version": "3.14.2",
+      "app_build": "8891"
+    }
+  },
+  "extra": {
+    "sys.argv": ["gunicorn", "ecommerce.wsgi:application", "--workers", "4"],
+    "cart": {
+      "id": "cart_5f9a2e",
+      "item_count": 3,
+      "total_cents": 14999,
+      "currency": "USD"
+    },
+    "payment_attempt": 1,
+    "stripe_idempotency_key": "idem_9c3b2a1d",
+    "feature_flags": {
+      "new_checkout_flow": true,
+      "express_shipping": false
+    }
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "stripe.error.CardError",
+        "value": "Your card was declined. Your request was in live mode, but used a known test card.",
+        "module": "stripe.error",
+        "mechanism": {
+          "type": "django",
+          "handled": true,
+          "data": {
+            "function": "ecommerce.checkout.views.CompleteCheckoutView.post"
+          }
+        },
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "lib/python3.12/threading.py",
+              "function": "run",
+              "module": "threading",
+              "lineno": 1010,
+              "abs_path": "/usr/lib/python3.12/threading.py",
+              "in_app": false
+            },
+            {
+              "filename": "gunicorn/workers/gthread.py",
+              "function": "handle",
+              "module": "gunicorn.workers.gthread",
+              "lineno": 130,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py",
+              "in_app": false
+            },
+            {
+              "filename": "gunicorn/workers/base.py",
+              "function": "handle_request",
+              "module": "gunicorn.workers.base",
+              "lineno": 194,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/gunicorn/workers/base.py",
+              "in_app": false
+            },
+            {
+              "filename": "django/core/handlers/wsgi.py",
+              "function": "__call__",
+              "module": "django.core.handlers.wsgi",
+              "lineno": 124,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/django/core/handlers/wsgi.py",
+              "in_app": false
+            },
+            {
+              "filename": "django/core/handlers/base.py",
+              "function": "get_response",
+              "module": "django.core.handlers.base",
+              "lineno": 140,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/django/core/handlers/base.py",
+              "in_app": false
+            },
+            {
+              "filename": "django/core/handlers/exception.py",
+              "function": "inner",
+              "module": "django.core.handlers.exception",
+              "lineno": 55,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/django/core/handlers/exception.py",
+              "in_app": false
+            },
+            {
+              "filename": "django/middleware/security.py",
+              "function": "process_request",
+              "module": "django.middleware.security",
+              "lineno": 40,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/django/middleware/security.py",
+              "in_app": false
+            },
+            {
+              "filename": "django/urls/resolvers.py",
+              "function": "resolve",
+              "module": "django.urls.resolvers",
+              "lineno": 624,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/django/urls/resolvers.py",
+              "in_app": false
+            },
+            {
+              "filename": "ecommerce/urls.py",
+              "function": "urlpatterns",
+              "module": "ecommerce.urls",
+              "lineno": 28,
+              "abs_path": "/srv/ecommerce/urls.py",
+              "in_app": true
+            },
+            {
+              "filename": "ecommerce/checkout/views.py",
+              "function": "post",
+              "module": "ecommerce.checkout.views",
+              "lineno": 87,
+              "abs_path": "/srv/ecommerce/checkout/views.py",
+              "in_app": true,
+              "context_line": "            charge = self.payment_service.charge(cart, payment_method)",
+              "pre_context": ["        try:", "            cart = Cart.objects.get(id=validated_data['cart_id'], user=request.user)"],
+              "post_context": ["            order = Order.create_from_cart(cart, charge)", "        except stripe.error.CardError as e:"]
+            },
+            {
+              "filename": "ecommerce/checkout/services.py",
+              "function": "charge",
+              "module": "ecommerce.checkout.services",
+              "lineno": 145,
+              "abs_path": "/srv/ecommerce/checkout/services.py",
+              "in_app": true,
+              "context_line": "        return stripe.Charge.create(**charge_params)",
+              "pre_context": ["        charge_params = self._build_charge_params(cart, payment_method)", ""],
+              "post_context": ["", "    def _build_charge_params(self, cart, payment_method):"]
+            },
+            {
+              "filename": "ecommerce/checkout/services.py",
+              "function": "_build_charge_params",
+              "module": "ecommerce.checkout.services",
+              "lineno": 162,
+              "abs_path": "/srv/ecommerce/checkout/services.py",
+              "in_app": true,
+              "context_line": "        return {'amount': cart.total_cents, 'currency': cart.currency, 'source': token}"
+            },
+            {
+              "filename": "stripe/api_resources/charge.py",
+              "function": "create",
+              "module": "stripe.api_resources.charge",
+              "lineno": 35,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/stripe/api_resources/charge.py",
+              "in_app": false
+            },
+            {
+              "filename": "stripe/_api_requestor.py",
+              "function": "request",
+              "module": "stripe._api_requestor",
+              "lineno": 298,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/stripe/_api_requestor.py",
+              "in_app": false
+            },
+            {
+              "filename": "stripe/_api_requestor.py",
+              "function": "handle_error_response",
+              "module": "stripe._api_requestor",
+              "lineno": 189,
+              "abs_path": "/srv/venv/lib/python3.12/site-packages/stripe/_api_requestor.py",
+              "in_app": false
+            }
+          ]
+        }
+      },
+      {
+        "type": "ecommerce.checkout.exceptions.PaymentFailedError",
+        "value": "Payment declined for cart cart_5f9a2e: card_declined",
+        "module": "ecommerce.checkout.exceptions",
+        "mechanism": {
+          "type": "chained",
+          "handled": true,
+          "is_exception_group": false,
+          "exception_id": 1,
+          "parent_id": 0,
+          "source": "__context__"
+        },
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "ecommerce/checkout/views.py",
+              "function": "post",
+              "module": "ecommerce.checkout.views",
+              "lineno": 92,
+              "abs_path": "/srv/ecommerce/checkout/views.py",
+              "in_app": true,
+              "context_line": "            raise PaymentFailedError(cart.id, e.code) from e",
+              "pre_context": ["        except stripe.error.CardError as e:", "            logger.warning('Payment declined for cart %s: %s', cart.id, e.code)"],
+              "post_context": ["", "        serializer = OrderSerializer(order)"]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "timestamp": "2026-03-25T09:14:30.001Z",
+        "type": "navigation",
+        "category": "navigation",
+        "data": {
+          "from": "/cart",
+          "to": "/checkout"
+        },
+        "level": "info"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:30.450Z",
+        "type": "http",
+        "category": "http",
+        "message": "GET https://shop.example.com/api/v2/cart/cart_5f9a2e",
+        "data": {
+          "url": "https://shop.example.com/api/v2/cart/cart_5f9a2e",
+          "method": "GET",
+          "status_code": 200,
+          "reason": "OK"
+        },
+        "level": "info"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:31.102Z",
+        "type": "default",
+        "category": "query",
+        "message": "SELECT \"checkout_cart\".\"id\", \"checkout_cart\".\"user_id\", \"checkout_cart\".\"total_cents\" FROM \"checkout_cart\" WHERE \"checkout_cart\".\"id\" = %s",
+        "data": {
+          "db.system": "postgresql",
+          "db.name": "ecommerce_prod"
+        },
+        "level": "debug"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:31.340Z",
+        "type": "default",
+        "category": "query",
+        "message": "SELECT \"checkout_cartitem\".* FROM \"checkout_cartitem\" WHERE \"checkout_cartitem\".\"cart_id\" = %s",
+        "data": {
+          "db.system": "postgresql",
+          "db.name": "ecommerce_prod"
+        },
+        "level": "debug"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:31.780Z",
+        "type": "http",
+        "category": "http",
+        "message": "GET https://inventory.internal.example.com/api/stock/check",
+        "data": {
+          "url": "https://inventory.internal.example.com/api/stock/check",
+          "method": "GET",
+          "status_code": 200,
+          "reason": "OK"
+        },
+        "level": "info"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:32.100Z",
+        "type": "default",
+        "category": "default",
+        "message": "Validating payment method for user 8827361",
+        "level": "info"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:32.500Z",
+        "type": "http",
+        "category": "http",
+        "message": "POST https://api.stripe.com/v1/charges",
+        "data": {
+          "url": "https://api.stripe.com/v1/charges",
+          "method": "POST",
+          "status_code": 402,
+          "reason": "Payment Required"
+        },
+        "level": "warning"
+      },
+      {
+        "timestamp": "2026-03-25T09:14:33.200Z",
+        "type": "error",
+        "category": "stripe",
+        "message": "Card declined: card_declined",
+        "data": {
+          "decline_code": "card_declined",
+          "charge_id": "ch_3PxDummy"
+        },
+        "level": "error"
+      }
+    ]
+  },
+  "_test_meta": {
+    "description": "Realistic, complex Python production event — chained exceptions, full context, many breadcrumbs, mechanism, modules, etc."
+  }
+}

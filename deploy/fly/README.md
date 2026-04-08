@@ -5,7 +5,7 @@ Deploy Urgentry to Fly.io's global edge network. One command, persistent SQLite 
 ## Deploy
 
 ```bash
-cd apps/urgentry
+cd .
 
 # First time
 fly launch --copy-config --name my-urgentry

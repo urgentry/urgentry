@@ -1,0 +1,19 @@
+name: core-store-roundtrip
+description: Minimal ingest plus persistence wait for the synthetic runner.
+server:
+  start_workers: true
+steps:
+  - name: ingest-store-event
+    action: request
+    method: POST
+    auth: project_key
+    path: /api/default-project/store/
+    content_type: application/json
+    body: |
+      {"event_id":"11111111111111111111111111111111","message":"Synthetic core store roundtrip","level":"error","platform":"go"}
+    expect_status: 200
+  - name: wait-for-event
+    action: wait_for
+    waiter: event
+    wait_params:
+      event_id: 11111111111111111111111111111111

@@ -1,0 +1,10 @@
+--urgentry-synthetic-boundary
+Content-Disposition: form-data; name="event_id"
+
+b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1
+--urgentry-synthetic-boundary
+Content-Disposition: form-data; name="file"; filename="standalone.log"
+Content-Type: text/plain
+
+synthetic standalone attachment
+--urgentry-synthetic-boundary--

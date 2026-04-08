@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose a product, packaging, or operator improvement.
+title: "[feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep this focused. The best feature requests describe a real workflow that breaks down today.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      placeholder: I can save a query for myself, but I can't share it with the rest of the team.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should Urgentry do?
+      placeholder: Add ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What are you doing today instead?
+      placeholder: We copy raw URLs into chat, which ...
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which area does this touch?
+      options:
+        - Tiny mode product
+        - Tiny mode deployment
+        - Serious self-hosted preview
+        - Hosted roadmap
+        - Docs
+        - Developer workflow
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Links, screenshots, prior art, or rough API ideas.
+

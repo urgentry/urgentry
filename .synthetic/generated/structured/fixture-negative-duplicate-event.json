@@ -1,0 +1,9 @@
+{
+  "event_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "platform": "python",
+  "level": "error",
+  "message": "This has the same event_id as basic_error.json — should be idempotent",
+  "_test_meta": {
+    "description": "Duplicate event_id — server must handle idempotently (accept or skip, never duplicate)"
+  }
+}

@@ -1,0 +1,1 @@
+[{"type":"csp-violation","url":"https://example.com/app","body":{"documentURL":"https://example.com/app","effectiveDirective":"img-src","blockedURL":"https://tracker.example.com/pixel.gif","disposition":"enforce"}}]

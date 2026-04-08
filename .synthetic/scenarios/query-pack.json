@@ -1,0 +1,25 @@
+{
+  "name": "query-pack",
+  "description": "Execute the query/read synthetic scenario pack.",
+  "alias_of": "query-read-analytics",
+  "suites": [
+    {
+      "name": "query-read-smoke",
+      "package": "./internal/synthetic",
+      "run": "TestRunnerQueryReadSmokeScenario"
+    }
+  ],
+  "covers": {
+    "route_sections": [
+      "Management REST API"
+    ],
+    "telemetry_surfaces": [
+      "errors",
+      "logs"
+    ],
+    "datasets": [
+      "issues",
+      "logs"
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "event_id": "e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "timestamp": "2026-03-25T12:00:00.000Z",
+  "platform": "csharp",
+  "level": "error",
+  "release": "MyApp@1.5.0+build.42",
+  "environment": "production",
+  "tags": {
+    "dotnet.version": "8.0",
+    "aspnet.route": "/api/orders/{id}"
+  },
+  "sdk": {
+    "name": "sentry.dotnet.aspnetcore",
+    "version": "4.3.0"
+  },
+  "exception": {
+    "values": [
+      {
+        "type": "System.InvalidOperationException",
+        "value": "Sequence contains no elements",
+        "module": "System.Linq",
+        "stacktrace": {
+          "frames": [
+            {
+              "filename": "OrderController.cs",
+              "function": "GetOrder",
+              "module": "MyApp.Controllers.OrderController",
+              "lineno": 34,
+              "in_app": true
+            },
+            {
+              "filename": "OrderService.cs",
+              "function": "FindById",
+              "module": "MyApp.Services.OrderService",
+              "lineno": 67,
+              "in_app": true
+            },
+            {
+              "filename": "Enumerable.cs",
+              "function": "First",
+              "module": "System.Linq.Enumerable",
+              "in_app": false
+            }
+          ]
+        },
+        "mechanism": {
+          "type": "generic",
+          "handled": true
+        }
+      }
+    ]
+  },
+  "breadcrumbs": {
+    "values": [
+      {
+        "type": "http",
+        "category": "http",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:59.000Z",
+        "message": "GET /api/orders/42",
+        "data": {
+          "method": "GET",
+          "url": "/api/orders/42",
+          "status_code": 500
+        }
+      },
+      {
+        "type": "default",
+        "category": "query",
+        "level": "info",
+        "timestamp": "2026-03-25T11:59:59.500Z",
+        "message": "SELECT * FROM Orders WHERE Id = @p0",
+        "data": {
+          "db.system": "mssql"
+        }
+      }
+    ]
+  },
+  "contexts": {
+    "os": {
+      "name": "Windows",
+      "version": "10.0.22631"
+    },
+    "runtime": {
+      "name": ".NET",
+      "version": "8.0.2"
+    }
+  }
+}

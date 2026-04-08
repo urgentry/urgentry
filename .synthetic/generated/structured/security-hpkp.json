@@ -1,0 +1,1 @@
+{"type":"hpkp","url":"https://example.com","body":{"hostname":"example.com","port":443,"noted-hostname":"example.com","include-subdomains":false,"effective-expiration-date":"2026-12-31T00:00:00Z","served-certificate-chain":["..."],"validated-certificate-chain":["..."],"known-pins":["pin-sha256=\"...\""],"date-time":"2026-01-01T00:00:00Z"}}

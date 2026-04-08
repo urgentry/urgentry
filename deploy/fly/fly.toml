@@ -1,7 +1,7 @@
 # Urgentry Tiny Mode on Fly.io
 #
 # Deploy:
-#   cd apps/urgentry
+#   cd .
 #   fly launch --copy-config
 #   fly deploy
 #

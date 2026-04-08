@@ -1,0 +1,2857 @@
+{
+  "source_files": [
+    "internal/sqlite/migrations.go",
+    "internal/sqlite/migrations_analytics.go",
+    "internal/sqlite/migrations_core.go",
+    "internal/sqlite/migrations_events.go",
+    "internal/sqlite/migrations_features.go",
+    "internal/sqlite/migrations_integration.go",
+    "internal/sqlite/migrations_operator.go"
+  ],
+  "table_count": 103,
+  "relation_count": 139,
+  "families": [
+    {
+      "name": "artifacts_symbolication",
+      "tables": [
+        "artifacts",
+        "debug_files",
+        "event_attachments",
+        "issue_autofix_runs",
+        "native_crash_images",
+        "native_crashes",
+        "native_symbol_sources",
+        "preprod_artifacts",
+        "project_replay_configs",
+        "project_symbol_sources"
+      ]
+    },
+    {
+      "name": "control_ops",
+      "tables": [
+        "_migrations",
+        "backfill_runs",
+        "install_state",
+        "jobs",
+        "operator_audit_logs",
+        "runtime_leases",
+        "telemetry_archives"
+      ]
+    },
+    {
+      "name": "identity_auth",
+      "tables": [
+        "auth_audit_logs",
+        "member_invites",
+        "organization_members",
+        "organizations",
+        "personal_access_tokens",
+        "project_automation_tokens",
+        "project_memberships",
+        "team_members",
+        "teams",
+        "totp_recovery_codes",
+        "user_password_credentials",
+        "user_sessions",
+        "users"
+      ]
+    },
+    {
+      "name": "ingest_telemetry",
+      "tables": [
+        "anomaly_events",
+        "events",
+        "groups",
+        "metric_buckets",
+        "monitor_checkins",
+        "monitors",
+        "outcomes",
+        "profile_frames",
+        "profile_manifests",
+        "profile_samples",
+        "profile_stack_frames",
+        "profile_stacks",
+        "profile_threads",
+        "release_sessions",
+        "replay_assets",
+        "replay_manifests",
+        "replay_timeline_items",
+        "spans",
+        "transactions",
+        "uptime_check_results",
+        "uptime_monitors",
+        "user_feedback"
+      ]
+    },
+    {
+      "name": "integrations_forwarding",
+      "tables": [
+        "code_mappings",
+        "data_forwarding_configs",
+        "external_teams",
+        "external_users",
+        "group_external_issues",
+        "integration_configs",
+        "org_data_forwarders",
+        "sentry_apps"
+      ]
+    },
+    {
+      "name": "issue_workflow",
+      "tables": [
+        "issue_activity",
+        "issue_bookmarks",
+        "issue_comments",
+        "issue_subscriptions",
+        "ownership_rules"
+      ]
+    },
+    {
+      "name": "prevent",
+      "tables": [
+        "prevent_repository_branches",
+        "prevent_repository_test_result_aggregates",
+        "prevent_repository_test_results",
+        "prevent_repository_test_suites",
+        "prevent_repository_tokens",
+        "repositories"
+      ]
+    },
+    {
+      "name": "project_catalog",
+      "tables": [
+        "inbound_filters",
+        "project_environments",
+        "project_keys",
+        "project_teams",
+        "projects",
+        "query_guard_policies",
+        "query_guard_usage",
+        "quota_rate_limits",
+        "sampling_rules",
+        "schema_metadata",
+        "telemetry_retention_policies"
+      ]
+    },
+    {
+      "name": "query_analytics",
+      "tables": [
+        "analytics_report_schedules",
+        "analytics_snapshots",
+        "dashboard_widgets",
+        "dashboards",
+        "metric_alert_rules",
+        "saved_search_favorites",
+        "saved_search_tags",
+        "saved_searches"
+      ]
+    },
+    {
+      "name": "releases_alerting_ops",
+      "tables": [
+        "alert_history",
+        "alert_rules",
+        "detectors",
+        "notification_actions",
+        "notification_deliveries",
+        "notification_outbox",
+        "notification_routing_rules",
+        "project_hooks",
+        "release_commits",
+        "release_deploys",
+        "releases",
+        "replay_deletion_jobs",
+        "workflows"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "name": "_migrations",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations.go",
+      "columns": [
+        "version",
+        "applied_at",
+        "if",
+        "return",
+        "for",
+        "var"
+      ]
+    },
+    {
+      "name": "alert_history",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "rule_id",
+        "group_id",
+        "event_id",
+        "fired_at"
+      ]
+    },
+    {
+      "name": "alert_rules",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "name",
+        "status",
+        "config_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "analytics_report_schedules",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "id",
+        "organization_slug",
+        "source_type",
+        "source_id",
+        "created_by_user_id",
+        "recipient",
+        "cadence",
+        "created_at",
+        "updated_at",
+        "last_attempt_at",
+        "last_run_at",
+        "next_run_at",
+        "last_snapshot_token",
+        "last_error"
+      ]
+    },
+    {
+      "name": "analytics_snapshots",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "id",
+        "organization_slug",
+        "source_type",
+        "source_id",
+        "title",
+        "share_token",
+        "payload_json",
+        "created_by_user_id",
+        "created_at",
+        "expires_at"
+      ]
+    },
+    {
+      "name": "anomaly_events",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "metric",
+        "current_value",
+        "mean_value",
+        "stddev_value",
+        "threshold_value",
+        "detected_at"
+      ]
+    },
+    {
+      "name": "artifacts",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "release_version",
+        "name",
+        "object_key",
+        "size",
+        "created_at"
+      ]
+    },
+    {
+      "name": "auth_audit_logs",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "credential_type",
+        "credential_id",
+        "user_id",
+        "project_id",
+        "organization_id",
+        "action",
+        "request_path",
+        "request_method",
+        "ip_address",
+        "user_agent",
+        "created_at"
+      ]
+    },
+    {
+      "name": "backfill_runs",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "id",
+        "kind",
+        "status",
+        "organization_id",
+        "project_id",
+        "release_version",
+        "started_after",
+        "ended_before",
+        "cursor_rowid",
+        "total_items",
+        "processed_items",
+        "updated_items",
+        "failed_items",
+        "requested_by_user_id",
+        "requested_via",
+        "lease_until",
+        "worker_id",
+        "last_error",
+        "created_at",
+        "started_at",
+        "finished_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "code_mappings",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_integration.go",
+      "columns": [
+        "id",
+        "project_id",
+        "stack_root",
+        "source_root",
+        "default_branch",
+        "repo_url",
+        "created_at"
+      ]
+    },
+    {
+      "name": "dashboard_widgets",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "id",
+        "dashboard_id",
+        "title",
+        "description",
+        "kind",
+        "position",
+        "width",
+        "height",
+        "saved_search_id",
+        "query_version",
+        "query_json",
+        "config_json",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "dashboards",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "owner_user_id",
+        "title",
+        "description",
+        "visibility",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "data_forwarding_configs",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_integration.go",
+      "columns": [
+        "id",
+        "project_id",
+        "type",
+        "url",
+        "status",
+        "created_at"
+      ]
+    },
+    {
+      "name": "debug_files",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "release_version",
+        "uuid",
+        "code_id",
+        "name",
+        "object_key",
+        "size_bytes",
+        "created_at"
+      ]
+    },
+    {
+      "name": "detectors",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "org_id",
+        "name",
+        "type",
+        "config_json",
+        "state",
+        "owner_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "event_attachments",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "name",
+        "content_type",
+        "size_bytes",
+        "object_key",
+        "created_at"
+      ]
+    },
+    {
+      "name": "events",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "group_id",
+        "release",
+        "environment",
+        "platform",
+        "level",
+        "title",
+        "culprit",
+        "message",
+        "tags_json",
+        "payload_json",
+        "occurred_at",
+        "ingested_at"
+      ]
+    },
+    {
+      "name": "external_teams",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "org_id",
+        "team_slug",
+        "provider",
+        "external_id",
+        "external_name",
+        "created_at"
+      ]
+    },
+    {
+      "name": "external_users",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "org_id",
+        "user_id",
+        "provider",
+        "external_id",
+        "external_name",
+        "created_at"
+      ]
+    },
+    {
+      "name": "group_external_issues",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "group_id",
+        "integration_id",
+        "key",
+        "title",
+        "url",
+        "description",
+        "created_at"
+      ]
+    },
+    {
+      "name": "groups",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "grouping_version",
+        "grouping_key",
+        "title",
+        "culprit",
+        "level",
+        "status",
+        "first_seen",
+        "last_seen",
+        "times_seen",
+        "last_event_id"
+      ]
+    },
+    {
+      "name": "inbound_filters",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "type",
+        "active",
+        "pattern",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "install_state",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "scope",
+        "install_id",
+        "region",
+        "environment",
+        "version",
+        "bootstrap_completed",
+        "bootstrap_completed_at",
+        "maintenance_mode",
+        "maintenance_reason",
+        "maintenance_started_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "integration_configs",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_integration.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "integration_id",
+        "project_id",
+        "config_json",
+        "status",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "issue_activity",
+      "family": "issue_workflow",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "group_id",
+        "project_id",
+        "user_id",
+        "kind",
+        "summary",
+        "details",
+        "created_at"
+      ]
+    },
+    {
+      "name": "issue_autofix_runs",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "run_id",
+        "organization_id",
+        "project_id",
+        "issue_id",
+        "status",
+        "event_id",
+        "stopping_point",
+        "payload_json",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "issue_bookmarks",
+      "family": "issue_workflow",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "user_id",
+        "group_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "issue_comments",
+      "family": "issue_workflow",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "group_id",
+        "project_id",
+        "user_id",
+        "body",
+        "created_at"
+      ]
+    },
+    {
+      "name": "issue_subscriptions",
+      "family": "issue_workflow",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "user_id",
+        "group_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "jobs",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "kind",
+        "project_id",
+        "payload",
+        "status",
+        "attempts",
+        "available_at",
+        "lease_until",
+        "worker_id",
+        "last_error",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "member_invites",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "team_id",
+        "email",
+        "role",
+        "token_prefix",
+        "token_hash",
+        "status",
+        "invited_by_user_id",
+        "created_at",
+        "expires_at",
+        "accepted_at",
+        "accepted_by_user_id"
+      ]
+    },
+    {
+      "name": "metric_alert_rules",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "id",
+        "project_id",
+        "name",
+        "metric",
+        "threshold",
+        "threshold_type",
+        "time_window_secs",
+        "resolve_threshold",
+        "environment",
+        "status",
+        "trigger_actions_json",
+        "state",
+        "last_triggered_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "metric_buckets",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "name",
+        "type",
+        "value",
+        "unit",
+        "tags_json",
+        "timestamp",
+        "created_at"
+      ]
+    },
+    {
+      "name": "monitor_checkins",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "monitor_id",
+        "project_id",
+        "monitor_slug",
+        "status",
+        "duration",
+        "release",
+        "environment",
+        "scheduled_for",
+        "payload_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "monitors",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "slug",
+        "status",
+        "environment",
+        "schedule_type",
+        "schedule_value",
+        "schedule_unit",
+        "schedule_crontab",
+        "max_runtime",
+        "timezone",
+        "config_json",
+        "last_checkin_id",
+        "last_status",
+        "last_checkin_at",
+        "next_checkin_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "native_crash_images",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "position",
+        "release_version",
+        "platform",
+        "image_name",
+        "module_name",
+        "debug_id",
+        "code_id",
+        "build_id",
+        "uuid",
+        "architecture",
+        "image_addr",
+        "image_size",
+        "instruction_addr",
+        "source",
+        "created_at"
+      ]
+    },
+    {
+      "name": "native_crashes",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "event_row_id",
+        "release_version",
+        "platform",
+        "status",
+        "ingest_error",
+        "payload_json",
+        "raw_attachment_id",
+        "raw_blob_key",
+        "filename",
+        "content_type",
+        "size_bytes",
+        "attempts",
+        "processed_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "native_symbol_sources",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "debug_file_id",
+        "project_id",
+        "release_version",
+        "kind",
+        "debug_id",
+        "code_id",
+        "build_id",
+        "uuid",
+        "module_name",
+        "architecture",
+        "platform",
+        "created_at"
+      ]
+    },
+    {
+      "name": "notification_actions",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "service_type",
+        "target_identifier",
+        "target_display",
+        "trigger_type",
+        "created_at"
+      ]
+    },
+    {
+      "name": "notification_deliveries",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "rule_id",
+        "group_id",
+        "event_id",
+        "kind",
+        "target",
+        "status",
+        "attempts",
+        "response_status",
+        "error",
+        "payload_json",
+        "created_at",
+        "last_attempt_at",
+        "delivered_at"
+      ]
+    },
+    {
+      "name": "notification_outbox",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "rule_id",
+        "group_id",
+        "event_id",
+        "recipient",
+        "subject",
+        "body",
+        "transport",
+        "status",
+        "error",
+        "created_at",
+        "sent_at"
+      ]
+    },
+    {
+      "name": "notification_routing_rules",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "name",
+        "priority",
+        "conditions_json",
+        "actions_json",
+        "enabled",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "operator_audit_logs",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "project_id",
+        "action",
+        "status",
+        "source",
+        "actor",
+        "detail",
+        "metadata_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "org_data_forwarders",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "org_id",
+        "type",
+        "name",
+        "url",
+        "credentials_json",
+        "enabled",
+        "created_at"
+      ]
+    },
+    {
+      "name": "organization_members",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "user_id",
+        "role",
+        "created_at"
+      ]
+    },
+    {
+      "name": "organizations",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "slug",
+        "name",
+        "created_at"
+      ]
+    },
+    {
+      "name": "outcomes",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "category",
+        "reason",
+        "quantity",
+        "source",
+        "release",
+        "environment",
+        "payload_json",
+        "recorded_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "ownership_rules",
+      "family": "issue_workflow",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "name",
+        "pattern",
+        "assignee",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "personal_access_tokens",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "user_id",
+        "label",
+        "token_prefix",
+        "token_hash",
+        "scopes_json",
+        "created_at",
+        "last_used_at",
+        "expires_at",
+        "revoked_at"
+      ]
+    },
+    {
+      "name": "preprod_artifacts",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "project_id",
+        "build_id",
+        "state",
+        "app_id",
+        "app_name",
+        "app_version",
+        "build_number",
+        "artifact_type",
+        "app_date_added",
+        "app_date_built",
+        "git_info_json",
+        "platform",
+        "build_configuration",
+        "is_installable",
+        "install_url",
+        "download_count",
+        "release_notes",
+        "install_groups_json",
+        "is_code_signature_valid",
+        "profile_name",
+        "codesigning_type",
+        "main_binary_identifier",
+        "default_base_artifact_id",
+        "analysis_state",
+        "analysis_error_code",
+        "analysis_error_message",
+        "download_size",
+        "install_size",
+        "analysis_duration",
+        "analysis_version",
+        "insights_json",
+        "app_components_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "prevent_repository_branches",
+      "family": "prevent",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "repository_id",
+        "name",
+        "is_default",
+        "status",
+        "last_synced_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "prevent_repository_test_result_aggregates",
+      "family": "prevent",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "repository_id",
+        "branch_name",
+        "total_runs",
+        "passing_runs",
+        "failing_runs",
+        "skipped_runs",
+        "avg_duration_ms",
+        "last_run_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "prevent_repository_test_results",
+      "family": "prevent",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "repository_id",
+        "suite_id",
+        "suite_name",
+        "branch_name",
+        "commit_sha",
+        "status",
+        "duration_ms",
+        "test_count",
+        "failure_count",
+        "skipped_count",
+        "created_at"
+      ]
+    },
+    {
+      "name": "prevent_repository_test_suites",
+      "family": "prevent",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "repository_id",
+        "external_suite_id",
+        "name",
+        "status",
+        "last_run_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "prevent_repository_tokens",
+      "family": "prevent",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "repository_id",
+        "label",
+        "token_value",
+        "token_prefix",
+        "token_hash",
+        "status",
+        "rotated_at",
+        "last_used_at",
+        "revoked_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "profile_frames",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "manifest_id",
+        "frame_key",
+        "frame_label",
+        "function_label",
+        "function_name",
+        "module_name",
+        "package_name",
+        "filename",
+        "lineno",
+        "in_app",
+        "image_ref"
+      ]
+    },
+    {
+      "name": "profile_manifests",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "event_row_id",
+        "project_id",
+        "event_id",
+        "profile_id",
+        "trace_id",
+        "transaction_name",
+        "release",
+        "environment",
+        "platform",
+        "profile_kind",
+        "started_at",
+        "ended_at",
+        "duration_ns",
+        "thread_count",
+        "sample_count",
+        "frame_count",
+        "function_count",
+        "stack_count",
+        "processing_status",
+        "ingest_error",
+        "raw_blob_key",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "profile_samples",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "manifest_id",
+        "thread_row_id",
+        "stack_id",
+        "ts_ns",
+        "weight",
+        "wall_time_ns",
+        "queue_time_ns",
+        "cpu_time_ns",
+        "is_idle"
+      ]
+    },
+    {
+      "name": "profile_stack_frames",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "manifest_id",
+        "stack_id",
+        "position",
+        "frame_id"
+      ]
+    },
+    {
+      "name": "profile_stacks",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "manifest_id",
+        "stack_key",
+        "leaf_frame_id",
+        "root_frame_id",
+        "depth"
+      ]
+    },
+    {
+      "name": "profile_threads",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "manifest_id",
+        "thread_key",
+        "thread_name",
+        "thread_role",
+        "is_main",
+        "sample_count",
+        "duration_ns"
+      ]
+    },
+    {
+      "name": "project_automation_tokens",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "label",
+        "token_prefix",
+        "token_hash",
+        "scopes_json",
+        "created_by_user_id",
+        "created_at",
+        "last_used_at",
+        "expires_at",
+        "revoked_at"
+      ]
+    },
+    {
+      "name": "project_environments",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "project_id",
+        "name",
+        "is_hidden",
+        "created_at"
+      ]
+    },
+    {
+      "name": "project_hooks",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "url",
+        "events_json",
+        "status",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "project_keys",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "public_key",
+        "secret_key",
+        "status",
+        "label",
+        "rate_limit",
+        "created_at"
+      ]
+    },
+    {
+      "name": "project_memberships",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "user_id",
+        "role",
+        "created_at"
+      ]
+    },
+    {
+      "name": "project_replay_configs",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "project_id",
+        "sample_rate",
+        "max_bytes",
+        "scrub_fields_json",
+        "scrub_selectors_json",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "project_symbol_sources",
+      "family": "artifacts_symbolication",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "type",
+        "name",
+        "layout_json",
+        "url",
+        "credentials_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "project_teams",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "project_id",
+        "team_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "projects",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "team_id",
+        "slug",
+        "name",
+        "platform",
+        "status",
+        "created_at"
+      ]
+    },
+    {
+      "name": "query_guard_policies",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "organization_id",
+        "workload",
+        "max_cost_per_request",
+        "max_requests_per_window",
+        "max_cost_per_window",
+        "window_seconds",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "query_guard_usage",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "organization_id",
+        "workload",
+        "actor_key",
+        "window_start",
+        "request_count",
+        "cost_units",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "quota_rate_limits",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "max_events_per_hour",
+        "max_transactions_per_hour",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "release_commits",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "release_id",
+        "commit_sha",
+        "repository",
+        "author_name",
+        "author_email",
+        "message",
+        "files_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "release_deploys",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "release_id",
+        "environment",
+        "name",
+        "url",
+        "date_started",
+        "date_finished",
+        "created_at"
+      ]
+    },
+    {
+      "name": "release_sessions",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "release_version",
+        "environment",
+        "session_id",
+        "distinct_id",
+        "status",
+        "errors",
+        "started_at",
+        "duration",
+        "user_agent",
+        "attrs_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "releases",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "version",
+        "date_released",
+        "created_at"
+      ]
+    },
+    {
+      "name": "replay_assets",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "manifest_id",
+        "replay_id",
+        "attachment_id",
+        "kind",
+        "name",
+        "content_type",
+        "size_bytes",
+        "object_key",
+        "chunk_index",
+        "created_at"
+      ]
+    },
+    {
+      "name": "replay_deletion_jobs",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "replay_ids_json",
+        "status",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "replay_manifests",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "event_row_id",
+        "project_id",
+        "replay_id",
+        "platform",
+        "release",
+        "environment",
+        "started_at",
+        "ended_at",
+        "duration_ms",
+        "request_url",
+        "user_ref_json",
+        "trace_ids_json",
+        "linked_event_ids_json",
+        "linked_issue_ids_json",
+        "asset_count",
+        "console_count",
+        "network_count",
+        "click_count",
+        "navigation_count",
+        "error_marker_count",
+        "timeline_start_ms",
+        "timeline_end_ms",
+        "privacy_policy_version",
+        "processing_status",
+        "ingest_error",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "replay_timeline_items",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "manifest_id",
+        "replay_id",
+        "ts_ms",
+        "item_index",
+        "kind",
+        "pane_ref",
+        "title",
+        "level",
+        "message",
+        "url",
+        "method",
+        "status_code",
+        "duration_ms",
+        "selector",
+        "text_value",
+        "trace_id",
+        "linked_event_id",
+        "linked_issue_id",
+        "payload_ref",
+        "meta_json"
+      ]
+    },
+    {
+      "name": "repositories",
+      "family": "prevent",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "name",
+        "provider",
+        "url",
+        "external_slug",
+        "status",
+        "created_at"
+      ]
+    },
+    {
+      "name": "runtime_leases",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "name",
+        "holder_id",
+        "lease_until",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "sampling_rules",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "sample_rate",
+        "conditions_json",
+        "active",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "saved_search_favorites",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "saved_search_id",
+        "user_id",
+        "created_at"
+      ]
+    },
+    {
+      "name": "saved_search_tags",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "saved_search_id",
+        "tag",
+        "created_at"
+      ]
+    },
+    {
+      "name": "saved_searches",
+      "family": "query_analytics",
+      "migration_file": "internal/sqlite/migrations_analytics.go",
+      "columns": [
+        "id",
+        "name",
+        "query",
+        "filter",
+        "environment",
+        "sort",
+        "created_at"
+      ]
+    },
+    {
+      "name": "schema_metadata",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "key",
+        "value",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "sentry_apps",
+      "family": "integrations_forwarding",
+      "migration_file": "internal/sqlite/migrations_integration.go",
+      "columns": [
+        "id",
+        "slug",
+        "name",
+        "author",
+        "overview",
+        "scopes_json",
+        "events_json",
+        "schema_json",
+        "allowed_origins_json",
+        "status",
+        "redirect_url",
+        "webhook_url",
+        "is_alertable",
+        "verify_install",
+        "deleted_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "spans",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "transaction_event_id",
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "op",
+        "description",
+        "status",
+        "start_timestamp",
+        "end_timestamp",
+        "duration_ms",
+        "tags_json",
+        "data_json",
+        "created_at"
+      ]
+    },
+    {
+      "name": "team_members",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "team_id",
+        "user_id",
+        "role",
+        "created_at"
+      ]
+    },
+    {
+      "name": "teams",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "organization_id",
+        "slug",
+        "name",
+        "created_at"
+      ]
+    },
+    {
+      "name": "telemetry_archives",
+      "family": "control_ops",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "id",
+        "project_id",
+        "surface",
+        "record_type",
+        "record_id",
+        "archive_key",
+        "metadata_json",
+        "archived_at",
+        "restored_at"
+      ]
+    },
+    {
+      "name": "telemetry_retention_policies",
+      "family": "project_catalog",
+      "migration_file": "internal/sqlite/migrations_operator.go",
+      "columns": [
+        "project_id",
+        "surface",
+        "retention_days",
+        "storage_tier",
+        "archive_retention_days",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "totp_recovery_codes",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "user_id",
+        "code_hash",
+        "used_at",
+        "created_at"
+      ]
+    },
+    {
+      "name": "transactions",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_events.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "transaction_name",
+        "op",
+        "status",
+        "platform",
+        "environment",
+        "release",
+        "start_timestamp",
+        "end_timestamp",
+        "duration_ms",
+        "tags_json",
+        "measurements_json",
+        "payload_json",
+        "payload_key",
+        "created_at"
+      ]
+    },
+    {
+      "name": "uptime_check_results",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "uptime_monitor_id",
+        "project_id",
+        "status_code",
+        "latency_ms",
+        "error",
+        "status",
+        "created_at"
+      ]
+    },
+    {
+      "name": "uptime_monitors",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "project_id",
+        "name",
+        "url",
+        "interval_seconds",
+        "timeout_seconds",
+        "expected_status",
+        "environment",
+        "status",
+        "last_check_at",
+        "last_status_code",
+        "last_error",
+        "last_latency_ms",
+        "consecutive_fail",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "user_feedback",
+      "family": "ingest_telemetry",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "project_id",
+        "event_id",
+        "group_id",
+        "name",
+        "email",
+        "comments",
+        "created_at"
+      ]
+    },
+    {
+      "name": "user_password_credentials",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "user_id",
+        "password_hash",
+        "password_algo",
+        "password_updated_at"
+      ]
+    },
+    {
+      "name": "user_sessions",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "user_id",
+        "session_token_hash",
+        "csrf_secret",
+        "ip_address",
+        "user_agent",
+        "created_at",
+        "last_seen_at",
+        "expires_at",
+        "revoked_at"
+      ]
+    },
+    {
+      "name": "users",
+      "family": "identity_auth",
+      "migration_file": "internal/sqlite/migrations_core.go",
+      "columns": [
+        "id",
+        "email",
+        "display_name",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    {
+      "name": "workflows",
+      "family": "releases_alerting_ops",
+      "migration_file": "internal/sqlite/migrations_features.go",
+      "columns": [
+        "id",
+        "org_id",
+        "name",
+        "triggers_json",
+        "conditions_json",
+        "actions_json",
+        "enabled",
+        "created_at"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from_table": "alert_history",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "alert_history",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "alert_rules",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "anomaly_events",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "artifacts",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "auth_audit_logs",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "auth_audit_logs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "auth_audit_logs",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "backfill_runs",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "backfill_runs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "code_mappings",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "dashboard_widgets",
+      "from_column": "dashboard_id",
+      "to_table": "dashboards",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "dashboard_widgets",
+      "from_column": "saved_search_id",
+      "to_table": "saved_searches",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "dashboards",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "data_forwarding_configs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "debug_files",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "event_attachments",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "event_attachments",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "events",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "events",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "events",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "external_users",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "group_external_issues",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "groups",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "inbound_filters",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "integration_configs",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "integration_configs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "issue_activity",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_activity",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_activity",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "issue_autofix_runs",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "issue_autofix_runs",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "issue_autofix_runs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_bookmarks",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_bookmarks",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "issue_comments",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_comments",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_comments",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "issue_subscriptions",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "issue_subscriptions",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "jobs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "member_invites",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "member_invites",
+      "from_column": "team_id",
+      "to_table": "teams",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "metric_alert_rules",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "metric_buckets",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "monitor_checkins",
+      "from_column": "monitor_id",
+      "to_table": "monitors",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "monitor_checkins",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "monitors",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "native_crash_images",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "native_crash_images",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "native_crashes",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "native_crashes",
+      "from_column": "event_row_id",
+      "to_table": "events",
+      "kind": "row_reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "native_crashes",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "native_symbol_sources",
+      "from_column": "debug_file_id",
+      "to_table": "debug_files",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "native_symbol_sources",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "notification_actions",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "notification_deliveries",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "notification_deliveries",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "notification_deliveries",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "notification_outbox",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "notification_outbox",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "notification_outbox",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "notification_routing_rules",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "operator_audit_logs",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "operator_audit_logs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "organization_members",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "organization_members",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "outcomes",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "outcomes",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "ownership_rules",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "personal_access_tokens",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "preprod_artifacts",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "preprod_artifacts",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "prevent_repository_branches",
+      "from_column": "repository_id",
+      "to_table": "repositories",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "prevent_repository_test_result_aggregates",
+      "from_column": "repository_id",
+      "to_table": "repositories",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "prevent_repository_test_results",
+      "from_column": "repository_id",
+      "to_table": "repositories",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "prevent_repository_test_results",
+      "from_column": "suite_id",
+      "to_table": "prevent_repository_test_suites",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "prevent_repository_test_suites",
+      "from_column": "repository_id",
+      "to_table": "repositories",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "prevent_repository_tokens",
+      "from_column": "repository_id",
+      "to_table": "repositories",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_frames",
+      "from_column": "manifest_id",
+      "to_table": "profile_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_manifests",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "profile_manifests",
+      "from_column": "event_row_id",
+      "to_table": "events",
+      "kind": "row_reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_manifests",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_samples",
+      "from_column": "manifest_id",
+      "to_table": "profile_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_samples",
+      "from_column": "stack_id",
+      "to_table": "profile_stacks",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_samples",
+      "from_column": "thread_row_id",
+      "to_table": "profile_threads",
+      "kind": "row_reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_stack_frames",
+      "from_column": "frame_id",
+      "to_table": "profile_frames",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_stack_frames",
+      "from_column": "manifest_id",
+      "to_table": "profile_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_stack_frames",
+      "from_column": "stack_id",
+      "to_table": "profile_stacks",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_stacks",
+      "from_column": "manifest_id",
+      "to_table": "profile_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "profile_threads",
+      "from_column": "manifest_id",
+      "to_table": "profile_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_automation_tokens",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_environments",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_hooks",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_keys",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "project_memberships",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_memberships",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_replay_configs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_symbol_sources",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_teams",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "project_teams",
+      "from_column": "team_id",
+      "to_table": "teams",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "projects",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "projects",
+      "from_column": "team_id",
+      "to_table": "teams",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "query_guard_policies",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "query_guard_usage",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "quota_rate_limits",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "release_commits",
+      "from_column": "release_id",
+      "to_table": "releases",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "release_deploys",
+      "from_column": "release_id",
+      "to_table": "releases",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "release_sessions",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "releases",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "replay_assets",
+      "from_column": "manifest_id",
+      "to_table": "replay_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "replay_deletion_jobs",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "replay_manifests",
+      "from_column": "event_row_id",
+      "to_table": "events",
+      "kind": "row_reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "replay_manifests",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "replay_timeline_items",
+      "from_column": "manifest_id",
+      "to_table": "replay_manifests",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "repositories",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "sampling_rules",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "saved_search_favorites",
+      "from_column": "saved_search_id",
+      "to_table": "saved_searches",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "saved_search_favorites",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "saved_search_tags",
+      "from_column": "saved_search_id",
+      "to_table": "saved_searches",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "spans",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "spans",
+      "from_column": "span_id",
+      "to_table": "spans",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "team_members",
+      "from_column": "team_id",
+      "to_table": "teams",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "team_members",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "teams",
+      "from_column": "organization_id",
+      "to_table": "organizations",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "telemetry_archives",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "telemetry_retention_policies",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "totp_recovery_codes",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "transactions",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "transactions",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "transactions",
+      "from_column": "span_id",
+      "to_table": "spans",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "uptime_check_results",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "uptime_check_results",
+      "from_column": "uptime_monitor_id",
+      "to_table": "uptime_monitors",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "uptime_monitors",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    },
+    {
+      "from_table": "user_feedback",
+      "from_column": "event_id",
+      "to_table": "events",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "user_feedback",
+      "from_column": "group_id",
+      "to_table": "groups",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "user_feedback",
+      "from_column": "project_id",
+      "to_table": "projects",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "user_password_credentials",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "column_suffix"
+    },
+    {
+      "from_table": "user_sessions",
+      "from_column": "user_id",
+      "to_table": "users",
+      "kind": "reference",
+      "inferred_by": "explicit_override"
+    }
+  ]
+}

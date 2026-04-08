@@ -1,0 +1,68 @@
+{
+  "name": "admin-control-lifecycle",
+  "description": "Admin, auth, lifecycle, import/export, retention, and operator regression pack.",
+  "suites": [
+    {
+      "name": "synthetic-admin-smoke",
+      "package": "./internal/synthetic",
+      "run": "TestRunnerAdminLifecycleSmokeScenario"
+    },
+    {
+      "name": "api-admin-lifecycle",
+      "package": "./internal/api",
+      "run": "Test(OrganizationMembershipLifecycle|PersonalAccessTokenLifecycle|AutomationTokenLifecycle|SCIMUserRoutesMountedAndCRUD|SCIMGroupRoutesMountedAndCRUD|OrganizationImportExportRoundTrip|OrganizationImportDryRunValidatesArtifacts|RetentionArchiveAndRestoreReplays|APIOperatorOverview|ProjectSettingsAndAuditLogAPI|ReleaseHealthAndDebugFilesAPI|DebugFilesUploadListLookup|DebugFilesUploadELFAndReprocess|APIIssueAutofix_SQLite|APIPreprodArtifacts_SQLite|Backfill.*|ProGuardMappingsUploadListLookup|AlertCRUD_SQLite|AlertDeliveries_SQLite)"
+    },
+    {
+      "name": "http-auth-role-mounting",
+      "package": "./internal/http",
+      "run": "Test(RoleMountingIngest|RoleMountingAPI|ManagementAPIRequiresPATNotProjectKey|WebLoginCreatesSession|SessionManagesPATsAndAutomationTokens|MaintenanceModeBlocksWritesButAllowsReads)"
+    },
+    {
+      "name": "web-settings-operator",
+      "package": "./internal/web",
+      "run": "Test(SettingsAndReleaseDetailPages|SettingsPage|UpdateProjectSettings|OrgSettingsPages|OrgSettingsAuditLogShowsEntries|OperatorPageRequiresSessionAndRendersOverview)"
+    }
+  ],
+  "covers": {
+    "route_sections": [
+      "System",
+      "Management REST API",
+      "Web UI"
+    ],
+    "route_prefixes": [
+      "organizations",
+      "projects",
+      "teams",
+      "users",
+      "backfills"
+    ],
+    "telemetry_surfaces": [
+      "attachments",
+      "debug_files",
+      "replays",
+      "profiles",
+      "outcomes"
+    ],
+    "artifact_families": [
+      "attachments",
+      "release_files",
+      "debug_files",
+      "preprod_artifacts",
+      "import_export_blobs"
+    ],
+    "datasets": [
+      "issues",
+      "logs",
+      "transactions"
+    ],
+    "entity_families": [
+      "identity_auth",
+      "project_catalog",
+      "artifacts_symbolication",
+      "control_ops",
+      "integrations_forwarding",
+      "prevent",
+      "releases_alerting_ops"
+    ]
+  }
+}

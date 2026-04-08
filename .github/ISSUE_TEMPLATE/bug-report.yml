@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a product, runtime, or packaging problem in Urgentry.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for product bugs, broken setup paths, runtime failures, and release regressions.
+
+        If you found a security issue, stop here and use the private reporting path in `SECURITY.md`.
+  - type: input
+    id: summary
+    attributes:
+      label: What broke?
+      description: One sentence is enough.
+      placeholder: Tiny mode fails to boot after I point it at a fresh data directory.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which mode are you using?
+      options:
+        - Tiny mode
+        - Serious self-hosted preview
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: install_path
+    attributes:
+      label: How did you install or run Urgentry?
+      options:
+        - Built from source
+        - Local binary
+        - Docker
+        - Docker Compose
+        - Kubernetes
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Tag, commit SHA, or `main`.
+      placeholder: 98cf840
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we reproduce it?
+      description: Include commands, API calls, UI clicks, or deploy steps.
+      placeholder: |
+        1. Start Urgentry with ...
+        2. Visit ...
+        3. Submit ...
+        4. See failure ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: The server should start and show the login page.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      placeholder: The process exited with ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or extra context
+      description: Paste error output or attach screenshots if they help.
+      render: shell
+

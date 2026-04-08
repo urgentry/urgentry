@@ -1,0 +1,5 @@
+{"event_id":"07070707070707070707070707070707"}
+{"type":"event","length":119}
+{"event_id":"07070707070707070707070707070707","level":"error","message":"Synthetic artifact envelope","platform":"go"}
+{"type":"attachment","length":25,"filename":"test.txt","content_type":"text/plain"}
+synthetic attachment body

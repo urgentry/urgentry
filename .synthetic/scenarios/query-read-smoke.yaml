@@ -1,0 +1,56 @@
+name: query-read-smoke
+description: Seed one error event and verify project/org query reads respond through PAT-authenticated APIs.
+server:
+  start_workers: true
+steps:
+  - name: ingest-store-event
+    action: request
+    method: POST
+    auth: project_key
+    path: /api/default-project/store/
+    content_type: application/json
+    body: |
+      {"event_id":"22222222222222222222222222222222","message":"Synthetic query smoke event","level":"error","platform":"go","environment":"synthetic","release":"synthetic@query","tags":{"synthetic":"true"}}
+    expect_status: 200
+  - name: wait-for-project-event
+    action: wait_for
+    waiter: event
+    wait_params:
+      event_id: 22222222222222222222222222222222
+  - name: project-events
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/projects/urgentry-org/default/events/
+    expect_status: 200
+    expect_contains:
+      - 22222222222222222222222222222222
+  - name: project-issues
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/projects/urgentry-org/default/issues/
+    expect_status: 200
+  - name: org-issues
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/organizations/urgentry-org/issues/
+    expect_status: 200
+  - name: org-discover
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/organizations/urgentry-org/discover/
+    query:
+      scope: issues
+      query: synthetic
+    expect_status: 200
+  - name: org-logs
+    action: request
+    method: GET
+    auth: pat
+    path: /api/0/organizations/urgentry-org/logs/
+    query:
+      query: synthetic
+    expect_status: 200

@@ -1,0 +1,3 @@
+{"event_id":"06060606060606060606060606060606"}
+{"length":217,"type":"check_in"}
+{"check_in_id":"66666666-7777-4888-8999-aaaaaaaaaaaa","duration":4.2,"environment":"synthetic","monitor_config":{"schedule":{"type":"interval","unit":"minute","value":5}},"monitor_slug":"synthetic-cron","status":"ok"}

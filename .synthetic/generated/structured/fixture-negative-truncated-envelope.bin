@@ -1,0 +1,3 @@
+{"event_id":"aaaa1111bbbb2222cccc3333dddd4444","dsn":"https://abc123@o1.ingest.example.com/1","sent_at":"2026-03-25T12:00:00.000Z"}
+{"type":"event","length":500}
+{"truncat":

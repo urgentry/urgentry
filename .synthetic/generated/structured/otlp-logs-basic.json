@@ -1,0 +1,1 @@
+{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"synthetic-service"}}]},"scopeLogs":[{"logRecords":[{"attributes":[],"body":{"stringValue":"Synthetic OTLP log"},"severityText":"INFO","timeUnixNano":"1775442600000000000"}],"scope":{"name":"synthetic.logger"}}]}]}
