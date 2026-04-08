@@ -2,12 +2,14 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
 COMPOSE_DIR="$ROOT_DIR/deploy/compose"
 ENV_TEMPLATE="$COMPOSE_DIR/.env.example"
 LIB_SH="$COMPOSE_DIR/lib.sh"
 SMOKE_SH="$COMPOSE_DIR/smoke.sh"
 
+# shellcheck disable=SC1091
+source "$ROOT_DIR/scripts/lib-paths.sh"
+resolve_urgentry_paths "$0"
 # shellcheck disable=SC1090
 source "$LIB_SH"
 

@@ -4,9 +4,12 @@ set -eu
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# shellcheck disable=SC1091
+. "$ROOT_DIR/scripts/lib-paths.sh"
+resolve_urgentry_paths "$0"
+
 OUTPUT="urgentry"
 PKG="./cmd/urgentry"
-REPO_ROOT="$(CDPATH= cd -- "$ROOT_DIR/../.." && pwd)"
 VERSION_FILE_FALLBACK="$(cat "$REPO_ROOT/VERSION" 2>/dev/null || echo dev)"
 BUILD_VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo "$VERSION_FILE_FALLBACK")}"
 BUILD_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"

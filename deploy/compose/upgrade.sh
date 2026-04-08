@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-APP_DIR="$ROOT_DIR/apps/urgentry"
-COMPOSE_BACKUP_SCRIPT="$ROOT_DIR/apps/urgentry/deploy/compose/backup.sh"
+# shellcheck disable=SC1091
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../scripts/lib-paths.sh"
+resolve_urgentry_paths "$0"
+COMPOSE_BACKUP_SCRIPT="$APP_DIR/deploy/compose/backup.sh"
 
 CONTROL_DSN="${URGENTRY_CONTROL_DATABASE_URL:-${URGENTRY_DATABASE_URL:-}}"
 TELEMETRY_DSN="${URGENTRY_TELEMETRY_DATABASE_URL:-${URGENTRY_DATABASE_URL:-}}"

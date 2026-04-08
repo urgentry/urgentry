@@ -2,7 +2,12 @@
 
 # Default binary name
 BINARY := urgentry
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || cat ../../VERSION 2>/dev/null || echo dev)
+REPO_ROOT := $(shell git rev-parse --show-toplevel 2>/dev/null || pwd)
+ROOT_CHECK_LINKS := $(REPO_ROOT)/scripts/check-markdown-links.sh
+ROOT_CHECK_TIDY := $(REPO_ROOT)/scripts/check-go-mod-tidy.sh
+SELFHOSTED_PERF_SCRIPT := $(REPO_ROOT)/eval/dimensions/selfhostedperf/run.sh
+SELFHOSTED_EVAL_SCRIPT := $(REPO_ROOT)/eval/run-selfhosted.sh
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || cat $(REPO_ROOT)/VERSION 2>/dev/null || echo dev)
 PROFILE_DIR ?= profiles/latest
 PROFILE_ITERATIONS ?= 200
 PROFILE_GOMAXPROCS ?= 1
@@ -58,11 +63,13 @@ test:
 
 ## check-links: Verify repo Markdown links are merge-safe
 check-links:
-	bash ../../scripts/check-markdown-links.sh
+	@if [ ! -f "$(ROOT_CHECK_LINKS)" ]; then echo "check-links requires scripts/check-markdown-links.sh in the repo root or exported public repo root" >&2; exit 1; fi
+	bash "$(ROOT_CHECK_LINKS)"
 
 ## check-tidy: Verify repo Go modules are tidy-clean
 check-tidy:
-	bash ../../scripts/check-go-mod-tidy.sh
+	@if [ ! -f "$(ROOT_CHECK_TIDY)" ]; then echo "check-tidy requires scripts/check-go-mod-tidy.sh in the repo root or exported public repo root" >&2; exit 1; fi
+	bash "$(ROOT_CHECK_TIDY)"
 
 ## test-fast-with-timings: Run the fast local suite once, print slowest packages, and write test-results/fast-suite.{jsonl,json}
 test-fast-with-timings:
@@ -129,11 +136,13 @@ bench:
 
 ## selfhosted-bench: Run the serious self-hosted performance eval lane
 selfhosted-bench:
-	bash ../../eval/dimensions/selfhostedperf/run.sh
+	@if [ ! -f "$(SELFHOSTED_PERF_SCRIPT)" ]; then echo "selfhosted-bench is private-monorepo-only until the public repo exports the self-hosted perf harness" >&2; exit 1; fi
+	bash "$(SELFHOSTED_PERF_SCRIPT)"
 
 ## selfhosted-eval: Run the serious self-hosted readiness scorecard (requires Docker Compose, kind, and kubectl)
 selfhosted-eval:
-	bash ../../eval/run-selfhosted.sh
+	@if [ ! -f "$(SELFHOSTED_EVAL_SCRIPT)" ]; then echo "selfhosted-eval is private-monorepo-only until the public repo exports the self-hosted eval harness" >&2; exit 1; fi
+	bash "$(SELFHOSTED_EVAL_SCRIPT)"
 
 ## profile-bench: Run deterministic microbenchmarks for parse/normalize/grouping
 profile-bench:

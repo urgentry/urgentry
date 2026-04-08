@@ -2,8 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO_ROOT="$(cd "$ROOT_DIR/../.." && pwd)"
-cd "$ROOT_DIR"
+# shellcheck disable=SC1091
+. "$ROOT_DIR/scripts/lib-paths.sh"
+resolve_urgentry_paths "$0"
+cd "$APP_DIR"
 
 TMP_DIR="$(mktemp -d)"
 LOG_FILE="$TMP_DIR/urgentry.log"

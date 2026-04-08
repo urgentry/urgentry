@@ -2,8 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
-APP_DIR="$REPO_ROOT/apps/urgentry"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/../../scripts/lib-paths.sh"
+resolve_urgentry_paths "$0"
 
 usage() {
   cat <<'EOF'

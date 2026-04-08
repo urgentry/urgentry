@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+# shellcheck disable=SC1091
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-paths.sh"
+resolve_urgentry_paths "$0"
 
-bash "$ROOT/scripts/check-markdown-links.sh"
+bash "$REPO_ROOT/scripts/check-markdown-links.sh"
 
-cd "$ROOT/apps/urgentry"
+cd "$APP_DIR"
 
 make build
 make tiny-smoke

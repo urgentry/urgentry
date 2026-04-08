@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-APP_DIR="$ROOT_DIR/apps/urgentry"
+# shellcheck disable=SC1091
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../scripts/lib-paths.sh"
+resolve_urgentry_paths "$0"
 
 CURRENT_CONTROL_VERSION="${CURRENT_CONTROL_VERSION:-0}"
 TARGET_CONTROL_VERSION="${TARGET_CONTROL_VERSION:-0}"
