@@ -1,46 +1,26 @@
-# Serious Self-Hosted HA Baseline
+# Self-Hosted HA Baseline
 
-Minimum supported high-availability posture for serious self-hosted deployments.
+This is the minimum public high-availability posture for self-hosted Urgentry.
 
-## Status
+## Required shared services
 
-**Decided** — 2026-03-31. This is the smallest HA contract Urgentry supports. Operators may exceed it but must not undershoot it.
+- PostgreSQL for the control and telemetry stores
+- MinIO or another S3-compatible blob store
+- Valkey for shared cache and guard state
+- NATS with JetStream for async work
 
-## Minimum HA Posture by Component
+## Application topology
 
-| Component | Minimum HA Baseline | Notes |
-|-----------|-------------------|-------|
-| **PostgreSQL** | Single primary with WAL archiving | Streaming replica recommended but not required |
-| **NATS JetStream** | Single server with file-based persistence | Cluster of 3 recommended for queue durability |
-| **Valkey** | Single instance | Cache loss degrades query guard; does not cause data loss |
-| **MinIO / S3** | Single instance with local persistence | Production should use managed S3 or multi-node MinIO |
-| **Urgentry API** | 2 instances behind load balancer | Active-active; healthz/readyz for routing |
-| **Urgentry Ingest** | 2 instances behind load balancer | Active-active; envelope dedup prevents double-processing |
-| **Urgentry Worker** | 1 instance | JetStream redelivery handles worker failure |
-| **Urgentry Scheduler** | 1 instance | Leader election prevents duplicate scheduling |
+- at least one `api` process
+- at least one `ingest` process
+- at least one `worker` process
+- at least one `scheduler` process
 
-## Failure Modes and Recovery
+Run those roles behind durable shared services instead of one local Tiny-mode data directory.
 
-| Failure | Impact | Recovery |
-|---------|--------|----------|
-| PostgreSQL down | Full outage — all reads/writes fail | Restart or failover to replica |
-| NATS down | Ingest accepts but queues locally; workers idle | Restart; pending messages redeliver |
-| Valkey down | Query guard degrades (allows all); rate limiting off | Auto-recovery on reconnect |
-| MinIO down | Attachment/blob reads fail; ingest unaffected | Restart; data on persistent volume |
-| Single API instance down | Load balancer routes to surviving instance | readyz returns 503; auto-reroute |
-| Single Ingest instance down | Load balancer routes to surviving instance | readyz returns 503; auto-reroute |
-| Worker down | Pipeline backlog grows; events process on restart | JetStream redelivers unacked messages |
+## Before calling an install HA-ready
 
-## Preflight Enforcement
-
-`ValidateTopology` in selfhostedops rejects serious-mode configurations that:
-- Use `URGENTRY_DATA_DIR` without PostgreSQL DSNs
-- Run multiple distinct roles without a control-plane DSN
-- Use `REPLACE_ME` placeholder secrets
-
-## What This Baseline Does NOT Cover
-
-- Automated failover (requires operator tooling: Patroni, pgBouncer, etc.)
-- Cross-region replication
-- Zero-downtime upgrades (the upgrade path uses rolling restarts)
-- Backup automation (documented in ops guide but not enforced)
+- the stack boots cleanly through `deploy/compose` or the Kubernetes path
+- backup and restore are documented and exercised for your environment
+- maintenance mode is wired into the operator runbook
+- `make selfhosted-sentry-baseline` passes against the deployed topology

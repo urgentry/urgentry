@@ -8,7 +8,7 @@ body:
     id: page
     attributes:
       label: Which page is wrong?
-      placeholder: README.md or docs/urgentry-operations-guide.md
+      placeholder: README.md or docs/self-hosted/deployment-guide.md
     validations:
       required: true
   - type: textarea
@@ -28,4 +28,3 @@ body:
     attributes:
       label: Extra context
       description: Paste the broken link, command output, or screenshot if it helps.
-

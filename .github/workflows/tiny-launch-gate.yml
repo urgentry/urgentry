@@ -2,26 +2,21 @@ name: Tiny Launch Gate
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
 
-concurrency:
-  group: tiny-launch-gate
-  cancel-in-progress: true
-
 jobs:
-  gate:
+  tiny-launch-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26.1"
-          cache-dependency-path: |
-            go.sum
-
-      - name: Run Tiny launch gate
-        run: make tiny-launch-gate
+          go-version: "1.26.2"
+          cache-dependency-path: go.sum
+      - name: Install launch-gate tools
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
+      - run: make tiny-launch-gate

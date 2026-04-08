@@ -1,107 +1,35 @@
-# Urgentry Deployment Guide
+# Deployment Guide
 
-Choose your deployment method based on your needs.
+Urgentry exposes two public deployment paths:
 
-## Tiny Mode (single binary, SQLite)
+- **Tiny mode** for one binary plus SQLite
+- **Self-hosted mode** for split `api`, `ingest`, `worker`, and `scheduler` roles
 
-For solo developers, small teams, and evaluation.
+## Tiny mode
 
-| Method | Setup Time | Cost | Persistence | HTTPS |
-|---|---|---|---|---|
-| [Direct binary](direct/) | 60 seconds | Free (your hardware) | Local disk | Via reverse proxy |
-| [Docker single container](docker-tiny/) | 2 minutes | Free (your hardware) | Docker volume | Via reverse proxy |
-| [Fly.io](fly/) | 5 minutes | Free tier / $5/mo | Persistent volume | Included |
-| [Railway](railway/) | 5 minutes | Free trial / $5/mo | Persistent volume | Included |
-| [Render](render/) | 5 minutes | Free tier / $7/mo | Persistent disk | Included |
+Choose one of these:
 
-### Quick Start — Deploy to a Server
+| Path | When to use it |
+|---|---|
+| [direct/README.md](direct/README.md) | You want a binary on a machine you control |
+| [docker-tiny/README.md](docker-tiny/README.md) | You want a single container with a mounted data volume |
 
-```bash
-# One command: builds, uploads, configures systemd, starts
-bash scripts/deploy-server.sh root@myserver.com \
-  --base-url https://sentry.example.com \
-  --email admin@example.com \
-  --password changeme
-```
+## Self-hosted mode
 
-### Quick Start — Local Binary
+Choose one of these:
 
-```bash
-curl -fsSL https://urgentry.dev/install.sh | sh
-URGENTRY_BASE_URL=http://localhost:8080 urgentry serve
-```
+| Path | When to use it |
+|---|---|
+| [compose/README.md](compose/README.md) | Small production install or operator evaluation |
+| [k8s/README.md](k8s/README.md) | Kubernetes deployment with raw manifests |
+| [helm/urgentry/](helm/urgentry/) | Helm-managed Kubernetes deployment |
 
-### Quick Start — Docker
+## Validate a deployment
+
+Use these from the repository root:
 
 ```bash
-docker run -p 8080:8080 -v urgentry-data:/data \
-  -e URGENTRY_BASE_URL=http://localhost:8080 \
-  ghcr.io/ehmo/urgentry:latest serve
+make tiny-smoke
+make tiny-sentry-baseline
+make selfhosted-sentry-baseline
 ```
-
-### Quick Start — Fly.io
-
-```bash
-fly launch --image ghcr.io/ehmo/urgentry:latest
-fly volumes create urgentry_data --size 1
-fly deploy
-```
-
----
-
-## Self-Hosted Mode (multi-role, Postgres)
-
-For production teams needing horizontal scaling and durability.
-
-| Method | Setup Time | Requirements |
-|---|---|---|
-| [Docker Compose](compose/) | 10 minutes | Docker, Docker Compose |
-| [Helm / Kubernetes](helm/) | 15 minutes | Kubernetes cluster, Helm |
-| [Direct binary (multi-role)](direct/) | 20 minutes | Postgres, NATS, S3, Valkey |
-
-### Quick Start — Docker Compose
-
-```bash
-cd deploy/compose
-cp .env.example .env
-# Edit .env with your passwords
-docker compose up -d
-```
-
-### Quick Start — Helm
-
-```bash
-helm install urgentry deploy/helm/urgentry/ \
-  --set postgresql.password=changeme \
-  --set bootstrap.password=changeme
-```
-
----
-
-## Architecture
-
-```
-Tiny Mode                              Self-Hosted Mode
-──────────                             ─────────────────
-
-┌──────────────────┐                   ┌─────────────┐  ┌──────────────┐
-│  urgentry serve  │                   │   API (:80)  │  │ Ingest (:81) │
-│  (all roles)     │                   └──────┬───────┘  └──────┬───────┘
-│  SQLite + blobs  │                          │                 │
-└──────────────────┘                   ┌──────┴─────────────────┴──────┐
-     31 MB binary                      │  Postgres · NATS · S3 · Valkey│
-     128 MB RAM                        └──────┬─────────────────┬──────┘
-     1 container                       ┌──────┴───────┐  ┌──────┴───────┐
-                                       │ Worker (:82) │  │ Sched (:83)  │
-                                       └──────────────┘  └──────────────┘
-```
-
-## Cloudflare / Edge
-
-Urgentry's Tiny mode is a single Go binary with SQLite — it requires a persistent
-filesystem and can't run in serverless/edge environments like Cloudflare Workers,
-Vercel Functions, or AWS Lambda.
-
-For edge deployment, use **Fly.io** which provides persistent volumes on edge nodes,
-or run the binary on any VPS (including Cloudflare's compute offerings, Hetzner,
-DigitalOcean, etc.).

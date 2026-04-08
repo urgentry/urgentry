@@ -1,45 +1,35 @@
-# Urgentry Tiny Mode
+# Tiny Mode
 
-Tiny mode is the easiest way to run Urgentry: one binary, one SQLite database, one process.
+Tiny mode runs the full product in one process with one SQLite data directory.
 
-## Getting Started
+## Start here
 
-| Step | Guide |
-|------|-------|
-| 1. Build from source | [build-guide.md](build-guide.md) |
-| 2. Start the server | [Quick Start](../../QUICKSTART.md) |
-| 3. Verify it works | [smoke-checklist.md](smoke-checklist.md) |
+1. Read [../../QUICKSTART.md](../../QUICKSTART.md)
+2. Build and boot the binary:
 
-## Installation Options
+```bash
+make build
+URGENTRY_BASE_URL=http://localhost:8080 ./urgentry serve --role=all
+```
 
-| Method | Guide |
-|--------|-------|
-| Build from source | [build-guide.md](build-guide.md) |
-| Download a binary | [binary-install-guide.md](binary-install-guide.md) |
-| Docker container | [container-deploy-guide.md](container-deploy-guide.md) |
-| Deploy to a server | [deploy-guide.md](deploy-guide.md) |
-| Local dev setup | [local-deploy-guide.md](local-deploy-guide.md) |
+3. Verify the install:
 
-## Operating a Tiny Node
+```bash
+make tiny-smoke
+make tiny-sentry-baseline
+```
 
-- [Operations guide](../architecture/operations-guide.md) — backup, retention, monitoring
-- [Analytics & snapshots](analytics-snapshots.md) — frozen share links, scheduled reports
-- [Profiling guide](../architecture/profiling-guide.md) — CPU/memory profiling
+## Deployment options
 
-## Release & Quality
+- [../../deploy/direct/README.md](../../deploy/direct/README.md)
+- [../../deploy/docker-tiny/README.md](../../deploy/docker-tiny/README.md)
 
-- [Release artifacts](release-artifact-matrix.md) — what ships in each release
-- [Launch gate](launch-gate.md) — checklist before handing a build to users
-- [Release process](../architecture/release-process-and-versioning.md)
+## Operating notes
 
-## Feedback & Support
+- Tiny mode stores data under `URGENTRY_DATA_DIR`
+- Backup is a copy of that data directory or mounted volume
+- `URGENTRY_BASE_URL` should match the external URL when you want stable links in the UI and generated outputs
 
-- [Feedback loop](feedback-loop.md) — how to report issues and request features
-- [CONTRIBUTING.md](../../CONTRIBUTING.md)
-- [SUPPORT.md](../../SUPPORT.md)
-- [SECURITY.md](../../SECURITY.md)
+## When to switch to self-hosted mode
 
-## Ready for more?
-
-When you need split roles, PostgreSQL, and shared infrastructure:
-- [Serious Self-Hosted Guide](../self-hosted/)
+Move to [../self-hosted/README.md](../self-hosted/README.md) when you need shared PostgreSQL-backed infrastructure, split roles, or operator workflows around backup, restore, and maintenance.

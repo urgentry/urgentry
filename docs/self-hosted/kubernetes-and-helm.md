@@ -1,51 +1,32 @@
-# Urgentry serious self-hosted Kubernetes and Helm path
+# Kubernetes and Helm
 
-Status: current operator contract
-Last updated: 2026-03-30
-Bead: `urgentry-4yv`
+Urgentry ships both raw Kubernetes manifests and a Helm chart for self-hosted mode.
 
-## Why this exists
+## Raw manifests
 
-The repo already ships a Compose bundle and a cluster-oriented manifest set. Operators still need one clear answer about the cluster path: what counts as the supported Kubernetes distribution surface, and what does the future Helm path have to include?
+The kustomize bundle lives under `deploy/k8s`.
 
-This document defines that answer. The typed source of truth lives in [distribution.go](../../internal/selfhostedops/distribution.go).
+```bash
+kubectl apply -k deploy/k8s
+kubectl -n urgentry-system get pods
+```
 
-## Bundles covered
+Before applying the bundle, replace the placeholder values in `deploy/k8s/secret.yaml` or layer in your own secret management.
 
-- Compose
-- raw Kubernetes manifests
-- Helm
+Smoke the deployment:
 
-Each bundle defines:
+```bash
+bash deploy/k8s/smoke.sh up
+```
 
-- the install guide operators should follow
-- the secret source model
-- the smoke command
-- the upgrade command
-- the minimum artifact list
+## Helm
 
-## Current posture
+The Helm chart lives under `deploy/helm/urgentry`.
 
-- Compose stays the easiest serious self-hosted install path.
-- Raw Kubernetes manifests stay the direct cluster path today.
-- Helm is the packaged cluster path the repo has to grow into, not a hand-waved future label.
+```bash
+helm upgrade --install urgentry deploy/helm/urgentry \
+  --set postgresql.password=changeme \
+  --set bootstrap.password=changeme
+```
 
-## Secret model
-
-- Compose: env-file driven secrets
-- raw Kubernetes: secret manifests
-- Helm: external-secret or secret-manager driven inputs
-
-That split keeps the operator story grounded in the real deployment environments people use.
-
-## What this bead does not do
-
-This bead does not finish a Helm chart. It defines the distribution contract the future chart and cluster docs must satisfy.
-
-## Validation
-
-[distribution_test.go](../../internal/selfhostedops/distribution_test.go) covers:
-
-- complete bundle coverage
-- required Helm path coverage
-- non-empty install, smoke, upgrade, and artifact fields
+Use Helm when you already manage application configuration and secrets through Kubernetes tooling. Use the raw manifests when you want the smallest explicit baseline.

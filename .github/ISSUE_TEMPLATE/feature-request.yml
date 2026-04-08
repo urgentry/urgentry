@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a product, packaging, or operator improvement.
+description: Propose a product, deployment, or operator improvement.
 title: "[feature] "
 labels:
   - enhancement
@@ -32,11 +32,10 @@ body:
     attributes:
       label: Which area does this touch?
       options:
-        - Tiny mode product
-        - Tiny mode deployment
-        - Serious self-hosted preview
-        - Hosted roadmap
+        - Tiny mode
+        - Self-hosted mode
         - Docs
+        - Release or packaging
         - Developer workflow
         - Other
     validations:
@@ -46,4 +45,3 @@ body:
     attributes:
       label: Extra context
       description: Links, screenshots, prior art, or rough API ideas.
-

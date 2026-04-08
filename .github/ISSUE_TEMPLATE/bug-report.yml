@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a product, runtime, or packaging problem in Urgentry.
+description: Report a runtime, deployment, or release problem in Urgentry.
 title: "[bug] "
 labels:
   - bug
@@ -24,7 +24,7 @@ body:
       label: Which mode are you using?
       options:
         - Tiny mode
-        - Serious self-hosted preview
+        - Self-hosted mode
         - Not sure
     validations:
       required: true
@@ -46,7 +46,7 @@ body:
     attributes:
       label: Version or commit
       description: Tag, commit SHA, or `main`.
-      placeholder: 98cf840
+      placeholder: v0.1.0
   - type: textarea
     id: steps
     attributes:
@@ -79,4 +79,3 @@ body:
       label: Logs, screenshots, or extra context
       description: Paste error output or attach screenshots if they help.
       render: shell
-
