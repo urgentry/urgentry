@@ -1,0 +1,108 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Account Settings</h1>
+</div>
+
+{{template "account-settings-nav" .}}
+
+<div class="settings-section">
+  <div class="section-header">Change Password</div>
+  <p class="account-settings-copy">
+    Password changes are not yet supported from the web UI. Use the CLI to reset credentials.
+  </p>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Active Sessions</div>
+  {{if .Sessions}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Device / Browser</th>
+        <th>IP Address</th>
+        <th>Started</th>
+        <th>Last Active</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Sessions}}
+      <tr>
+        <td>
+          {{if .UserAgent}}{{.UserAgent}}{{else}}<span class="text-muted">Unknown</span>{{end}}
+          {{if .IsCurrent}}<span class="issue-status-badge active session-current-badge">current</span>{{end}}
+        </td>
+        <td class="mono">{{if .IPAddress}}{{.IPAddress}}{{else}}—{{end}}</td>
+        <td>{{.CreatedAt}}</td>
+        <td>{{.LastSeen}}</td>
+        <td>
+          {{if .IsCurrent}}
+          {{else}}
+          <form method="post" action="/settings/account/security/revoke-session" class="inline-zero">
+            <input type="hidden" name="session_id" value="{{.ID}}">
+            <button type="submit" class="btn btn-sm">Revoke</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No active sessions found.</div>
+  </div>
+  {{end}}
+</div>
+
+{{template "account-settings-styles" .}}
+{{end}}
+
+{{define "account-settings-nav"}}
+<nav class="account-settings-nav">
+  <a href="/settings/account/" class="{{if eq .ActiveTab "account"}}active{{end}}">Account</a>
+  <a href="/settings/account/security/" class="{{if eq .ActiveTab "security"}}active{{end}}">Security</a>
+  <a href="/settings/account/notifications/" class="{{if eq .ActiveTab "notifications"}}active{{end}}">Notifications</a>
+  <a href="/settings/account/api/" class="{{if eq .ActiveTab "api"}}active{{end}}">API Tokens</a>
+  <a href="/settings/account/close/" class="{{if eq .ActiveTab "close"}}active{{end}}">Close Account</a>
+</nav>
+{{end}}
+
+{{define "account-settings-styles"}}
+<style>
+.account-settings-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.account-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.account-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.account-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+.text-muted {
+  color: var(--text-secondary, #9CA0B0);
+}
+.session-current-badge {
+  margin-left: 8px;
+}
+.inline-zero {
+  margin: 0;
+}
+</style>
+{{end}}

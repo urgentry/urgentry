@@ -1,0 +1,170 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Trace {{.TraceID}}</h1>
+    <p class="page-subtitle">Review linked errors, related profiles, the waterfall, and stored spans for this distributed request.</p>
+  </div>
+</div>
+
+<div class="detail-shell">
+<div class="card guide-card">
+  <div class="section-header section-header-tight">{{.Guide.Title}}</div>
+  <div class="empty-text">{{.Guide.Body}}</div>
+  <ul class="guide-list">
+    {{range .Guide.Steps}}<li>{{.}}</li>{{end}}
+  </ul>
+  <div class="guide-actions">
+    <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
+  </div>
+</div>
+
+{{if .Errors}}
+<div class="card card-gap">
+  <div class="section-header">Linked Errors</div>
+  <table class="events-table">
+    <thead><tr><th>Error</th><th>Level</th><th>When</th></tr></thead>
+    <tbody>
+      {{range .Errors}}
+      <tr>
+        <td><a href="/issues/?query={{.EventID}}">{{if .Title}}{{.Title}}{{else}}{{.EventID}}{{end}}</a></td>
+        <td>{{if .Level}}{{.Level}}{{else}}-{{end}}</td>
+        <td>{{.TimeAgo}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+<div class="card card-gap">
+  <div class="section-header">Related Profiles</div>
+  {{if .Profiles}}
+  <table class="events-table">
+    <thead><tr><th>Profile</th><th>Transaction</th><th>Release</th><th>Duration</th><th>Samples</th><th>Top Function</th><th>Captured</th></tr></thead>
+    <tbody>
+      {{range .Profiles}}
+      <tr>
+        <td><a href="/profiles/{{.ID}}/">{{.ID}}</a></td>
+        <td>{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary detail-inline-meta">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+        <td class="mono">{{.SampleCount}}</td>
+        <td class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
+        <td>{{.StartedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state empty-state-inline">No profiles captured for this trace yet.</div>
+  {{end}}
+</div>
+
+{{if .Waterfall.Nodes}}
+<div class="card card-gap">
+  <div class="detail-toolbar detail-card-header">
+    <h2 class="detail-card-title">Span Waterfall</h2>
+    <span class="mono alert-secondary">Total: {{.Waterfall.TotalDuration}}</span>
+  </div>
+  <div class="wf-container detail-card-body">
+    {{range .Waterfall.Nodes}}
+    <div class="wf-row" data-span-id="{{.SpanID}}" data-depth="{{.Depth}}" {{if .HasChildren}}data-has-children="true"{{end}}>
+      <div class="wf-label" style="padding-left: {{.IndentPx}}px;">
+        {{if .HasChildren}}<span class="wf-toggle" aria-label="Toggle children">&#9660;</span>{{end}}
+        <span class="wf-op {{.ColorClass}}">{{if .Op}}{{.Op}}{{else}}span{{end}}</span>
+        {{if .Description}}<span class="wf-desc">{{.Description}}</span>{{end}}
+      </div>
+      <div class="wf-bar-track">
+        <div class="wf-bar {{.ColorClass}}" style="left: {{printf "%.2f" .LeftPercent}}%; width: {{printf "%.2f" .WidthPercent}}%;" title="{{if .Op}}{{.Op}}: {{end}}{{if .Description}}{{.Description}} — {{end}}{{.Duration}}"></div>
+      </div>
+      <div class="wf-duration mono">{{.Duration}}</div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Transactions</h2></div>
+  {{if .Transactions}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Transaction</th><th>Status</th><th>Release</th><th>Duration</th><th>When</th></tr></thead>
+    <tbody>
+      {{range .Transactions}}
+      <tr>
+        <td>{{if .Transaction}}{{.Transaction}}{{else}}{{.EventID}}{{end}}{{if .Op}}<div class="alert-secondary detail-inline-meta">{{.Op}}</div>{{end}}</td>
+        <td>{{if .Status}}{{.Status}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary detail-inline-meta">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+        <td>{{.TimeAgo}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No transactions stored for this trace.</div>
+  {{end}}
+</div>
+
+<div class="card">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Spans</h2></div>
+  {{if .Spans}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Span</th><th>Parent</th><th>Operation</th><th>Description</th><th>Status</th><th>Duration</th></tr></thead>
+    <tbody>
+      {{range .Spans}}
+      <tr>
+        <td class="mono">{{.SpanID}}</td>
+        <td class="mono">{{if .ParentSpanID}}{{.ParentSpanID}}{{else}}-{{end}}</td>
+        <td>{{if .Op}}{{.Op}}{{else}}-{{end}}</td>
+        <td>{{if .Description}}{{.Description}}{{else}}-{{end}}</td>
+        <td>{{if .Status}}{{.Status}}{{else}}-{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No spans stored for this trace.</div>
+  {{end}}
+</div>
+</div>
+
+<script>
+(function() {
+  // Waterfall expand/collapse: clicking a toggle hides/shows child rows.
+  document.querySelectorAll('.wf-toggle').forEach(function(toggle) {
+    toggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var row = toggle.closest('.wf-row');
+      var parentDepth = parseInt(row.dataset.depth, 10);
+      var collapsed = toggle.classList.toggle('wf-collapsed');
+      // Walk subsequent siblings and hide/show those with deeper depth.
+      var sibling = row.nextElementSibling;
+      while (sibling && sibling.classList.contains('wf-row')) {
+        var d = parseInt(sibling.dataset.depth, 10);
+        if (d <= parentDepth) break;
+        sibling.style.display = collapsed ? 'none' : '';
+        sibling = sibling.nextElementSibling;
+      }
+    });
+  });
+
+  // Waterfall hover tooltip with details.
+  document.querySelectorAll('.wf-bar').forEach(function(bar) {
+    bar.addEventListener('mouseenter', function() {
+      var row = bar.closest('.wf-row');
+      if (!row) return;
+      var spanId = row.dataset.spanId || '';
+      var existing = bar.getAttribute('title') || '';
+      if (!bar.dataset.origTitle) {
+        bar.dataset.origTitle = existing;
+        bar.setAttribute('title', existing + (spanId ? '\nSpan: ' + spanId : ''));
+      }
+    });
+  });
+})();
+</script>
+{{end}}

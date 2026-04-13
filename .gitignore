@@ -1,0 +1,31 @@
+# Binary
+/urgentry
+
+# Coverage
+*.out
+*.prof
+coverage.html
+
+# SQLite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Vendor (if used)
+/vendor/

@@ -1,0 +1,175 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Account Settings</h1>
+</div>
+
+{{template "account-settings-nav" .}}
+
+{{if .NewTokenRaw}}
+<div class="token-raw-box">
+  <p>Copy your new token now — it will not be shown again.</p>
+  <div class="token-raw-value" id="new-token-value">{{.NewTokenRaw}}</div>
+  <button class="btn btn-sm form-action-top" onclick="copyNewToken()">Copy</button>
+</div>
+<script>
+function copyNewToken() {
+  var t = document.getElementById('new-token-value').textContent;
+  navigator.clipboard.writeText(t).then(function() {
+    var btn = document.querySelector('.token-raw-box .btn');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>
+{{end}}
+
+<div class="settings-section">
+  <div class="section-header">Create Personal Access Token</div>
+  <form method="post" action="/settings/account/api/create" class="settings-form">
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Label</span>
+        <input type="text" name="label" placeholder="My token" required>
+      </label>
+    </div>
+    <div class="settings-form-field account-scopes-field">
+      <span class="settings-label">Scopes</span>
+      <div class="token-scope-grid">
+        {{range .AvailableScopes}}
+        <label class="token-scope-option">
+          <input type="checkbox" name="scopes" value="{{.}}"> {{.}}
+        </label>
+        {{end}}
+      </div>
+    </div>
+    <div class="settings-form-actions">
+      <button type="submit" class="btn btn-primary">Create token</button>
+    </div>
+  </form>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Personal Access Tokens</div>
+  {{if .Tokens}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Label</th>
+        <th>Prefix</th>
+        <th>Scopes</th>
+        <th>Created</th>
+        <th>Last Used</th>
+        <th>Expires</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Tokens}}
+      <tr>
+        <td>{{.Label}}</td>
+        <td class="mono">{{.TokenPrefix}}…</td>
+        <td><span class="token-scope-copy">{{.Scopes}}</span></td>
+        <td>{{.CreatedAt}}</td>
+        <td>{{if .LastUsedAt}}{{.LastUsedAt}}{{else}}<span class="text-muted">Never</span>{{end}}</td>
+        <td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}<span class="text-muted">Never</span>{{end}}</td>
+        <td>
+          {{if .IsRevoked}}
+          <span class="issue-status-badge disabled">revoked</span>
+          {{else}}
+          <span class="issue-status-badge active">active</span>
+          {{end}}
+        </td>
+        <td>
+          {{if .IsRevoked}}
+          {{else}}
+          <form method="post" action="/settings/account/api/{{.ID}}/revoke" class="inline-zero">
+            <button type="submit" class="btn btn-sm">Revoke</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state" style="padding: 16px;">
+    <div class="empty-text">No personal access tokens yet.</div>
+  </div>
+  {{end}}
+</div>
+
+{{template "account-settings-styles" .}}
+{{end}}
+
+{{define "account-settings-nav"}}
+<nav class="account-settings-nav">
+  <a href="/settings/account/" class="{{if eq .ActiveTab "account"}}active{{end}}">Account</a>
+  <a href="/settings/account/security/" class="{{if eq .ActiveTab "security"}}active{{end}}">Security</a>
+  <a href="/settings/account/notifications/" class="{{if eq .ActiveTab "notifications"}}active{{end}}">Notifications</a>
+  <a href="/settings/account/api/" class="{{if eq .ActiveTab "api"}}active{{end}}">API Tokens</a>
+  <a href="/settings/account/close/" class="{{if eq .ActiveTab "close"}}active{{end}}">Close Account</a>
+</nav>
+{{end}}
+
+{{define "account-settings-styles"}}
+<style>
+.account-settings-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.account-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.account-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.account-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+.text-muted {
+  color: var(--text-secondary, #9CA0B0);
+}
+.token-raw-box {
+  background: var(--bg-tertiary, #13131e);
+  border: 1px solid var(--warning, #e6b829);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.token-raw-box p {
+  margin: 0 0 8px;
+  color: var(--warning, #e6b829);
+  font-weight: 500;
+  font-size: 13px;
+}
+.token-raw-value {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--text-primary, #F5F6FA);
+  word-break: break-all;
+}
+.account-scopes-field {
+  margin-bottom: 12px;
+}
+.token-scope-copy {
+  font-size: 12px;
+  color: var(--text-secondary, #9CA0B0);
+}
+.inline-zero {
+  margin: 0;
+}
+</style>
+{{end}}

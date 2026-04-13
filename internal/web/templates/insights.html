@@ -1,0 +1,78 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Insights</h1>
+</div>
+
+<div class="explore-grid">
+  <a href="/insights/http/" class="explore-card">
+    <div class="explore-icon">&#127760;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">HTTP Performance</div>
+      <div class="explore-card-desc">Top transactions by latency with error rates, p50, p95, and throughput.</div>
+    </div>
+  </a>
+  <a href="/insights/database/" class="explore-card">
+    <div class="explore-icon">&#128451;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Database</div>
+      <div class="explore-card-desc">Slowest database spans grouped by operation and query description.</div>
+    </div>
+  </a>
+  <a href="/performance/queues/" class="explore-card">
+    <div class="explore-icon">&#128228;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Queues</div>
+      <div class="explore-card-desc">Message queue consumer throughput, latency, and error rates.</div>
+    </div>
+  </a>
+  <a href="/performance/spans/" class="explore-card">
+    <div class="explore-icon">&#9201;</div>
+    <div class="explore-card-body">
+      <div class="explore-card-title">Spans</div>
+      <div class="explore-card-desc">Aggregated span metrics across all operations in your distributed system.</div>
+    </div>
+  </a>
+</div>
+
+<style>
+  .explore-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+  .explore-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: 8px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .explore-card:hover {
+    border-color: var(--accent, #7c6b52);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .explore-icon {
+    font-size: 1.75rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .explore-card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  .explore-card-desc {
+    font-size: 0.85rem;
+    color: var(--muted, #6b7280);
+    line-height: 1.4;
+  }
+</style>
+{{end}}

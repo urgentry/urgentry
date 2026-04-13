@@ -1,0 +1,146 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Admin Console</h1>
+</div>
+
+{{template "manage-sidebar" .}}
+
+<div class="manage-body">
+  <div class="settings-section">
+    <div class="section-header">Overview</div>
+    <dl class="summary-list">
+      <div class="summary-row">
+        <dt class="summary-term">Organizations</dt>
+        <dd class="summary-value">{{.OrgCount}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Projects</dt>
+        <dd class="summary-value">{{.ProjectCount}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Users</dt>
+        <dd class="summary-value">{{.UserCount}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Database Size</dt>
+        <dd class="summary-value">{{.DBSizeFmt}}</dd>
+      </div>
+      <div class="summary-row">
+        <dt class="summary-term">Uptime</dt>
+        <dd class="summary-value">{{.Uptime}}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="settings-section">
+    <div class="section-header">Quick Links</div>
+    <ul class="manage-links">
+      <li><a href="/manage/organizations/">Organizations</a> — view all organizations</li>
+      <li><a href="/manage/projects/">Projects</a> — view all projects</li>
+      <li><a href="/manage/users/">Users</a> — view all users and role badges</li>
+      <li><a href="/manage/settings/">Settings</a> — retention and quota configuration</li>
+      <li><a href="/manage/status/">Status</a> — runtime and database diagnostics</li>
+      <li><a href="/ops/">Operator</a> — service health and backfills</li>
+    </ul>
+  </div>
+</div>
+
+{{template "manage-styles" .}}
+{{end}}
+
+{{define "manage-sidebar"}}
+<nav class="manage-sidebar">
+  <a href="/manage/" class="{{if eq .ManageNav "dashboard"}}active{{end}}">Dashboard</a>
+  <a href="/manage/organizations/" class="{{if eq .ManageNav "organizations"}}active{{end}}">Organizations</a>
+  <a href="/manage/projects/" class="{{if eq .ManageNav "projects"}}active{{end}}">Projects</a>
+  <a href="/manage/users/" class="{{if eq .ManageNav "users"}}active{{end}}">Users</a>
+  <a href="/manage/settings/" class="{{if eq .ManageNav "settings"}}active{{end}}">Settings</a>
+  <a href="/manage/status/" class="{{if eq .ManageNav "status"}}active{{end}}">Status</a>
+</nav>
+{{end}}
+
+{{define "manage-styles"}}
+<style>
+.manage-body {
+  margin-top: 16px;
+}
+.manage-sidebar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  padding-bottom: 12px;
+}
+.manage-sidebar a {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.manage-sidebar a:hover,
+.manage-sidebar a.active {
+  background: var(--accent, #7C5CBF);
+  color: #fff;
+}
+.manage-links {
+  padding-left: 18px;
+  line-height: 2;
+}
+.settings-section {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.settings-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.settings-label {
+  font-weight: 500;
+  color: var(--text-secondary, #9CA0B0);
+  width: 220px;
+}
+.summary-list {
+  width: min(100%, 760px);
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+}
+.summary-row:last-child {
+  border-bottom: none;
+}
+.summary-term {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #9CA0B0);
+}
+.summary-value {
+  margin: 0;
+  color: var(--text-primary, #F5F6FA);
+}
+</style>
+{{end}}

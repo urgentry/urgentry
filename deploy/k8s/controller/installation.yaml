@@ -1,0 +1,15 @@
+apiVersion: selfhosted.urgentry.dev/v1alpha1
+kind: UrgentryInstallation
+metadata:
+  name: sample
+spec:
+  image: urgentry:latest
+  configMapName: urgentry-config
+  secretName: urgentry-secret
+  dataPVCName: urgentry-data
+  dataPVCSize: 5Gi
+  replicas:
+    api: 1
+    ingest: 1
+    worker: 1
+    scheduler: 1

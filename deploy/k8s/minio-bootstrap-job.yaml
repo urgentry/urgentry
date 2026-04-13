@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bootstrap
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-bootstrap
+          image: minio/mc:latest
+          command:
+            - /bin/sh
+            - -lc
+            - |
+              set -eu
+              until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+                sleep 2
+              done
+              mc mb --ignore-existing "local/$URGENTRY_S3_BUCKET"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: urgentry-secret
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: urgentry-secret
+                  key: MINIO_ROOT_PASSWORD
+            - name: URGENTRY_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: urgentry-config
+                  key: URGENTRY_S3_BUCKET

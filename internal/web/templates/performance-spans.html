@@ -1,0 +1,122 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Span Summary</h1>
+  <div class="page-actions">
+    <a href="/performance/" class="btn btn-sm">Transactions</a>
+    <a href="/performance/queues/" class="btn btn-sm">Queues</a>
+    <a href="/performance/spans/" class="btn btn-sm btn-active">Spans</a>
+  </div>
+</div>
+
+{{if .Error}}
+<div class="card" style="padding: 1rem; margin-bottom: 1.25rem;">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+{{if .DBSpans}}
+<div class="card card-gap">
+  <div class="section-header">Slowest DB Queries (last 24h)</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Op</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Avg (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Total (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .DBSpans}}
+      <tr>
+        <td><span class="mono span-op">{{.Op}}</span></td>
+        <td><span class="mono span-desc">{{.Description}}</span></td>
+        <td>{{.Count}}</td>
+        <td>{{.AvgMS}}</td>
+        <td>{{.P95MS}}</td>
+        <td>{{.TotalMS}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+{{if .HTTPSpans}}
+<div class="card card-gap">
+  <div class="section-header">Most-Called HTTP Endpoints (last 24h)</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Op</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Avg (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Total (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .HTTPSpans}}
+      <tr>
+        <td><span class="mono span-op">{{.Op}}</span></td>
+        <td><span class="mono span-desc">{{.Description}}</span></td>
+        <td>{{.Count}}</td>
+        <td>{{.AvgMS}}</td>
+        <td>{{.P95MS}}</td>
+        <td>{{.TotalMS}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+{{if .OtherSpans}}
+<div class="card card-gap">
+  <div class="section-header">Other Spans (last 24h)</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Op</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Avg (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Total (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .OtherSpans}}
+      <tr>
+        <td><span class="mono span-op">{{.Op}}</span></td>
+        <td><span class="mono span-desc">{{.Description}}</span></td>
+        <td>{{.Count}}</td>
+        <td>{{.AvgMS}}</td>
+        <td>{{.P95MS}}</td>
+        <td>{{.TotalMS}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+{{if and (not .DBSpans) (not .HTTPSpans) (not .OtherSpans) (not .Error)}}
+<div class="card">
+  <div class="empty-state empty-state-inline">
+    <div class="empty-text">No span data captured yet. Send transaction events with spans to see aggregated span metrics.</div>
+  </div>
+</div>
+{{end}}
+
+<style>
+  .btn-active { background: var(--accent-bg, #e8dcc7); font-weight: 600; }
+  .span-op { font-size: 0.85em; padding: 0.1em 0.35em; background: var(--tag-bg, #f3f0eb); border-radius: 3px; }
+  .span-desc { font-size: 0.85em; word-break: break-all; }
+</style>
+{{end}}

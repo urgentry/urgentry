@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urgentry-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urgentry-controller
+  template:
+    metadata:
+      labels:
+        app: urgentry-controller
+    spec:
+      serviceAccountName: urgentry-controller
+      containers:
+        - name: controller
+          image: urgentry:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - self-hosted
+            - controller
+            - --namespace=$(POD_NAMESPACE)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 9090
+              name: metrics
+            - containerPort: 9091
+              name: health

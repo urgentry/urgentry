@@ -1,0 +1,136 @@
+# Default values for urgentry.
+
+image:
+  repository: urgentry
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Per-role replica counts
+replicas:
+  api: 1
+  ingest: 1
+  worker: 1
+  scheduler: 1
+
+# Per-role resource requests/limits
+resources:
+  api:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  ingest:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  worker:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  scheduler:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+# Application environment
+env:
+  URGENTRY_ENV: "production"
+  URGENTRY_DATA_DIR: "/data"
+  URGENTRY_BLOB_BACKEND: "s3"
+  URGENTRY_ASYNC_BACKEND: "jetstream"
+  URGENTRY_CACHE_BACKEND: "valkey"
+  URGENTRY_TELEMETRY_BACKEND: "postgres"
+  URGENTRY_INGEST_RATE_LIMIT: "60"
+
+# Bootstrap credentials — store in a Secret in production
+bootstrap:
+  email: "admin@urgentry.local"
+  # password and pat must be set; use secretRef for production
+  password: ""
+  pat: ""
+  # Set secretName to load bootstrap creds from an existing Secret
+  # Keys expected: URGENTRY_BOOTSTRAP_PASSWORD, URGENTRY_BOOTSTRAP_PAT
+  existingSecret: ""
+
+# External PostgreSQL connection
+# When set, these override the constructed database URLs.
+externalPostgres:
+  controlDatabaseURL: ""
+  telemetryDatabaseURL: ""
+  # Set secretName to load database URLs from an existing Secret.
+  # Keys expected: URGENTRY_CONTROL_DATABASE_URL, URGENTRY_TELEMETRY_DATABASE_URL
+  existingSecret: ""
+
+# External NATS
+externalNats:
+  url: ""
+
+# External Valkey/Redis
+externalValkey:
+  url: ""
+
+# External S3-compatible object store (MinIO or AWS S3)
+externalMinio:
+  endpoint: ""
+  bucket: "urgentry-artifacts"
+  region: "us-east-1"
+  prefix: ""
+  accessKey: ""
+  secretKey: ""
+  useTLS: "false"
+  # Set secretName to load S3 creds from an existing Secret
+  # Keys expected: URGENTRY_S3_ACCESS_KEY, URGENTRY_S3_SECRET_KEY
+  existingSecret: ""
+
+# Metrics token (optional)
+metricsToken: ""
+
+# Ingress
+ingress:
+  enabled: false
+  className: ""
+  host: "urgentry.example.com"
+  annotations: {}
+  # kubernetes.io/ingress.class: nginx
+  # cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls: []
+  # - secretName: urgentry-tls
+  #   hosts:
+  #     - urgentry.example.com
+
+# Persistence for /data volume (shared across roles via ReadWriteMany or per-pod)
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: "10Gi"
+  existingClaim: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+# Node selector, tolerations, and affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}

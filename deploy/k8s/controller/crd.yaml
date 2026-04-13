@@ -1,0 +1,64 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: urgentryinstallations.selfhosted.urgentry.dev
+spec:
+  group: selfhosted.urgentry.dev
+  scope: Namespaced
+  names:
+    plural: urgentryinstallations
+    singular: urgentryinstallation
+    kind: UrgentryInstallation
+    shortNames:
+      - urginst
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["image"]
+              properties:
+                image:
+                  type: string
+                configMapName:
+                  type: string
+                secretName:
+                  type: string
+                dataPVCName:
+                  type: string
+                dataPVCSize:
+                  type: string
+                replicas:
+                  type: object
+                  properties:
+                    api:
+                      type: integer
+                    ingest:
+                      type: integer
+                    worker:
+                      type: integer
+                    scheduler:
+                      type: integer
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                readyRoles:
+                  type: integer
+                managedResources:
+                  type: array
+                  items:
+                    type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+      subresources:
+        status: {}

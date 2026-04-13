@@ -1,0 +1,54 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Replays</h1>
+</div>
+
+<div class="card guide-card">
+  <div class="section-header section-header-tight">{{.Guide.Title}}</div>
+  <div class="empty-text">{{.Guide.Body}}</div>
+  <ul class="guide-list">
+    {{range .Guide.Steps}}<li>{{.}}</li>{{end}}
+  </ul>
+  <div class="guide-actions">
+    <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
+  </div>
+</div>
+
+<div class="card">
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Replay</th>
+        <th>URL</th>
+        <th>User</th>
+        <th>Release</th>
+        <th>Environment</th>
+        <th>Seen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Replays}}
+        {{range .Replays}}
+        <tr>
+          <td>
+            <a href="/replays/{{.ID}}/">{{.Title}}</a>
+            {{if .Summary}}<div class="detail-subtitle profile-summary">{{.Summary}}</div>{{end}}
+          </td>
+          <td class="mono">{{.URL}}</td>
+          <td>{{.User}}</td>
+          <td class="mono">{{.Release}}</td>
+          <td>{{.Environment}}</td>
+          <td class="{{.TimeClass}}">{{.TimeAgo}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="6" class="table-empty-cell">No replays captured yet.</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

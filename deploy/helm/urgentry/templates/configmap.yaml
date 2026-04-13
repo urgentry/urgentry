@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "urgentry.fullname" . }}
+  labels:
+    {{- include "urgentry.labels" . | nindent 4 }}
+data:
+  URGENTRY_ENV: {{ .Values.env.URGENTRY_ENV | quote }}
+  URGENTRY_DATA_DIR: {{ .Values.env.URGENTRY_DATA_DIR | quote }}
+  URGENTRY_BLOB_BACKEND: {{ .Values.env.URGENTRY_BLOB_BACKEND | quote }}
+  URGENTRY_ASYNC_BACKEND: {{ .Values.env.URGENTRY_ASYNC_BACKEND | quote }}
+  URGENTRY_CACHE_BACKEND: {{ .Values.env.URGENTRY_CACHE_BACKEND | quote }}
+  URGENTRY_TELEMETRY_BACKEND: {{ .Values.env.URGENTRY_TELEMETRY_BACKEND | quote }}
+  URGENTRY_INGEST_RATE_LIMIT: {{ .Values.env.URGENTRY_INGEST_RATE_LIMIT | quote }}
+  URGENTRY_BOOTSTRAP_EMAIL: {{ .Values.bootstrap.email | quote }}
+
+  {{- /* Database URLs */}}
+  {{- if and .Values.externalPostgres.controlDatabaseURL (not .Values.externalPostgres.existingSecret) }}
+  URGENTRY_CONTROL_DATABASE_URL: {{ .Values.externalPostgres.controlDatabaseURL | quote }}
+  {{- end }}
+  {{- if and .Values.externalPostgres.telemetryDatabaseURL (not .Values.externalPostgres.existingSecret) }}
+  URGENTRY_TELEMETRY_DATABASE_URL: {{ .Values.externalPostgres.telemetryDatabaseURL | quote }}
+  {{- end }}
+
+  {{- /* NATS */}}
+  {{- if .Values.externalNats.url }}
+  URGENTRY_NATS_URL: {{ .Values.externalNats.url | quote }}
+  {{- end }}
+
+  {{- /* Valkey/Redis */}}
+  {{- if .Values.externalValkey.url }}
+  URGENTRY_VALKEY_URL: {{ .Values.externalValkey.url | quote }}
+  {{- end }}
+
+  {{- /* S3 / MinIO (non-secret) */}}
+  {{- if .Values.externalMinio.endpoint }}
+  URGENTRY_S3_ENDPOINT: {{ .Values.externalMinio.endpoint | quote }}
+  {{- end }}
+  URGENTRY_S3_BUCKET: {{ .Values.externalMinio.bucket | quote }}
+  URGENTRY_S3_REGION: {{ .Values.externalMinio.region | quote }}
+  URGENTRY_S3_PREFIX: {{ .Values.externalMinio.prefix | quote }}
+  URGENTRY_S3_USE_TLS: {{ .Values.externalMinio.useTLS | quote }}
+
+  {{- /* Metrics token */}}
+  {{- if .Values.metricsToken }}
+  URGENTRY_METRICS_TOKEN: {{ .Values.metricsToken | quote }}
+  {{- end }}

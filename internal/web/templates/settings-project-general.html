@@ -1,0 +1,95 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">{{.ProjectName}} — Settings</h1>
+</div>
+
+{{template "project-settings-nav" .}}
+
+<div class="settings-section">
+  <div class="section-header">General</div>
+  <form method="post" action="/settings/project" class="settings-form">
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Project Name</span>
+        <input type="text" name="name" value="{{.ProjectName}}" required>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Platform</span>
+        <input type="text" name="platform" value="{{.Platform}}">
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Status</span>
+        <select name="status">
+          <option value="active" {{if eq .ProjectStatus "active"}}selected{{end}}>active</option>
+          <option value="disabled" {{if eq .ProjectStatus "disabled"}}selected{{end}}>disabled</option>
+        </select>
+      </label>
+    </div>
+    <div class="settings-form-actions">
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+  <dl class="summary-list inline-form-spaced">
+    <div class="summary-row">
+      <dt class="summary-term">Slug</dt>
+      <dd class="summary-value mono">{{.ProjectSlug}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Organization</dt>
+      <dd class="summary-value mono">{{.OrgSlug}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Project ID</dt>
+      <dd class="summary-value mono">{{.ProjectID}}</dd>
+    </div>
+    <div class="summary-row">
+      <dt class="summary-term">Status</dt>
+      <dd class="summary-value"><span class="issue-status-badge {{.ProjectStatus}}">{{.ProjectStatus}}</span></dd>
+    </div>
+  </dl>
+</div>
+
+{{template "project-settings-nav-styles" .}}
+{{end}}
+
+{{define "project-settings-nav"}}
+<nav class="project-settings-nav">
+  <a href="/settings/project/{{.ProjectSlug}}/general/" class="{{if eq .ActiveTab "general"}}active{{end}}">General</a>
+  <a href="/settings/project/{{.ProjectSlug}}/keys/" class="{{if eq .ActiveTab "keys"}}active{{end}}">Keys &amp; DSN</a>
+  <a href="/settings/project/{{.ProjectSlug}}/ownership/" class="{{if eq .ActiveTab "ownership"}}active{{end}}">Ownership</a>
+  <a href="/settings/project/{{.ProjectSlug}}/environments/" class="{{if eq .ActiveTab "environments"}}active{{end}}">Environments</a>
+  <a href="/settings/project/{{.ProjectSlug}}/retention/" class="{{if eq .ActiveTab "retention"}}active{{end}}">Retention</a>
+  <a href="/settings/project/{{.ProjectSlug}}/filters/" class="{{if eq .ActiveTab "filters"}}active{{end}}">Filters</a>
+</nav>
+{{end}}
+
+{{define "project-settings-nav-styles"}}
+<style>
+.project-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.project-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.project-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.project-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+</style>
+{{end}}

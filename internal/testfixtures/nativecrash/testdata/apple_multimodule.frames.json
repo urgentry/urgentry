@@ -1,0 +1,17 @@
+[
+  {
+    "instruction_addr": "0x1010",
+    "module": "App",
+    "package": "code-apple-1",
+    "debug_id": "debug-apple-1",
+    "function": "main",
+    "filename": "src/AppDelegate.swift",
+    "lineno": 42
+  },
+  {
+    "instruction_addr": "0x2000",
+    "module": "uikit",
+    "package": "code-apple-2",
+    "debug_id": "debug-apple-2"
+  }
+]

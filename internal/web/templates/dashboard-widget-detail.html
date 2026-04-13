@@ -1,0 +1,147 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="toolbar-row">
+    <h1 class="page-title dashboard-title-inline">{{.WidgetView.Widget.Title}}</h1>
+    <span class="alert-secondary">{{.WidgetView.Contract.Kind}} · {{.WidgetView.Contract.Dataset}}</span>
+    <a href="{{.DashboardURL}}" class="btn btn-sm">Back to dashboard</a>
+  </div>
+  {{if .WidgetView.Widget.Description}}<div class="empty-text discover-inline-meta">{{.WidgetView.Widget.Description}}</div>{{end}}
+</div>
+
+<div class="content-grid">
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Widget Contract</div>
+    <div class="stack-list">
+      <div>
+        <div class="alert-secondary">Dashboard</div>
+        <div><a href="{{.DashboardURL}}">{{.Dashboard.Title}}</a></div>
+      </div>
+      <div>
+        <div class="alert-secondary">Source</div>
+        <div>{{if .WidgetView.Contract.SourceURL}}<a href="{{.WidgetView.Contract.SourceURL}}">{{.WidgetView.Contract.SourceLabel}}</a>{{else}}{{.WidgetView.Contract.SourceLabel}}{{end}}</div>
+      </div>
+      <div>
+        <div class="alert-secondary">Dataset</div>
+        <div>{{.WidgetView.Contract.Dataset}}</div>
+      </div>
+      <div>
+        <div class="alert-secondary">Visualization</div>
+        <div>{{.WidgetView.Contract.Kind}}</div>
+      </div>
+      <div>
+        <div class="alert-secondary">Dashboard filters</div>
+        {{if .WidgetView.Contract.Filters}}
+        <div class="toolbar-row inline-note">
+          {{range .WidgetView.Contract.Filters}}
+          <span class="alert-secondary">{{.}}</span>
+          {{end}}
+        </div>
+        {{else}}
+        <div>No dashboard-level filters</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Actions</div>
+    {{if .WidgetView.Error}}
+    <div class="empty-text">Live export and snapshot are unavailable until this widget query succeeds.</div>
+    {{else}}
+    <div class="toolbar-row">
+      <a href="{{.WidgetView.ExportCSVURL}}" class="btn btn-sm">Export live CSV</a>
+      <a href="{{.WidgetView.ExportJSONURL}}" class="btn btn-sm">Export live JSON</a>
+      <form method="POST" action="{{.WidgetView.SnapshotAction}}">
+        <button type="submit" class="btn btn-sm">Create frozen snapshot</button>
+      </form>
+    </div>
+    {{end}}
+    {{if .WidgetView.ThresholdText}}
+    <div class="alert-secondary inline-note">Thresholds: {{.WidgetView.ThresholdText}}</div>
+    {{end}}
+  </div>
+
+  <div class="card card-shell">
+    <div class="section-header section-header-plain">Scheduled reports</div>
+    <form method="POST" action="{{.ReportCreateAction}}">
+      <label for="widget-report-recipient">Recipient</label>
+      <input id="widget-report-recipient" name="recipient" type="email" placeholder="team@example.com" class="search-input-inline form-field-top">
+      <label for="widget-report-cadence" class="form-label-block">Cadence</label>
+      <select id="widget-report-cadence" name="cadence" class="filter-select form-field-top">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+      </select>
+      <button type="submit" class="btn btn-sm form-action-top">Add scheduled report</button>
+    </form>
+    {{if .ReportSchedules}}
+    <div class="activity-feed inline-form-spaced">
+      {{range .ReportSchedules}}
+      <div class="activity-row discover-saved-row">
+        <div class="activity-text">
+          <strong>{{.Recipient}}</strong>
+          <span class="alert-secondary">· {{.Cadence}} · next {{.NextRunAt}}</span>
+          {{if .LastRunAt}}<div class="empty-text discover-inline-meta">Last run {{.LastRunAt}}{{if .LastSnapshotURL}} · <a href="{{.LastSnapshotURL}}">Open last snapshot</a>{{end}}</div>{{end}}
+          {{if .LastError}}<div class="empty-text discover-inline-meta">Last error: {{.LastError}}</div>{{end}}
+        </div>
+        <form method="POST" action="/dashboards/{{$.Dashboard.ID}}/widgets/{{$.WidgetView.Widget.ID}}/reports/{{.ID}}/delete">
+          <button type="submit" class="btn btn-sm">Delete</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-text inline-note">Scheduled reports freeze this widget with its dashboard filters and queue the share link in the Tiny outbox.</div>
+    {{end}}
+  </div>
+</div>
+
+<div class="card card-shell card-top-gap">
+  <div class="section-header section-header-plain">Query Explain</div>
+  {{if .WidgetView.Explain.CostLabel}}<div class="alert-secondary explain-cost">{{.WidgetView.Explain.CostLabel}}</div>{{end}}
+  {{if .WidgetView.Explain.Notes}}
+  <ul class="guide-list explain-list">
+    {{range .WidgetView.Explain.Notes}}<li>{{.}}</li>{{end}}
+  </ul>
+  {{end}}
+  {{if .WidgetView.Explain.QueryJSON}}
+  <pre class="explain-block">{{.WidgetView.Explain.QueryJSON}}</pre>
+  {{end}}
+</div>
+
+<div class="card card-top-gap">
+  <div class="section-header">Results</div>
+  {{if .WidgetView.Error}}
+  <div class="empty-state empty-state-inline">
+    <div class="empty-text">{{.WidgetView.Error}}</div>
+  </div>
+  {{else if eq .WidgetView.Result.Type "stat"}}
+  <div class="metric-card" style="margin:1rem;{{if eq .WidgetView.ThresholdClass "threshold-warning"}} border-color: rgba(245,158,11,0.55); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.25);{{else if eq .WidgetView.ThresholdClass "threshold-critical"}} border-color: rgba(239,68,68,0.6); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.25);{{end}}">
+    <div class="metric-label">{{if .WidgetView.Result.StatLabel}}{{.WidgetView.Result.StatLabel}}{{else}}Result{{end}}</div>
+    <div class="metric-value">{{if .WidgetView.Result.StatValue}}{{.WidgetView.Result.StatValue}}{{else}}0{{end}}</div>
+  </div>
+  {{else if .WidgetView.Result.Rows}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        {{range .WidgetView.Result.Columns}}<th>{{.}}</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{range .WidgetView.Result.Rows}}
+      <tr>
+        {{range .}}
+        <td>{{if .Href}}<a href="{{.Href}}">{{.Text}}</a>{{else}}{{if .Text}}{{.Text}}{{else}}-{{end}}{{end}}</td>
+        {{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state empty-state-inline">
+    <div class="empty-text">No matching results.</div>
+  </div>
+  {{end}}
+</div>
+{{end}}

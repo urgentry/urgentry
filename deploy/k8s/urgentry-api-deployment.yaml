@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urgentry-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urgentry
+      role: api
+  template:
+    metadata:
+      labels:
+        app: urgentry
+        role: api
+    spec:
+      containers:
+        - name: api
+          image: urgentry:latest
+          imagePullPolicy: IfNotPresent
+          args: ["serve", "--role=api", "--addr=:8080"]
+          ports:
+            - containerPort: 8080
+              name: api
+          envFrom:
+            - configMapRef:
+                name: urgentry-config
+            - secretRef:
+                name: urgentry-secret
+          env:
+            - name: URGENTRY_DATA_DIR
+              value: /data
+          volumeMounts:
+            - name: urgentry-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: urgentry-data
+          persistentVolumeClaim:
+            claimName: urgentry-data

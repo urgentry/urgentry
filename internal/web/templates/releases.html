@@ -1,0 +1,50 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Releases</h1>
+</div>
+
+<div class="card table-card">
+  <table class="release-table">
+    <thead>
+      <tr>
+        <th>Version</th>
+        <th>Events</th>
+        <th>Sessions</th>
+        <th>Errored</th>
+        <th>Crashed</th>
+        <th>Abnormal</th>
+        <th>Affected Users</th>
+        <th>Crash-Free</th>
+        <th>Last Session</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Releases}}
+        {{range .Releases}}
+        <tr>
+          <td class="release-version mono"><a href="/releases/{{.Version}}/">{{.Version}}</a></td>
+          <td>{{.EventCount}}</td>
+          <td>{{.SessionCount}}</td>
+          <td>{{.ErroredSessions}}</td>
+          <td>{{.CrashedSessions}}</td>
+          <td>{{.AbnormalSessions}}</td>
+          <td>{{.AffectedUsers}}</td>
+          <td>{{.CrashFreeRate}}</td>
+          <td class="release-muted">{{.LastSeen}}</td>
+          <td class="release-muted">{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="10" class="table-empty-cell">
+            No releases tracked yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

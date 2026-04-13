@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{if .Title}}{{.Title}} — {{end}}Urgentry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css?v=26">
+  <script src="https://unpkg.com/htmx.org@2.0.0"></script>
+  <script>
+    // Apply saved theme immediately (before paint) to avoid flash.
+    (function() {
+      var saved = localStorage.getItem('urgentry_theme');
+      if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    })();
+
+    function urgentryGetCookie(name) {
+      var prefix = name + "=";
+      var parts = document.cookie ? document.cookie.split(';') : [];
+      for (var i = 0; i < parts.length; i++) {
+        var part = parts[i].trim();
+        if (part.indexOf(prefix) === 0) {
+          return decodeURIComponent(part.substring(prefix.length));
+        }
+      }
+      return "";
+    }
+
+    function urgentryCSRFToken() {
+      return urgentryGetCookie('urgentry_csrf');
+    }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div class="layout">
+    {{template "sidebar" .}}
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main">
+      <header class="topbar">
+        <button class="mobile-menu-btn" aria-label="Toggle navigation" onclick="toggleSidebar()">&#9776;</button>
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <span>Home</span>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">{{if .Title}}{{.Title}}{{else}}Overview{{end}}</span>
+        </nav>
+        <div class="search-box" onclick="togglePalette()">
+          <i data-feather="search" class="search-icon" style="width:14px;height:14px;"></i>
+          <input type="text" placeholder="Search..." id="search-input" readonly style="cursor:pointer" aria-label="Search events, issues, transactions">
+          <kbd>⌘K</kbd>
+        </div>
+        <div class="topbar-right">
+          {{if .Environments}}
+          {{range .Environments}}
+          <button class="topbar-btn{{if eq . $.Environment}} active{{end}}" onclick="setGlobalEnvironment('{{.}}')">{{.}}</button>
+          {{end}}
+          <div class="topbar-divider"></div>
+          {{end}}
+          <select class="filter-select" id="globalTimeRange" aria-label="Time range" onchange="setTimeRange(this.value)">
+            <option value="1h">Last 1 hour</option>
+            <option value="24h">Last 24 hours</option>
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </select>
+        </div>
+      </header>
+      <div class="content" id="main-content">
+        <div class="content-inner">
+          {{template "content" .}}
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Command Palette (Cmd+K) -->
+  <div class="command-palette" id="cmdPalette" style="display:none" role="dialog" aria-label="Command palette" aria-modal="true">
+    <div class="cmd-overlay" onclick="closePalette()"></div>
+    <div class="cmd-panel">
+      <input type="text" class="cmd-input" id="cmdInput"
+             placeholder="Search issues, go to page, run action..."
+             oninput="searchPalette(this.value)"
+             role="combobox" aria-expanded="true" aria-controls="cmdResults" aria-label="Search">
+      <div class="cmd-results" id="cmdResults" role="listbox"></div>
+    </div>
+  </div>
+
+  <div class="kbd-hint">
+    <kbd>j</kbd><kbd>k</kbd> navigate &middot; <kbd>Enter</kbd> open &middot; <kbd>r</kbd> resolve &middot; <kbd>&#8984;K</kbd> palette &middot; <kbd>/</kbd> search &middot; <kbd>?</kbd> help
+  </div>
+  <div class="shortcuts-overlay" id="shortcuts" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="shortcuts-panel">
+      <h3>Keyboard Shortcuts</h3>
+      <table>
+        <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>Navigate issues</td></tr>
+        <tr><td><kbd>Enter</kbd></td><td>Open selected issue</td></tr>
+        <tr><td><kbd>r</kbd></td><td>Resolve selected issue</td></tr>
+        <tr><td><kbd>i</kbd></td><td>Ignore selected issue</td></tr>
+        <tr><td><kbd>&#8984;K</kbd> / <kbd>Ctrl+K</kbd></td><td>Command palette</td></tr>
+        <tr><td><kbd>/</kbd></td><td>Focus search</td></tr>
+        <tr><td><kbd>Escape</kbd></td><td>Unfocus / close overlay</td></tr>
+        <tr><td><kbd>?</kbd></td><td>Toggle this help</td></tr>
+      </table>
+      <p class="shortcuts-close-hint">Press <kbd>?</kbd> or <kbd>Escape</kbd> to close</p>
+    </div>
+  </div>
+  <script>
+    // j/k keyboard navigation for issue lists
+    var selected = -1;
+    var rows = [];
+
+    function refreshRows() {
+      rows = document.querySelectorAll('.issue-row, .burning-row');
+    }
+
+    function selectRow(idx) {
+      if (rows.length === 0) return;
+      if (idx < 0) idx = 0;
+      if (idx >= rows.length) idx = rows.length - 1;
+      rows.forEach(function(r) { r.classList.remove('selected'); r.setAttribute('aria-selected', 'false'); });
+      selected = idx;
+      rows[selected].classList.add('selected');
+      rows[selected].setAttribute('aria-selected', 'true');
+      rows[selected].scrollIntoView({ block: 'nearest' });
+    }
+
+    // -----------------------------------------------------------------------
+    // Command Palette
+    // -----------------------------------------------------------------------
+    var paletteOpen = false;
+    var paletteSelected = -1;
+    var paletteItems = [];
+    var paletteTrigger = null;
+
+    function togglePalette() {
+      if (paletteOpen) { closePalette(); } else { openPalette(); }
+    }
+
+    function openPalette() {
+      paletteTrigger = document.activeElement;
+      var el = document.getElementById('cmdPalette');
+      el.style.display = 'flex';
+      paletteOpen = true;
+      paletteSelected = -1;
+      var inp = document.getElementById('cmdInput');
+      inp.value = '';
+      inp.focus();
+      showDefaultItems();
+    }
+
+    function closePalette() {
+      document.getElementById('cmdPalette').style.display = 'none';
+      paletteOpen = false;
+      paletteSelected = -1;
+      if (paletteTrigger && paletteTrigger.focus) {
+        paletteTrigger.focus();
+        paletteTrigger = null;
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Mobile Sidebar Toggle
+    // -----------------------------------------------------------------------
+    function toggleSidebar() {
+      document.querySelector('.sidebar').classList.toggle('open');
+      document.querySelector('.sidebar-overlay').classList.toggle('open');
+    }
+
+    function showDefaultItems() {
+      searchPalette('');
+    }
+
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+      var token = urgentryCSRFToken();
+      if (token) {
+        evt.detail.headers['X-CSRF-Token'] = token;
+      }
+    });
+
+    document.addEventListener('submit', function(evt) {
+      var form = evt.target;
+      if (!form || !form.appendChild) return;
+      var token = urgentryCSRFToken();
+      if (!token) return;
+      var input = form.querySelector('input[name="_csrf"]');
+      if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = '_csrf';
+        form.appendChild(input);
+      }
+      input.value = token;
+    });
+
+    if (window.fetch) {
+      var urgentryFetch = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        init = init || {};
+        var method = (init.method || 'GET').toUpperCase();
+        if (method !== 'GET' && method !== 'HEAD') {
+          var headers = new Headers(init.headers || {});
+          if (!headers.has('X-CSRF-Token')) {
+            var token = urgentryCSRFToken();
+            if (token) headers.set('X-CSRF-Token', token);
+          }
+          init.headers = headers;
+        }
+        return urgentryFetch(input, init);
+      };
+    }
+
+    var searchTimer = null;
+    async function searchPalette(query) {
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(async function() {
+        try {
+          var resp = await fetch('/api/search?q=' + encodeURIComponent(query));
+          var data = await resp.json();
+          renderPaletteResults(data, query);
+        } catch(e) {
+          document.getElementById('cmdResults').innerHTML =
+            '<div class="cmd-empty">Search unavailable</div>';
+        }
+      }, query ? 150 : 0);
+    }
+
+    function renderPaletteResults(data, query) {
+      var html = '';
+      paletteItems = [];
+
+      if (data.issues && data.issues.length > 0) {
+        html += '<div class="cmd-section">Issues</div>';
+        data.issues.forEach(function(iss) {
+          var idx = paletteItems.length;
+          paletteItems.push({ url: iss.url });
+          html += '<div class="cmd-item" role="option" aria-selected="false" data-idx="' + idx + '" onclick="navigatePaletteItem(' + idx + ')" onmouseenter="selectPaletteItem(' + idx + ')">';
+          html += '<span class="cmd-item-icon">&#9888;</span>';
+          html += '<span class="cmd-item-title">' + escapeHTML(iss.title) + '</span>';
+          html += '</div>';
+        });
+      }
+
+      if (data.pages && data.pages.length > 0) {
+        html += '<div class="cmd-section">Pages</div>';
+        data.pages.forEach(function(pg) {
+          var idx = paletteItems.length;
+          paletteItems.push({ url: pg.url });
+          html += '<div class="cmd-item" role="option" aria-selected="false" data-idx="' + idx + '" onclick="navigatePaletteItem(' + idx + ')" onmouseenter="selectPaletteItem(' + idx + ')">';
+          html += '<span class="cmd-item-icon">&#9656;</span>';
+          html += '<span class="cmd-item-title">' + escapeHTML(pg.title) + '</span>';
+          html += '</div>';
+        });
+      }
+
+      if (data.actions && data.actions.length > 0) {
+        html += '<div class="cmd-section">Actions</div>';
+        data.actions.forEach(function(act) {
+          var idx = paletteItems.length;
+          paletteItems.push({ key: act.key });
+          html += '<div class="cmd-item" role="option" aria-selected="false" data-idx="' + idx + '" onclick="triggerPaletteAction(' + idx + ')" onmouseenter="selectPaletteItem(' + idx + ')">';
+          html += '<span class="cmd-item-icon">&#9881;</span>';
+          html += '<span class="cmd-item-title">' + escapeHTML(act.title) + '</span>';
+          html += '<span class="cmd-item-key"><kbd>' + act.key + '</kbd></span>';
+          html += '</div>';
+        });
+      }
+
+      if (!html) {
+        html = '<div class="cmd-empty">No results found</div>';
+      }
+
+      document.getElementById('cmdResults').innerHTML = html;
+      paletteSelected = -1;
+    }
+
+    function selectPaletteItem(idx) {
+      var items = document.querySelectorAll('.cmd-item');
+      items.forEach(function(el) { el.classList.remove('active'); el.setAttribute('aria-selected', 'false'); });
+      if (idx >= 0 && idx < items.length) {
+        items[idx].classList.add('active');
+        items[idx].setAttribute('aria-selected', 'true');
+        items[idx].scrollIntoView({ block: 'nearest' });
+      }
+      paletteSelected = idx;
+    }
+
+    function navigatePaletteItem(idx) {
+      if (idx >= 0 && idx < paletteItems.length && paletteItems[idx].url) {
+        closePalette();
+        window.location.href = paletteItems[idx].url;
+      }
+    }
+
+    function triggerPaletteAction(idx) {
+      if (idx >= 0 && idx < paletteItems.length && paletteItems[idx].key) {
+        closePalette();
+        // Simulate keypress for the action key
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: paletteItems[idx].key }));
+      }
+    }
+
+    function escapeHTML(str) {
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // -----------------------------------------------------------------------
+    // Global Environment Selector
+    // -----------------------------------------------------------------------
+    function setGlobalEnvironment(env) {
+      document.cookie = 'urgentry_env=' + encodeURIComponent(env) + '; path=/; SameSite=Lax';
+      window.location.reload();
+    }
+
+    // -----------------------------------------------------------------------
+    // Compact Mode
+    // -----------------------------------------------------------------------
+    function toggleCompact() {
+      var list = document.querySelector('.issue-list');
+      if (!list) return;
+      list.classList.toggle('compact');
+      var isCompact = list.classList.contains('compact');
+      localStorage.setItem('urgentry-compact', isCompact ? '1' : '0');
+      var icon = document.getElementById('compactIcon');
+      if (icon) icon.textContent = isCompact ? '\u2630' : '\u2261';
+    }
+
+    // Restore compact mode on page load.
+    if (localStorage.getItem('urgentry-compact') === '1') {
+      var list = document.querySelector('.issue-list');
+      if (list) {
+        list.classList.add('compact');
+        var icon = document.getElementById('compactIcon');
+        if (icon) icon.textContent = '\u2630';
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Keyboard Navigation
+    // -----------------------------------------------------------------------
+    document.addEventListener('keydown', function(e) {
+      // Cmd+K / Ctrl+K always opens palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        togglePalette();
+        return;
+      }
+
+      // Escape closes palette or shortcuts overlay
+      if (e.key === 'Escape') {
+        if (paletteOpen) { closePalette(); return; }
+        if (shortcutsOpen) { closeShortcuts(); return; }
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          e.target.blur();
+        }
+        return;
+      }
+
+      // Focus trap for shortcuts overlay
+      if (shortcutsOpen && e.key === 'Tab') {
+        e.preventDefault();
+        return;
+      }
+
+      // Palette-specific navigation when open
+      if (paletteOpen) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectPaletteItem(Math.min(paletteSelected + 1, paletteItems.length - 1));
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selectPaletteItem(Math.max(paletteSelected - 1, 0));
+          return;
+        }
+        if (e.key === 'Enter' && paletteSelected >= 0) {
+          e.preventDefault();
+          var item = paletteItems[paletteSelected];
+          if (item.url) navigatePaletteItem(paletteSelected);
+          else if (item.key) triggerPaletteAction(paletteSelected);
+          return;
+        }
+        return; // Don't process other keys while palette is open
+      }
+
+      // Don't capture when typing in other inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      refreshRows();
+
+      switch(e.key) {
+        case 'j':
+          selectRow(selected + 1);
+          break;
+        case 'k':
+          selectRow(selected - 1);
+          break;
+        case 'Enter':
+          if (selected >= 0 && selected < rows.length) {
+            var link = rows[selected].querySelector('a');
+            var href = link ? link.getAttribute('href') : rows[selected].getAttribute('href');
+            if (href) window.location.href = href;
+          }
+          break;
+        case 'r':
+          if (selected >= 0 && selected < rows.length) {
+            var btn = rows[selected].querySelector('.action-resolve');
+            if (btn) {
+              btn.click();
+              showToast('Issue resolved');
+            }
+          }
+          break;
+        case 'i':
+          if (selected >= 0 && selected < rows.length) {
+            var btn = rows[selected].querySelector('.action-ignore');
+            if (btn) {
+              btn.click();
+              showToast('Issue ignored');
+            }
+          }
+          break;
+        case '/':
+          e.preventDefault();
+          togglePalette();
+          break;
+        case '?':
+          e.preventDefault();
+          if (shortcutsOpen) { closeShortcuts(); } else { openShortcuts(); }
+          break;
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Shortcuts Overlay
+    // -----------------------------------------------------------------------
+    var shortcutsOpen = false;
+    var shortcutsTrigger = null;
+
+    function openShortcuts() {
+      shortcutsTrigger = document.activeElement;
+      document.getElementById('shortcuts').classList.add('visible');
+      shortcutsOpen = true;
+    }
+
+    function closeShortcuts() {
+      document.getElementById('shortcuts').classList.remove('visible');
+      shortcutsOpen = false;
+      if (shortcutsTrigger && shortcutsTrigger.focus) {
+        shortcutsTrigger.focus();
+        shortcutsTrigger = null;
+      }
+    }
+
+    // Close sidebar overlay on mobile when clicking outside
+    document.addEventListener('click', function(e) {
+      var sidebar = document.querySelector('.sidebar');
+      if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !e.target.classList.contains('mobile-menu-btn')) {
+        toggleSidebar();
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Toast Notifications
+    // -----------------------------------------------------------------------
+    function showToast(msg) {
+      var toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 2200);
+    }
+
+    // -----------------------------------------------------------------------
+    // Time Range Selector
+    // -----------------------------------------------------------------------
+    function setTimeRange(value) {
+      document.cookie = 'urgentry_timerange=' + encodeURIComponent(value) + ';path=/;max-age=' + (86400 * 30) + ';samesite=lax';
+      // Navigate with timerange param so the server picks it up immediately.
+      var url = new URL(window.location.href);
+      url.searchParams.set('timerange', value);
+      window.location.href = url.toString();
+    }
+
+    // Set the global time range dropdown to match the cookie on load.
+    (function() {
+      var sel = document.getElementById('globalTimeRange');
+      if (!sel) return;
+      var saved = urgentryGetCookie('urgentry_timerange');
+      if (saved) {
+        sel.value = saved;
+      } else {
+        sel.value = '24h';
+      }
+    })();
+
+    // -----------------------------------------------------------------------
+    // Theme Toggle
+    // -----------------------------------------------------------------------
+    function toggleTheme() {
+      var html = document.documentElement;
+      var current = html.getAttribute('data-theme');
+      var next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('urgentry_theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      var btn = document.getElementById('themeToggle');
+      if (!btn) return;
+      var icon = theme === 'light' ? 'sun' : 'moon';
+      btn.innerHTML = '<i data-feather="' + icon + '"></i><span class="nav-label">Theme</span>';
+      if (typeof feather !== 'undefined') feather.replace();
+    }
+
+    // Set correct icon on load
+    (function() {
+      var saved = localStorage.getItem('urgentry_theme');
+      if (saved) updateThemeIcon(saved);
+    })();
+
+    // -----------------------------------------------------------------------
+    // Global Environment Selector
+    // -----------------------------------------------------------------------
+    (function() {
+      var envEl = document.getElementById('envSelect');
+      if (!envEl) return;
+      // Fetch environment list and current selection from API.
+      fetch('/api/ui/environments')
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          var envs = data.environments || [];
+          var current = data.selected || '';
+          if (envs.length === 0) {
+            var form = document.getElementById('envForm');
+            if (form) form.style.display = 'none';
+            return;
+          }
+          for (var i = 0; i < envs.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = envs[i];
+            opt.textContent = envs[i];
+            envEl.appendChild(opt);
+          }
+          envEl.value = current || 'all';
+        })
+        .catch(function() {
+          var form = document.getElementById('envForm');
+          if (form) form.style.display = 'none';
+        });
+    })();
+
+    // Initialize Feather Icons
+    if (typeof feather !== 'undefined') feather.replace();
+  </script>
+</body>
+</html>
+
+{{define "sidebar"}}
+<nav class="sidebar" role="navigation" aria-label="Main navigation">
+  <a href="/" class="sidebar-logo" aria-label="Urgentry home">
+    <span class="logo-icon">U</span>
+  </a>
+  <div class="sidebar-divider"></div>
+  <a href="/" class="nav-item {{if eq .Nav "dashboard"}}active{{end}}" aria-label="Overview">
+    <i data-feather="grid"></i>
+    <span class="nav-label">Overview</span>
+  </a>
+  <a href="/issues/" class="nav-item {{if eq .Nav "issues"}}active{{end}}" aria-label="Issues">
+    <i data-feather="alert-circle"></i>
+    <span class="nav-label">Issues</span>
+  </a>
+  <a href="/feedback/" class="nav-item {{if eq .Nav "feedback"}}active{{end}}" aria-label="Feedback">
+    <i data-feather="message-square"></i>
+    <span class="nav-label">Feedback</span>
+  </a>
+  <a href="/performance/" class="nav-item {{if eq .Nav "performance"}}active{{end}}" aria-label="Performance">
+    <i data-feather="activity"></i>
+    <span class="nav-label">Performance</span>
+  </a>
+  <div class="sidebar-divider"></div>
+  <a href="/discover/" class="nav-item {{if eq .Nav "discover"}}active{{end}}" aria-label="Discover">
+    <i data-feather="compass"></i>
+    <span class="nav-label">Discover</span>
+  </a>
+  <a href="/dashboards/" class="nav-item {{if eq .Nav "dashboards"}}active{{end}}" aria-label="Dashboards">
+    <i data-feather="bar-chart-2"></i>
+    <span class="nav-label">Dashboards</span>
+  </a>
+  <a href="/alerts/" class="nav-item {{if eq .Nav "alerts"}}active{{end}}" aria-label="Alerts">
+    <i data-feather="bell"></i>
+    <span class="nav-label">Alerts</span>
+  </a>
+  <a href="/releases/" class="nav-item {{if eq .Nav "releases"}}active{{end}}" aria-label="Releases">
+    <i data-feather="package"></i>
+    <span class="nav-label">Releases</span>
+  </a>
+  <a href="/monitors/" class="nav-item {{if eq .Nav "monitors"}}active{{end}}" aria-label="Crons">
+    <i data-feather="clock"></i>
+    <span class="nav-label">Crons</span>
+  </a>
+  <div class="sidebar-divider"></div>
+  <a href="/logs/" class="nav-item {{if eq .Nav "logs"}}active{{end}}" aria-label="Logs">
+    <i data-feather="file-text"></i>
+    <span class="nav-label">Logs</span>
+  </a>
+  <a href="/metrics/" class="nav-item {{if eq .Nav "metrics"}}active{{end}}" aria-label="Metrics">
+    <i data-feather="trending-up"></i>
+    <span class="nav-label">Metrics</span>
+  </a>
+  <a href="/replays/" class="nav-item {{if eq .Nav "replays"}}active{{end}}" aria-label="Replays">
+    <i data-feather="play-circle"></i>
+    <span class="nav-label">Replays</span>
+  </a>
+  <a href="/profiles/" class="nav-item {{if eq .Nav "profiles"}}active{{end}}" aria-label="Profiles">
+    <i data-feather="cpu"></i>
+    <span class="nav-label">Profiles</span>
+  </a>
+  <div class="sidebar-bottom">
+    <div class="sidebar-divider"></div>
+    <button class="nav-item" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
+      <i data-feather="moon"></i>
+      <span class="nav-label">Theme</span>
+    </button>
+    <a href="/settings/" class="nav-item {{if eq .Nav "settings"}}active{{end}}" aria-label="Settings">
+      <i data-feather="settings"></i>
+      <span class="nav-label">Settings</span>
+    </a>
+    <a href="/manage/" class="nav-item {{if eq .Nav "manage"}}active{{end}}" aria-label="Admin">
+      <i data-feather="shield"></i>
+      <span class="nav-label">Admin</span>
+    </a>
+  </div>
+</nav>
+{{end}}

@@ -1,0 +1,108 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Transaction Summary</h1>
+    <p class="page-subtitle">Inspect a single transaction’s latency profile and span breakdown before you pivot back to the broader performance surfaces.</p>
+  </div>
+  <div class="page-actions">
+    <a href="/performance/" class="btn btn-sm">Transactions</a>
+    <a href="/performance/queues/" class="btn btn-sm">Queues</a>
+    <a href="/performance/spans/" class="btn btn-sm">Spans</a>
+  </div>
+</div>
+
+{{if and .Error (not .TransactionName)}}
+<div class="card guide-card">
+  <div class="section-header section-header-tight">Choose a transaction</div>
+  <div class="empty-text">{{.Error}}</div>
+  <div class="guide-actions">
+    <a href="/performance/" class="btn btn-sm">Open Performance</a>
+  </div>
+</div>
+{{else}}
+<div class="detail-shell">
+{{if .TransactionName}}
+<div class="card card-shell card-gap">
+  <div class="section-header section-header-tight">Transaction</div>
+  <div class="mono metric-value-link">{{.TransactionName}}</div>
+</div>
+{{end}}
+
+{{if .Error}}
+<div class="card card-shell card-gap">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+<div class="metrics-grid summary-metrics-grid card-gap">
+  <div class="metric-card">
+    <div class="metric-label">Count</div>
+    <div class="metric-value">{{if .Count}}{{.Count}}{{else}}0{{end}}</div>
+    <div class="metric-sub">Last 24h</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">p50 Latency</div>
+    <div class="metric-value">{{if .P50}}{{.P50}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">p95 Latency</div>
+    <div class="metric-value">{{if .P95}}{{.P95}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Max Latency</div>
+    <div class="metric-value">{{if .MaxDuration}}{{.MaxDuration}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Avg Latency</div>
+    <div class="metric-value">{{if .Avg}}{{.Avg}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Apdex</div>
+    <div class="metric-value">
+      {{if .Apdex}}<span class="apdex-score apdex-{{.ApdexRank}}" title="{{.ApdexRank}}">{{.Apdex}}</span>{{else}}-{{end}}
+    </div>
+  </div>
+</div>
+
+{{if .Spans}}
+<div class="card">
+  <div class="section-header">Span Breakdown (last 24h)</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Op</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Avg (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Total (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Spans}}
+      <tr>
+        <td><span class="mono span-op">{{.Op}}</span></td>
+        <td><span class="mono span-desc">{{.Description}}</span></td>
+        <td>{{.Count}}</td>
+        <td>{{.AvgMS}}</td>
+        <td>{{.P95MS}}</td>
+        <td>{{.TotalMS}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+{{if not .Error}}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-text">No span data found for this transaction in the last 24 hours.</div>
+  </div>
+</div>
+{{end}}
+{{end}}
+</div>
+{{end}}
+{{end}}

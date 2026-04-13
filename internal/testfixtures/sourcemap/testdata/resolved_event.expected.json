@@ -1,0 +1,28 @@
+{
+  "environment": "production",
+  "event_id": "feedfacefeedfacefeedfacefeedface",
+  "exception": {
+    "values": [
+      {
+        "stacktrace": {
+          "frames": [
+            {
+              "abs_path": "app.min.js",
+              "colno": 1,
+              "filename": "src/app.js",
+              "function": "handleClick",
+              "in_app": true,
+              "lineno": 11
+            }
+          ]
+        },
+        "type": "TypeError",
+        "value": "Cannot read property 'x' of undefined"
+      }
+    ]
+  },
+  "level": "error",
+  "platform": "javascript",
+  "release": "frontend@1.0.0",
+  "timestamp": "2026-03-25T12:00:00Z"
+}

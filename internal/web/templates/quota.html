@@ -1,0 +1,85 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Quota &amp; Usage</h1>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Current Usage (last {{.Hours}} hours)</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Events Ingested</th>
+        <th>Transactions Ingested</th>
+        <th>Events Rejected</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Usage}}
+      <tr>
+        <td>{{.ProjectSlug}}</td>
+        <td>{{.EventsIngested}}</td>
+        <td>{{.TransactionsCount}}</td>
+        <td>{{.EventsRejected}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="4">No data available.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="settings-section">
+  <div class="section-header">Per-Project Rate Limits</div>
+  <form method="post" action="/settings/quota/rate-limit" class="settings-form">
+    <div class="settings-form-grid">
+      <label class="settings-form-field">
+        <span class="settings-label">Project</span>
+        <select name="project_id" required>
+          {{range .Projects}}
+          <option value="{{.ID}}">{{.Slug}}</option>
+          {{end}}
+        </select>
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Max Events/Hour (0 = unlimited)</span>
+        <input type="number" min="0" name="max_events_per_hour" value="0">
+      </label>
+      <label class="settings-form-field">
+        <span class="settings-label">Max Transactions/Hour (0 = unlimited)</span>
+        <input type="number" min="0" name="max_transactions_per_hour" value="0">
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Set Rate Limit</button>
+  </form>
+
+  <table class="data-table" style="margin-top:1rem;">
+    <thead>
+      <tr>
+        <th>Project ID</th>
+        <th>Max Events/Hour</th>
+        <th>Max Transactions/Hour</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .RateLimits}}
+      <tr>
+        <td>{{.ProjectID}}</td>
+        <td>{{.MaxEventsPerHour}}</td>
+        <td>{{.MaxTransPerHour}}</td>
+        <td>
+          <form method="post" action="/settings/quota/rate-limit/{{.ProjectID}}/delete" style="margin:0;">
+            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="4">No rate limits configured.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

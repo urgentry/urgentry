@@ -1,0 +1,325 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Release {{.Release.Version}}</h1>
+    <p class="page-subtitle">Review deploy impact, native processing state, commits, and suspect issues for this shipped version in one place.</p>
+  </div>
+</div>
+
+<div class="release-shell">
+<div class="metrics-grid metric-strip">
+  <div class="metric-card"><div class="metric-label">Events</div><div class="metric-value">{{.Release.EventCount}}</div></div>
+  <div class="metric-card"><div class="metric-label">Sessions</div><div class="metric-value">{{.Release.SessionCount}}</div></div>
+  <div class="metric-card"><div class="metric-label">Crash-Free</div><div class="metric-value">{{.Release.CrashFreeRate}}</div></div>
+  <div class="metric-card"><div class="metric-label">Affected Users</div><div class="metric-value">{{.Release.AffectedUsers}}</div></div>
+</div>
+
+{{if .Regression}}
+  {{if .Regression.HasPrevious}}
+  <div class="card card-shell card-gap">
+    <div class="detail-toolbar">
+      <div>
+        <h2 class="detail-card-title">Release Comparison</h2>
+        <div class="alert-secondary detail-inline-meta">Compared with {{.Regression.PreviousVersion}}</div>
+      </div>
+    </div>
+    <div class="metrics-grid card-top-gap">
+      {{range .Regression.ComparisonMetrics}}
+      <div class="metric-card">
+        <div class="metric-label">{{.Label}}</div>
+        <div class="metric-value">{{.Current}}</div>
+        <div class="alert-secondary">Prev {{.Previous}}</div>
+        <div class="metric-trend {{.TrendClass}}">{{.Delta}}</div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="card card-gap">
+    <div class="section-header">Environment Error Movement</div>
+    {{if .Regression.EnvironmentMovements}}
+    <table class="events-table detail-table">
+      <thead><tr><th>Environment</th><th>Current</th><th>Previous</th><th>Delta</th></tr></thead>
+      <tbody>
+        {{range .Regression.EnvironmentMovements}}
+        <tr>
+          <td>{{.Environment}}</td>
+          <td class="mono">{{.Current}}</td>
+          <td class="mono">{{.Previous}}</td>
+          <td class="mono"><span class="metric-trend metric-trend-inline {{.TrendClass}}">{{.Delta}}</span></td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state detail-empty-card">No environment deltas yet.</div>
+    {{end}}
+  </div>
+
+  <div class="card card-gap">
+    <div class="section-header">Transaction Latency Movement</div>
+    {{if .Regression.TransactionMovements}}
+    <table class="events-table detail-table">
+      <thead><tr><th>Transaction</th><th>Current P95</th><th>Previous P95</th><th>P95 Delta</th><th>Current Count</th><th>Previous Count</th><th>Count Delta</th></tr></thead>
+      <tbody>
+        {{range .Regression.TransactionMovements}}
+        <tr>
+          <td class="mono">{{.Transaction}}</td>
+          <td class="mono">{{.CurrentP95}}</td>
+          <td class="mono">{{.PreviousP95}}</td>
+          <td class="mono"><span class="metric-trend metric-trend-inline {{.TrendClass}}">{{.DeltaP95}}</span></td>
+          <td class="mono">{{.CurrentCount}}</td>
+          <td class="mono">{{.PreviousCount}}</td>
+          <td class="mono">{{.DeltaCount}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state detail-empty-card">No transaction deltas yet.</div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="empty-state card-gap detail-empty-card">No earlier release is available yet, so regression comparison is waiting on the next ship.</div>
+  {{end}}
+
+  {{if .Regression.DeployImpact}}
+  <div class="card card-shell card-gap">
+    <div class="detail-toolbar">
+      <div>
+        <h2 class="detail-card-title">Latest Deploy Impact</h2>
+        <div class="alert-secondary detail-inline-meta">{{.Regression.DeployImpact.Environment}} · {{.Regression.DeployImpact.Name}} · {{.Regression.DeployImpact.Window}}</div>
+      </div>
+      <div class="alert-secondary">{{.Regression.DeployImpact.AnchorAt}}</div>
+    </div>
+    <div class="metrics-grid card-top-gap">
+      <div class="metric-card">
+        <div class="metric-label">Errors</div>
+        <div class="metric-value">{{.Regression.DeployImpact.ErrorsAfter}}</div>
+        <div class="alert-secondary">Prev {{.Regression.DeployImpact.ErrorsBefore}}</div>
+        <div class="metric-trend {{.Regression.DeployImpact.ErrorTrendClass}}">{{.Regression.DeployImpact.ErrorsDelta}}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Transactions</div>
+        <div class="metric-value">{{.Regression.DeployImpact.TransactionsAfter}}</div>
+        <div class="alert-secondary">Prev {{.Regression.DeployImpact.TransactionsBefore}}</div>
+        <div class="metric-trend neutral">{{.Regression.DeployImpact.TransactionsDelta}}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">P95 Latency</div>
+        <div class="metric-value">{{.Regression.DeployImpact.P95After}}</div>
+        <div class="alert-secondary">Prev {{.Regression.DeployImpact.P95Before}}</div>
+        <div class="metric-trend {{.Regression.DeployImpact.P95TrendClass}}">{{.Regression.DeployImpact.P95Delta}}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Deploy URL</div>
+        <div class="metric-value metric-value-link">{{if .Regression.DeployImpact.URL}}<a href="{{.Regression.DeployImpact.URL}}">{{.Regression.DeployImpact.URL}}</a>{{else}}-{{end}}</div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+{{end}}
+
+<div class="card card-shell card-gap">
+  <div class="detail-toolbar">
+    <div>
+      <h2 class="detail-card-title">Native Processing</h2>
+      <div class="alert-secondary detail-inline-meta">{{.Native.TotalEvents}} native events · {{.Native.ResolvedFrames}} resolved frames · {{.Native.UnresolvedFrames}} unresolved frames</div>
+    </div>
+    <form method="post" action="/releases/{{.Release.Version}}/native/reprocess">
+      <input type="hidden" name="project_id" value="{{.DefaultProject}}">
+      <button type="submit" class="btn btn-primary">Reprocess native events</button>
+    </form>
+  </div>
+  <div class="metrics-grid card-top-gap">
+    <div class="metric-card"><div class="metric-label">Pending</div><div class="metric-value">{{.Native.PendingEvents}}</div></div>
+    <div class="metric-card"><div class="metric-label">Processing</div><div class="metric-value">{{.Native.ProcessingEvents}}</div></div>
+    <div class="metric-card"><div class="metric-label">Failed</div><div class="metric-value">{{.Native.FailedEvents}}</div></div>
+    <div class="metric-card"><div class="metric-label">Last Run</div><div class="metric-value">{{if .Native.LastRunStatus}}{{.Native.LastRunStatus}}{{else}}-{{end}}</div></div>
+  </div>
+  {{if .Native.LastError}}
+  <div class="empty-state inline-form-spaced detail-empty-card">Last error: {{.Native.LastError}}</div>
+  {{end}}
+  {{if .Native.LastRunLastError}}
+  <div class="empty-state inline-form-spaced detail-empty-card">Last run error: {{.Native.LastRunLastError}}</div>
+  {{end}}
+</div>
+
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Debug Files</h2></div>
+  {{if .DebugFiles}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Name</th><th>Kind</th><th>Symbolication</th><th>Last Reprocess</th><th>Error</th><th>Action</th></tr></thead>
+    <tbody>
+      {{range .DebugFiles}}
+      <tr>
+        <td class="mono">{{.Name}}</td>
+        <td>{{.Kind}}</td>
+        <td>{{if .SymbolicationStatus}}{{.SymbolicationStatus}}{{else}}-{{end}}</td>
+        <td>{{if .ReprocessStatus}}{{.ReprocessStatus}}{{else}}-{{end}}{{if .DateReprocessed}}<div class="alert-secondary detail-inline-meta">{{.DateReprocessed}}</div>{{end}}</td>
+        <td>{{if .ReprocessLastError}}{{.ReprocessLastError}}{{else}}-{{end}}</td>
+        <td>
+          <form method="post" action="/releases/{{$.Release.Version}}/debug-files/{{.ID}}/reprocess">
+            <input type="hidden" name="project_id" value="{{.ProjectID}}">
+            <button type="submit" class="btn btn-sm">Reprocess</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No native debug files uploaded for this release yet.</div>
+  {{end}}
+</div>
+
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Reprocess Activity</h2></div>
+  {{if .Backfills}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Run</th><th>Status</th><th>Scope</th><th>Processed</th><th>Updated</th><th>Failed</th><th>Updated</th><th>Error</th></tr></thead>
+    <tbody>
+      {{range .Backfills}}
+      <tr>
+        <td class="mono">{{.ID}}</td>
+        <td>{{.Status}}</td>
+        <td>{{.Scope}}</td>
+        <td class="mono">{{.Processed}}</td>
+        <td class="mono">{{.Updated}}</td>
+        <td class="mono">{{.Failed}}</td>
+        <td>{{.DateUpdated}}</td>
+        <td>{{if .LastError}}{{.LastError}}{{else}}-{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No native reprocess runs recorded yet.</div>
+  {{end}}
+</div>
+
+<div class="card card-shell card-gap">
+  <h2 class="detail-card-title dashboard-title-inline">Add Deploy</h2>
+  <form method="post" action="/releases/{{.Release.Version}}/deploys" class="settings-form">
+    <input type="hidden" name="project_id" value="{{.DefaultProject}}">
+    <div class="settings-form-grid">
+      <label class="settings-form-field"><span class="settings-label">Environment</span><input type="text" name="environment" placeholder="production"></label>
+      <label class="settings-form-field"><span class="settings-label">Name</span><input type="text" name="name" placeholder="deploy-2026-03-28"></label>
+      <label class="settings-form-field"><span class="settings-label">URL</span><input type="text" name="url" placeholder="https://deploys.example.com/123"></label>
+      <label class="settings-form-field"><span class="settings-label">Started</span><input type="datetime-local" name="date_started"></label>
+      <label class="settings-form-field"><span class="settings-label">Finished</span><input type="datetime-local" name="date_finished"></label>
+    </div>
+    <div class="settings-form-actions"><button type="submit" class="btn btn-primary">Add deploy</button></div>
+  </form>
+</div>
+
+<div class="card card-shell card-gap">
+  <h2 class="detail-card-title dashboard-title-inline">Add Commit</h2>
+  <form method="post" action="/releases/{{.Release.Version}}/commits" class="settings-form">
+    <input type="hidden" name="project_id" value="{{.DefaultProject}}">
+    <div class="settings-form-grid">
+      <label class="settings-form-field"><span class="settings-label">Commit SHA</span><input type="text" name="commit_sha" placeholder="abc123def456" required></label>
+      <label class="settings-form-field"><span class="settings-label">Repository</span><input type="text" name="repository" placeholder="github.com/acme/backend"></label>
+      <label class="settings-form-field"><span class="settings-label">Author Name</span><input type="text" name="author_name" placeholder="Ada Lovelace"></label>
+      <label class="settings-form-field"><span class="settings-label">Author Email</span><input type="text" name="author_email" placeholder="ada@example.com"></label>
+      <label class="settings-form-field"><span class="settings-label">Message</span><input type="text" name="message" placeholder="Fix checkout timeout"></label>
+      <label class="settings-form-field"><span class="settings-label">Files (comma-separated)</span><input type="text" name="files" placeholder="payments.go, internal/checkout/service.go"></label>
+    </div>
+    <div class="settings-form-actions"><button type="submit" class="btn btn-primary">Associate commit</button></div>
+  </form>
+</div>
+
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Deploys</h2></div>
+  {{if .Deploys}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Environment</th><th>Name</th><th>URL</th><th>Started</th><th>Finished</th><th>Created</th></tr></thead>
+    <tbody>
+      {{range .Deploys}}
+      <tr>
+        <td>{{.Environment}}</td>
+        <td>{{.Name}}</td>
+        <td class="mono">{{.URL}}</td>
+        <td>{{.DateStarted}}</td>
+        <td>{{.DateFinished}}</td>
+        <td>{{.DateCreated}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No deploys recorded yet.</div>
+  {{end}}
+</div>
+
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Commits</h2></div>
+  {{if .Commits}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Commit</th><th>Author</th><th>Message</th><th>Files</th><th>Created</th></tr></thead>
+    <tbody>
+      {{range .Commits}}
+      <tr>
+        <td class="mono">{{.CommitSHA}}</td>
+        <td>{{.Author}}</td>
+        <td>{{.Message}}</td>
+        <td class="mono">{{.Files}}</td>
+        <td>{{.DateCreated}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No commits associated yet.</div>
+  {{end}}
+</div>
+
+<div class="card card-gap">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Profile Highlights</h2></div>
+  {{if .Profiles}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Profile</th><th>Transaction</th><th>Release</th><th>Duration</th><th>Samples</th><th>Top Function</th><th>Captured</th></tr></thead>
+    <tbody>
+      {{range .Profiles}}
+      <tr>
+        <td><a href="/profiles/{{.ID}}/">{{.ID}}</a>{{if .TraceID}}<div class="alert-secondary detail-inline-meta"><a href="/traces/{{.TraceID}}/" class="alert-secondary">{{.TraceID}}</a></div>{{end}}</td>
+        <td>{{if .Transaction}}{{.Transaction}}{{else}}-{{end}}</td>
+        <td class="mono">{{if .Release}}{{.Release}}{{else}}-{{end}}{{if .Environment}}<div class="alert-secondary detail-inline-meta">{{.Environment}}</div>{{end}}</td>
+        <td class="mono">{{.Duration}}</td>
+        <td class="mono">{{.SampleCount}}</td>
+        <td class="mono">{{if .TopFunction}}{{.TopFunction}}{{else}}-{{end}}</td>
+        <td>{{.StartedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No profiles captured for this release yet.</div>
+  {{end}}
+</div>
+
+<div class="card">
+  <div class="card-header-block"><h2 class="page-title card-header-title">Suspect Issues</h2></div>
+  {{if .Suspects}}
+  <table class="events-table detail-table">
+    <thead><tr><th>Issue</th><th>Culprit</th><th>Commit</th><th>Matched File</th><th>When</th></tr></thead>
+    <tbody>
+      {{range .Suspects}}
+      <tr>
+        <td><a href="/issues/{{.GroupID}}/">{{.ShortID}}</a><div class="detail-inline-meta">{{.Title}}</div></td>
+        <td class="mono">{{.Culprit}}</td>
+        <td class="mono">{{.CommitSHA}}<div class="alert-secondary detail-inline-meta">{{.Author}}</div></td>
+        <td class="mono">{{.MatchedFile}}</td>
+        <td>{{.LastSeen}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state detail-empty-card">No suspect issues inferred yet.</div>
+  {{end}}
+</div>
+</div>
+{{end}}

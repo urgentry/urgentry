@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{if .Title}}{{.Title}} — {{end}}Urgentry</title>
+  <meta name="color-scheme" content="light dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=20">
+  <script>
+    (function() {
+      var saved = localStorage.getItem('urgentry_theme');
+      if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    })();
+  </script>
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="card auth-card">
+      <p class="auth-eyebrow">Urgentry</p>
+      <h1 class="auth-title">Sign in</h1>
+      <p class="auth-copy">Use the local Urgentry account configured for this instance.</p>
+      {{if .Error}}<div class="auth-error" role="alert">{{.Error}}</div>{{end}}
+      <form method="post" action="/login/" class="auth-form">
+      <input type="hidden" name="next" value="{{.Next}}">
+        <div class="auth-field">
+          <label class="auth-label" for="email">Email</label>
+          <input class="auth-input" id="email" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="password">Password</label>
+          <input class="auth-input" id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary auth-submit" type="submit">Sign in</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

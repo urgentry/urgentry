@@ -1,0 +1,56 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Explore</h1>
+    <p class="page-subtitle">Jump between your query surfaces without losing the global environment and time range context from the shell.</p>
+  </div>
+</div>
+
+<div class="explore-shell">
+  <div class="card guide-card">
+    <div class="section-header section-header-tight">Choose a query surface</div>
+    <div class="empty-text">Each view keeps the same shell filters and navigation model, so you can compare issues, logs, traces, and profiles without re-orienting every time.</div>
+  </div>
+
+  <div class="explore-grid">
+    <a href="/discover/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="search"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Discover</div>
+        <div class="explore-card-desc">Query events, errors, and transactions with the shared builder, starter views, and export flows.</div>
+      </div>
+    </a>
+    <a href="/logs/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="file-text"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Logs</div>
+        <div class="explore-card-desc">Search structured log events, inspect message context, and pivot into the linked issue or trace path.</div>
+      </div>
+    </a>
+    <a href="/traces/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="activity"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Traces</div>
+        <div class="explore-card-desc">Inspect distributed request flows, timings, spans, and cross-links into stored events and profiles.</div>
+      </div>
+    </a>
+    <a href="/profiles/" class="explore-card">
+      <div class="explore-icon" aria-hidden="true">
+        <i data-feather="bar-chart-2"></i>
+      </div>
+      <div class="explore-card-body">
+        <div class="explore-card-title">Profiles</div>
+        <div class="explore-card-desc">Review continuous profiling captures to find the hottest code paths behind slow or noisy requests.</div>
+      </div>
+    </a>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,115 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">{{.ProjectName}} — Settings</h1>
+</div>
+
+{{template "project-settings-nav" .}}
+
+<div class="settings-section">
+  <div class="section-header">Keys &amp; DSN</div>
+  {{if .DSN}}
+  <div class="dsn-box">
+    <label class="settings-label">DSN</label>
+    <div class="dsn-value">
+      <code id="dsn-text">{{.DSN}}</code>
+      <button class="btn btn-sm btn-copy" onclick="copyDSN()" title="Copy DSN">Copy</button>
+    </div>
+  </div>
+  {{end}}
+
+  {{if .Keys}}
+  <table class="events-table inline-form-spaced">
+    <thead>
+      <tr>
+        <th>Public Key</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Keys}}
+      <tr>
+        <td class="mono">{{.PublicKey}}</td>
+        <td><span class="issue-status-badge {{.Status}}">{{.Status}}</span></td>
+        <td class="mono">{{.CreatedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state empty-state-inline">
+    <div class="empty-text">No project keys configured.</div>
+  </div>
+  {{end}}
+</div>
+
+<script>
+function copyDSN() {
+  var text = document.getElementById('dsn-text').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.querySelector('.btn-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>
+
+{{template "project-settings-nav-styles" .}}
+<style>
+.dsn-box { padding: 12px 0; }
+.dsn-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  background: var(--bg-tertiary, #13131e);
+  border: 1px solid var(--border, #2e2e3e);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.dsn-value code { flex: 1; font-size: 13px; word-break: break-all; }
+.btn-copy { white-space: nowrap; cursor: pointer; }
+</style>
+{{end}}
+
+{{define "project-settings-nav"}}
+<nav class="project-settings-nav">
+  <a href="/settings/project/{{.ProjectSlug}}/general/" class="{{if eq .ActiveTab "general"}}active{{end}}">General</a>
+  <a href="/settings/project/{{.ProjectSlug}}/keys/" class="{{if eq .ActiveTab "keys"}}active{{end}}">Keys &amp; DSN</a>
+  <a href="/settings/project/{{.ProjectSlug}}/ownership/" class="{{if eq .ActiveTab "ownership"}}active{{end}}">Ownership</a>
+  <a href="/settings/project/{{.ProjectSlug}}/environments/" class="{{if eq .ActiveTab "environments"}}active{{end}}">Environments</a>
+  <a href="/settings/project/{{.ProjectSlug}}/retention/" class="{{if eq .ActiveTab "retention"}}active{{end}}">Retention</a>
+  <a href="/settings/project/{{.ProjectSlug}}/filters/" class="{{if eq .ActiveTab "filters"}}active{{end}}">Filters</a>
+</nav>
+{{end}}
+
+{{define "project-settings-nav-styles"}}
+<style>
+.project-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #2e2e3e);
+  margin-bottom: 20px;
+}
+.project-settings-nav a {
+  padding: 8px 16px;
+  color: var(--text-secondary, #9CA0B0);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s;
+}
+.project-settings-nav a:hover {
+  color: var(--text-primary, #F5F6FA);
+}
+.project-settings-nav a.active {
+  color: var(--accent, #7B5CF5);
+  border-bottom-color: var(--accent, #7B5CF5);
+}
+</style>
+{{end}}

@@ -1,0 +1,251 @@
+x-urgentry-build: &urgentry-build
+  context: ../..
+  dockerfile: Dockerfile
+  args:
+    URGENTRY_BUILD_TAGS: ${URGENTRY_BUILD_TAGS:-netgo,osusergo}
+
+x-urgentry-common: &urgentry-common
+  build: *urgentry-build
+  image: urgentry:latest
+  environment: &urgentry-env
+    URGENTRY_ENV: ${URGENTRY_ENV:-production}
+    URGENTRY_DATA_DIR: /data
+    URGENTRY_BLOB_BACKEND: ${URGENTRY_BLOB_BACKEND:-s3}
+    URGENTRY_ASYNC_BACKEND: ${URGENTRY_ASYNC_BACKEND:-jetstream}
+    URGENTRY_CACHE_BACKEND: ${URGENTRY_CACHE_BACKEND:-valkey}
+    URGENTRY_S3_ENDPOINT: http://minio:9000
+    URGENTRY_S3_BUCKET: ${URGENTRY_S3_BUCKET:-urgentry-artifacts}
+    URGENTRY_S3_REGION: ${URGENTRY_S3_REGION:-us-east-1}
+    URGENTRY_S3_PREFIX: ${URGENTRY_S3_PREFIX:-}
+    URGENTRY_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minio}
+    URGENTRY_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+    URGENTRY_S3_USE_TLS: "false"
+    URGENTRY_CONTROL_DATABASE_URL: ${URGENTRY_CONTROL_DATABASE_URL:-postgres://${POSTGRES_USER:-urgentry}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-urgentry}?sslmode=disable}
+    URGENTRY_TELEMETRY_DATABASE_URL: ${URGENTRY_TELEMETRY_DATABASE_URL:-postgres://${POSTGRES_USER:-urgentry}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-urgentry}?sslmode=disable}
+    URGENTRY_TELEMETRY_BACKEND: ${URGENTRY_TELEMETRY_BACKEND:-postgres}
+    URGENTRY_COLUMNAR_DATABASE_URL: ${URGENTRY_COLUMNAR_DATABASE_URL:-}
+    URGENTRY_COLUMNAR_BACKEND: ${URGENTRY_COLUMNAR_BACKEND:-}
+    URGENTRY_NATS_URL: ${URGENTRY_NATS_URL:-nats://nats:4222}
+    URGENTRY_VALKEY_URL: ${URGENTRY_VALKEY_URL:-redis://valkey:6379/0}
+    URGENTRY_METRICS_TOKEN: ${URGENTRY_METRICS_TOKEN:-}
+    URGENTRY_PROFILING_ENABLED: ${URGENTRY_PROFILING_ENABLED:-false}
+    URGENTRY_PROFILING_TOKEN: ${URGENTRY_PROFILING_TOKEN:-}
+    URGENTRY_INGEST_RATE_LIMIT: ${URGENTRY_INGEST_RATE_LIMIT:-60}
+    URGENTRY_BOOTSTRAP_EMAIL: ${URGENTRY_BOOTSTRAP_EMAIL:-admin@urgentry.local}
+    URGENTRY_BOOTSTRAP_PASSWORD: ${URGENTRY_BOOTSTRAP_PASSWORD:?URGENTRY_BOOTSTRAP_PASSWORD must be set — see deploy/compose/.env.example}
+    URGENTRY_BOOTSTRAP_PAT: ${URGENTRY_BOOTSTRAP_PAT:?URGENTRY_BOOTSTRAP_PAT must be set — see deploy/compose/.env.example}
+  volumes:
+    - urgentry_data:/data
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-urgentry}
+      POSTGRES_USER: ${POSTGRES_USER:-urgentry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see deploy/compose/.env.example}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-urgentry} -d ${POSTGRES_DB:-urgentry}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set — see deploy/compose/.env.example}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - "${VALKEY_PORT:-6379}:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.11-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio-bootstrap:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+      URGENTRY_S3_BUCKET: ${URGENTRY_S3_BUCKET:-urgentry-artifacts}
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      set -eu;
+      until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+        sleep 2;
+      done;
+      mc mb --ignore-existing "local/$URGENTRY_S3_BUCKET";
+    restart: "no"
+
+  urgentry-bootstrap:
+    <<: *urgentry-common
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      set -eu;
+      until output="$$(urgentry self-hosted preflight --control-dsn "$$URGENTRY_CONTROL_DATABASE_URL" --telemetry-dsn "$$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$$URGENTRY_TELEMETRY_BACKEND" 2>/dev/null)" &&
+      ! printf '%s' "$$output" | grep -q '"ok": false'; do
+        sleep 2;
+      done;
+      printf '%s\n' "$$output";
+      urgentry self-hosted migrate-control --dsn "$$URGENTRY_CONTROL_DATABASE_URL";
+      urgentry self-hosted migrate-telemetry --dsn "$$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$$URGENTRY_TELEMETRY_BACKEND";
+      urgentry self-hosted status --control-dsn "$$URGENTRY_CONTROL_DATABASE_URL" --telemetry-dsn "$$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$$URGENTRY_TELEMETRY_BACKEND";
+    restart: "no"
+
+  urgentry-api:
+    <<: *urgentry-common
+    command: ["serve", "--role=api", "--addr=:8080"]
+    depends_on:
+      minio-bootstrap:
+        condition: service_completed_successfully
+      urgentry-bootstrap:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "${URGENTRY_API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  urgentry-ingest:
+    <<: *urgentry-common
+    command: ["serve", "--role=ingest", "--addr=:8081"]
+    depends_on:
+      minio-bootstrap:
+        condition: service_completed_successfully
+      urgentry-bootstrap:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "${URGENTRY_INGEST_PORT:-8081}:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8081/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  urgentry-worker:
+    <<: *urgentry-common
+    command: ["serve", "--role=worker", "--addr=:8082"]
+    depends_on:
+      minio-bootstrap:
+        condition: service_completed_successfully
+      urgentry-bootstrap:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "${URGENTRY_WORKER_PORT:-8082}:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  urgentry-scheduler:
+    <<: *urgentry-common
+    command: ["serve", "--role=scheduler", "--addr=:8083"]
+    depends_on:
+      minio-bootstrap:
+        condition: service_completed_successfully
+      urgentry-bootstrap:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "${URGENTRY_SCHEDULER_PORT:-8083}:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3
+    profiles: ["columnar"]
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-urgentry}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-urgentry}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set when the columnar profile is enabled}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --host 127.0.0.1 --port 9000 --user \"$${CLICKHOUSE_USER:-urgentry}\" --password \"$${CLICKHOUSE_PASSWORD}\" --query 'SELECT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  urgentry_data:
+  postgres_data:
+  minio_data:
+  valkey_data:
+  nats_data:
+  clickhouse_data:

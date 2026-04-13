@@ -1,0 +1,8 @@
+{
+  "frames": [
+    {"function": "checkout", "filename": "checkout.go", "lineno": 41}
+  ],
+  "samples": [
+    {"frames": [9], "weight": 1}
+  ]
+}

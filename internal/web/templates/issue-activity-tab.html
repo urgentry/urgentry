@@ -1,0 +1,65 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="detail-layout">
+  <div class="detail-main">
+    <div class="detail-header">
+      <div class="detail-breadcrumb">
+        <a href="/issues/">Issues</a> <span class="bc-sep">/</span>
+        <a href="/issues/{{.Issue.ID}}/" class="short-id mono">{{.Issue.ShortID}}</a>
+      </div>
+      <h1 class="detail-title">{{.Issue.ExcType}}</h1>
+      {{if .Issue.ExcValue}}<p class="detail-subtitle">{{.Issue.ExcValue}}</p>{{end}}
+      <div class="detail-meta-row">
+        <span class="status-pill status-{{.Issue.Status}}">{{.Issue.StatusLabel}}</span>
+        <span class="detail-level level-{{.Issue.Level}}">{{.Issue.Level}}</span>
+      </div>
+    </div>
+
+    <!-- Tab navigation -->
+    <nav class="issue-tabs" aria-label="Issue detail tabs">
+      {{range .Tabs}}
+      <a href="{{.URL}}" class="issue-tab{{if .Active}} issue-tab-active{{end}}">{{.Label}}</a>
+      {{end}}
+    </nav>
+
+    <!-- Activity tab content -->
+    <div class="detail-section">
+      <div class="section-body">
+        {{if .Activity}}
+        <div class="activity-feed">
+          {{range .Activity}}
+          <div class="activity-entry">
+            <span class="activity-dot activity-dot-{{.Color}}"></span>
+            <div class="activity-body">
+              <span class="activity-text">{{.Text}}</span>
+              <span class="activity-time">{{.TimeAgo}}</span>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="empty-inline">No activity recorded for this issue.</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-item">
+        <span class="sidebar-label">Status</span>
+        <span class="sidebar-value"><span class="status-pill status-{{.Issue.Status}}">{{.Issue.StatusLabel}}</span></span>
+      </div>
+      <div class="sidebar-item">
+        <span class="sidebar-label">Last seen</span>
+        <span class="sidebar-value">{{.Issue.LastSeen}}</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="sidebar-label">First seen</span>
+        <span class="sidebar-value">{{.Issue.FirstSeen}}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

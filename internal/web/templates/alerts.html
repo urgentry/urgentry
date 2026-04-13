@@ -1,0 +1,246 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Alerts</h1>
+    <p class="page-subtitle">Create issue, transaction, monitor, and release-health alerts with delivery targets that match the rest of the operator workflow.</p>
+  </div>
+</div>
+
+<div class="card card-gap">
+  <div class="card-header-block">
+    <h2 class="card-header-title">Create alert rule</h2>
+    <p class="alert-secondary card-header-copy">Alert rules support issue, transaction, monitor, and release-health triggers with email, webhook, and Slack delivery.</p>
+  </div>
+  <form method="post" action="/alerts/" class="alert-form-grid">
+    <label class="settings-form-field">
+      <span class="settings-label">Project ID</span>
+      <input type="text" name="project_id" value="{{.DefaultProjectID}}">
+    </label>
+    <label class="settings-form-field">
+      <span class="settings-label">Name</span>
+      <input type="text" name="name" placeholder="Production regressions">
+    </label>
+    <label class="settings-form-field">
+      <span class="settings-label">Status</span>
+      <select name="status">
+        <option value="active">active</option>
+        <option value="disabled">disabled</option>
+      </select>
+    </label>
+    <label class="settings-form-field">
+      <span class="settings-label">Trigger</span>
+      <select name="trigger">
+        <option value="every_event">Every event</option>
+        <option value="first_seen">First seen</option>
+        <option value="regression">Regression</option>
+        <option value="slow_transaction">Slow transaction</option>
+        <option value="monitor_missed">Monitor missed check-in</option>
+        <option value="release_crash_free">Release crash-free below threshold</option>
+      </select>
+    </label>
+    <label class="settings-form-field">
+      <span class="settings-label">Threshold (ms or %)</span>
+      <input type="number" min="1" step="1" name="threshold_ms" placeholder="750">
+    </label>
+    <label class="settings-form-field alert-span-all">
+      <span class="settings-label">Email targets</span>
+      <input type="text" name="email_targets" placeholder="dev@example.com, oncall@example.com">
+    </label>
+    <label class="settings-form-field alert-span-all">
+      <span class="settings-label">Webhook URL</span>
+      <input type="url" name="webhook_url" placeholder="https://hooks.example.com/alerts">
+    </label>
+    <label class="settings-form-field alert-span-all">
+      <span class="settings-label">Slack webhook URL</span>
+      <input type="url" name="slack_url" placeholder="https://hooks.slack.com/services/...">
+    </label>
+    <div class="alert-form-actions">
+      <button type="submit" class="btn btn-sm">Create rule</button>
+    </div>
+  </form>
+</div>
+
+<div class="card card-gap">
+  <table class="alert-table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Trigger</th>
+        <th>Email</th>
+        <th>Webhook</th>
+        <th>Slack</th>
+        <th>Fired</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Rules}}
+        {{range .Rules}}
+        <tr>
+          <td class="alert-mono">{{.ProjectID}}</td>
+          <td class="alert-name">{{.Name}}</td>
+          <td>
+            {{if eq .Status "active"}}
+              <span class="alert-badge active">active</span>
+            {{else}}
+              <span class="alert-badge">{{.Status}}</span>
+            {{end}}
+          </td>
+          <td class="alert-secondary">{{.TriggerLabel}}</td>
+          <td class="alert-secondary">{{if .EmailTargets}}{{.EmailTargets}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-secondary">{{if .WebhookURL}}{{.WebhookURL}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-secondary">{{if .SlackURL}}{{.SlackURL}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-mono">{{.FireCount}}x</td>
+          <td class="alert-muted">{{.CreatedAt}}</td>
+          <td>
+            <details>
+              <summary class="details-trigger">Edit</summary>
+              <form method="post" action="/alerts/{{.ID}}/update" class="alert-edit-form">
+                <input type="hidden" name="project_id" value="{{.ProjectID}}">
+                <label class="settings-form-field">
+                  <span class="settings-label">Name</span>
+                  <input type="text" name="name" value="{{.Name}}">
+                </label>
+                <label class="settings-form-field">
+                  <span class="settings-label">Status</span>
+                  <select name="status">
+                    <option value="active" {{if eq .Status "active"}}selected{{end}}>active</option>
+                    <option value="disabled" {{if eq .Status "disabled"}}selected{{end}}>disabled</option>
+                  </select>
+                </label>
+                <label class="settings-form-field">
+                  <span class="settings-label">Trigger</span>
+                  <select name="trigger">
+                    <option value="every_event" {{if eq .Trigger "every_event"}}selected{{end}}>Every event</option>
+                    <option value="first_seen" {{if eq .Trigger "first_seen"}}selected{{end}}>First seen</option>
+                    <option value="regression" {{if eq .Trigger "regression"}}selected{{end}}>Regression</option>
+                    <option value="slow_transaction" {{if eq .Trigger "slow_transaction"}}selected{{end}}>Slow transaction</option>
+                    <option value="monitor_missed" {{if eq .Trigger "monitor_missed"}}selected{{end}}>Monitor missed check-in</option>
+                    <option value="release_crash_free" {{if eq .Trigger "release_crash_free"}}selected{{end}}>Release crash-free below threshold</option>
+                  </select>
+                </label>
+                <label class="settings-form-field">
+                  <span class="settings-label">Threshold (ms or %)</span>
+                  <input type="number" min="1" step="1" name="threshold_ms" value="{{.ThresholdMS}}">
+                </label>
+                <label class="settings-form-field">
+                  <span class="settings-label">Email targets</span>
+                  <input type="text" name="email_targets" value="{{.EmailTargets}}">
+                </label>
+                <label class="settings-form-field">
+                  <span class="settings-label">Webhook URL</span>
+                  <input type="url" name="webhook_url" value="{{.WebhookURL}}">
+                </label>
+                <label class="settings-form-field">
+                  <span class="settings-label">Slack webhook URL</span>
+                  <input type="url" name="slack_url" value="{{.SlackURL}}">
+                </label>
+                <div class="alert-edit-actions">
+                  <button type="submit" class="btn btn-sm">Save</button>
+                </div>
+              </form>
+              <form method="post" action="/alerts/{{.ID}}/delete" class="alert-delete-form" onsubmit="return confirm('Delete this alert rule?');">
+                <button type="submit" class="btn btn-sm btn-archive">Delete</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="10" class="alert-empty">
+            No alert rules configured yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="page-header page-header-spaced">
+  <h2 class="page-title">Recent Alert History</h2>
+</div>
+
+<div class="card card-gap">
+  <table class="alert-table">
+    <thead>
+      <tr>
+        <th>Rule</th>
+        <th>Group</th>
+        <th>Event</th>
+        <th>Fired</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .History}}
+        {{range .History}}
+        <tr>
+          <td class="alert-name">{{if .RuleName}}{{.RuleName}}{{else}}{{.RuleID}}{{end}}</td>
+          <td>{{if .GroupID}}<a href="/issues/{{.GroupID}}/">{{.GroupID}}</a>{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td>{{if .EventID}}{{if .GroupID}}<a href="/events/{{.EventID}}/">{{.EventID}}</a>{{else}}<span class="alert-mono">{{.EventID}}</span>{{end}}{{else}}<span class="alert-placeholder">-</span>{{end}}</td>
+          <td class="alert-muted">{{.FiredAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="4" class="alert-empty">
+            No alerts have fired yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="page-header page-header-spaced">
+  <h2 class="page-title">Notification Deliveries</h2>
+</div>
+
+<div class="card">
+  <table class="alert-table">
+    <thead>
+      <tr>
+        <th>Kind</th>
+        <th>Target</th>
+        <th>Status</th>
+        <th>Attempts</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Deliveries}}
+        {{range .Deliveries}}
+        <tr>
+          <td>
+            <span class="alert-badge">{{.Kind}}</span>
+          </td>
+          <td class="alert-mono">{{.Target}}</td>
+          <td>
+            {{if eq .Status "queued"}}
+              <span class="alert-badge active">queued</span>
+            {{else if eq .Status "delivered"}}
+              <span class="alert-badge active">delivered</span>
+            {{else}}
+              <span class="alert-badge">{{.Status}}</span>
+            {{end}}
+          </td>
+          <td class="alert-mono">{{.Attempts}}</td>
+          <td class="alert-muted">{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="5" class="alert-empty">
+            No notification deliveries yet.
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

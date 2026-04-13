@@ -1,0 +1,81 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Profiles</h1>
+</div>
+
+<div class="card guide-card">
+  <div class="section-header section-header-tight">{{.Guide.Title}}</div>
+  <div class="empty-text">{{.Guide.Body}}</div>
+  <ul class="guide-list">
+    {{range .Guide.Steps}}<li style="margin-top:0.35rem;">{{.}}</li>{{end}}
+  </ul>
+  <div class="guide-actions">
+    <a href="{{.Guide.ActionURL}}" class="btn btn-sm">{{.Guide.ActionLabel}}</a>
+  </div>
+</div>
+
+<div class="card card-gap">
+  <form method="get" class="filter-form profile-filter-form">
+    <label class="profile-filter-field">
+      <span>Transaction</span>
+      <input type="text" name="transaction" value="{{.Filters.Transaction}}" placeholder="checkout">
+    </label>
+    <label class="profile-filter-field">
+      <span>Release</span>
+      <input type="text" name="release" value="{{.Filters.Release}}" placeholder="backend@1.2.3">
+    </label>
+    <label class="profile-filter-field">
+      <span>Environment</span>
+      <input type="text" name="environment" value="{{.Filters.Environment}}" placeholder="production">
+    </label>
+    <label class="profile-filter-field">
+      <span>Start</span>
+      <input type="text" name="start" value="{{.Filters.Start}}" placeholder="2026-03-29T09:00:00Z">
+    </label>
+    <label class="profile-filter-field">
+      <span>End</span>
+      <input type="text" name="end" value="{{.Filters.End}}" placeholder="2026-03-29T11:00:00Z">
+    </label>
+    <button type="submit" class="btn btn-sm">Filter</button>
+    <a href="/profiles/" class="btn btn-sm">Clear</a>
+  </form>
+</div>
+
+<div class="card table-card">
+  <table class="profile-table">
+    <thead>
+      <tr>
+        <th>Profile</th>
+        <th>Transaction</th>
+        <th>Trace</th>
+        <th>Release</th>
+        <th>Duration</th>
+        <th>Seen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Profiles}}
+        {{range .Profiles}}
+        <tr>
+          <td class="profile-title-cell">
+            <a href="/profiles/{{.ID}}/">{{.Title}}</a>
+            {{if .Summary}}<div class="detail-subtitle profile-summary">{{.Summary}}</div>{{end}}
+          </td>
+          <td>{{.Transaction}}</td>
+          <td class="mono">{{.TraceID}}</td>
+          <td class="mono">{{.Release}}</td>
+          <td>{{.Duration}}</td>
+          <td class="{{.TimeClass}}">{{.TimeAgo}}</td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr>
+          <td colspan="6" class="table-empty-cell">No profiles captured yet.</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

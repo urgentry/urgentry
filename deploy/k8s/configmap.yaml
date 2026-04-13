@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: urgentry-config
+data:
+  URGENTRY_ENV: production
+  URGENTRY_REGION: local
+  URGENTRY_BLOB_BACKEND: s3
+  URGENTRY_ASYNC_BACKEND: jetstream
+  URGENTRY_CACHE_BACKEND: valkey
+  URGENTRY_S3_ENDPOINT: http://minio:9000
+  URGENTRY_S3_BUCKET: urgentry-artifacts
+  URGENTRY_S3_REGION: us-east-1
+  URGENTRY_S3_PREFIX: ""
+  URGENTRY_S3_USE_TLS: "false"
+  URGENTRY_NATS_URL: nats://nats:4222
+  URGENTRY_VALKEY_URL: redis://valkey:6379/0
+  URGENTRY_TELEMETRY_BACKEND: postgres

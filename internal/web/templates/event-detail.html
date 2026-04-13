@@ -1,0 +1,347 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<a href="/issues/{{.Event.IssueID}}/" class="back-link">&#8592; Back to Issue</a>
+
+<div class="event-nav">
+  <span>Event <strong class="mono">{{.Event.ShortEventID}}</strong></span>
+  <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID"><i data-feather="copy"></i></button>
+  <span class="text-tertiary">&middot; {{.Event.TimeAgo}}</span>
+  <span class="detail-toolbar-end">
+    <button class="btn btn-sm" id="raw-json-toggle" onclick="document.getElementById('raw-json').classList.toggle('visible'); this.textContent = this.textContent === 'Raw JSON' ? 'Hide JSON' : 'Raw JSON';">Raw JSON</button>
+  </span>
+</div>
+
+{{if or .Event.ProcessingStatus .Event.IngestError .Event.UnresolvedFrames}}
+<div class="context-card card-gap">
+  <div class="context-card-header">Native Processing</div>
+  <div class="context-card-body">
+    {{if .Event.ProcessingStatus}}
+    <div class="context-row">
+      <span class="key">Status</span>
+      <span class="value mono">{{.Event.ProcessingStatus}}</span>
+    </div>
+    {{end}}
+    <div class="context-row">
+      <span class="key">Resolved Frames</span>
+      <span class="value mono">{{.Event.ResolvedFrames}}</span>
+    </div>
+    <div class="context-row">
+      <span class="key">Unresolved Frames</span>
+      <span class="value mono">{{.Event.UnresolvedFrames}}</span>
+    </div>
+    {{if .Event.IngestError}}
+    <div class="context-row">
+      <span class="key">Last Error</span>
+      <span class="value">{{.Event.IngestError}}</span>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+<div class="event-split">
+  <!-- Left: Stacktrace -->
+  <div class="event-left">
+    {{if .ExceptionGroups}}
+    {{range .ExceptionGroups}}
+    <div class="stacktrace">
+      <div class="stacktrace-header">
+        <span class="stacktrace-type">{{.Type}}</span>
+        <span class="stacktrace-value">{{.Value}}</span>
+        {{if .Mechanism}}<span class="stacktrace-mechanism">{{.Mechanism}}</span>{{end}}
+        {{if .Handled}}<span class="stacktrace-handled {{if eq .Handled "false"}}unhandled{{end}}">{{if eq .Handled "false"}}Unhandled{{else}}Handled{{end}}</span>{{end}}
+      </div>
+      {{if .HasFrames}}
+      <div class="stacktrace-meta">
+        <span class="frame-count-label">{{.InAppCount}} app {{if eq .InAppCount 1}}frame{{else}}frames{{end}}</span>
+        {{if .LibCount}}<span class="frame-count-sep">&middot;</span><span class="frame-count-label lib">{{.LibCount}} library</span>{{end}}
+      </div>
+      {{range $idx, $frame := .Frames}}
+      <div class="frame {{if $frame.InApp}}frame-inapp{{else}}frame-system{{end}}">
+        <div class="frame-header" onclick="toggleFrame(this)">
+          <span class="frame-toggle">{{if $frame.Collapsed}}&#9654;{{else}}&#9660;{{end}}</span>
+          {{if $frame.InApp}}<span class="inapp-badge">app</span>{{end}}
+          {{if $frame.SourceURL}}<a href="{{$frame.SourceURL}}" target="_blank" rel="noopener" class="frame-file frame-source-link" onclick="event.stopPropagation()">{{$frame.File}}</a>{{else}}<span class="frame-file">{{$frame.File}}</span>{{end}}
+          <span class="frame-in">in</span>
+          <span class="frame-func">{{$frame.Function}}</span>
+          {{if $frame.Module}}<span class="frame-module">({{$frame.Module}})</span>{{end}}
+          <span class="frame-line">line {{$frame.LineNo}}{{if $frame.ColNo}}:{{$frame.ColNo}}{{end}}</span>
+          {{if $frame.MappedFrom}}<span class="frame-mapped">{{$frame.MappedFrom}}</span>{{end}}
+          <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{$frame.File}}:{{$frame.LineNo}} in {{$frame.Function}}', this)" title="Copy frame path"><i data-feather="copy"></i></button>
+        </div>
+        <div class="frame-code{{if $frame.Collapsed}} is-hidden{{end}}">
+          {{if $frame.HasContext}}
+          {{range $frame.PreContext}}
+          <div class="code-line">
+            <span class="line-no">{{.Number}}</span>
+            <span class="line-content">{{.Content}}</span>
+          </div>
+          {{end}}
+          {{if $frame.ContextLine}}
+          <div class="code-line highlight">
+            <span class="line-no">{{$frame.LineNo}}</span>
+            <span class="line-content">{{$frame.ContextLine}}</span>
+          </div>
+          {{end}}
+          {{range $frame.PostContext}}
+          <div class="code-line">
+            <span class="line-no">{{.Number}}</span>
+            <span class="line-content">{{.Content}}</span>
+          </div>
+          {{end}}
+          {{else}}
+          <div class="code-line no-context">
+            <span class="line-no">{{$frame.LineNo}}</span>
+            <span class="line-content text-tertiary">No source context available</span>
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+      {{else}}
+      <div class="detail-note">No stack frames available.</div>
+      {{end}}
+    </div>
+    {{end}}
+    {{else}}
+    {{/* Fallback to legacy flat frame list */}}
+    <div class="stacktrace">
+      <div class="stacktrace-header">
+        <span class="stacktrace-type">{{.Event.ExceptionType}}</span>
+        <span class="stacktrace-value">{{.Event.ExceptionValue}}</span>
+      </div>
+      {{range .Frames}}
+      <div class="frame">
+        <div class="frame-header" onclick="toggleFrame(this)">
+          <span class="frame-toggle">&#9660;</span>
+          <span class="frame-file">{{.File}}</span>
+          <span>in</span>
+          <span class="frame-func">{{.Function}}</span>
+          <span class="frame-line">line {{.LineNo}}</span>
+          {{if .MappedFrom}}<span class="frame-mapped">{{.MappedFrom}}</span>{{end}}
+          <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy"></i></button>
+        </div>
+        <div class="frame-code">
+          {{range .CodeLines}}
+          <div class="code-line {{if .Highlight}}highlight{{end}}">
+            <span class="line-no">{{.Number}}</span>
+            <span class="line-content">{{.Content}}</span>
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+      {{if not .Frames}}
+      <div class="detail-note">Stacktrace unavailable.</div>
+      {{end}}
+    </div>
+    {{end}}
+
+    <!-- Breadcrumb Timeline -->
+    <div class="breadcrumbs">
+      <div class="breadcrumbs-header">Breadcrumbs <span class="breadcrumbs-count">{{len .Breadcrumbs}}</span></div>
+      {{if .Breadcrumbs}}
+      <div class="bc-timeline">
+        {{range .Breadcrumbs}}
+        <div class="bc-timeline-item {{.Level}}">
+          <div class="bc-timeline-rail">
+            <span class="bc-timeline-dot {{.Level}}"></span>
+            <span class="bc-timeline-line"></span>
+          </div>
+          <div class="bc-timeline-content">
+            <div class="bc-timeline-head">
+              <span class="bc-cat-badge {{.CategoryCSS}}">{{if .Category}}{{.Category}}{{else}}default{{end}}</span>
+              {{if .TimestampRel}}<span class="bc-rel-time">{{.TimestampRel}}</span>{{end}}
+              {{if .Time}}<span class="bc-abs-time">{{.Time}}</span>{{end}}
+            </div>
+            {{if .Message}}<div class="bc-timeline-msg">{{.Message}}</div>{{end}}
+            {{if .Data}}
+            <div class="bc-timeline-data">
+              {{range $k, $v := .Data}}
+              <span class="bc-data-tag"><span class="bc-data-key">{{$k}}</span> {{$v}}</span>
+              {{end}}
+            </div>
+            {{end}}
+          </div>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
+      <div class="detail-note-sm">Breadcrumbs unavailable.</div>
+      {{end}}
+    </div>
+  </div>
+
+  <!-- Right: Context -->
+  <div class="event-right">
+    <!-- Tags -->
+    <div class="context-card">
+      <div class="context-card-header">Tags</div>
+      <div class="context-card-body">
+        {{range .Tags}}
+        <div class="context-row">
+          <span class="key">{{.Key}}</span>
+          <span class="value">{{.Value}}</span>
+        </div>
+        {{end}}
+        {{if not .Tags}}
+        <div class="empty-text">Tags unavailable.</div>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- User -->
+    <div class="context-card">
+      <div class="context-card-header">User</div>
+      <div class="context-card-body">
+        {{if .User}}
+        {{range .User}}
+        <div class="context-row">
+          <span class="key">{{.Key}}</span>
+          <span class="value">{{.Value}}</span>
+        </div>
+        {{end}}
+        {{else}}
+        <div class="empty-text">User context unavailable.</div>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- Request -->
+    <div class="context-card">
+      <div class="context-card-header">Request</div>
+      <div class="context-card-body">
+        {{if .Request}}
+        {{range .Request}}
+        <div class="context-row">
+          <span class="key">{{.Key}}</span>
+          <span class="value">{{.Value}}</span>
+        </div>
+        {{end}}
+        {{else}}
+        <div class="empty-text">Request context unavailable.</div>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- Context Panels (Device, OS, Browser, Runtime, etc.) -->
+    {{range .ContextPanels}}
+    <div class="context-card">
+      <div class="context-card-header">{{.Title}}</div>
+      <div class="context-card-body">
+        {{range .Items}}
+        <div class="context-row">
+          <span class="key">{{.Key}}</span>
+          <span class="value">{{.Value}}</span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+    <!-- Attachments -->
+    {{if .Attachments}}
+    <div class="context-card">
+      <div class="context-card-header">Attachments</div>
+      <div class="context-card-body">
+        {{range .Attachments}}
+        <div class="attachment-row">
+          <div class="context-row">
+            <span class="key"><a href="{{.DownloadURL}}" class="mono">{{.Name}}</a></span>
+            <span class="value">{{.Size}}{{if .ContentType}} &middot; {{.ContentType}}{{end}}</span>
+          </div>
+          {{if hasPrefix .ContentType "image/"}}
+          <div class="attachment-preview">
+            <img src="{{.DownloadURL}}" alt="{{.Name}}" class="attachment-img" loading="lazy">
+          </div>
+          {{else if hasPrefix .ContentType "text/"}}
+          <div class="attachment-preview">
+            <pre class="attachment-text" data-src="{{.DownloadURL}}"></pre>
+          </div>
+          {{else if eq .ContentType "application/x-dmp"}}
+          <div class="attachment-preview attachment-minidump">
+            <span class="minidump-badge">Minidump</span>
+            <span class="text-tertiary">Binary crash dump &middot; {{.Size}}</span>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+    <!-- SDK -->
+    <div class="context-card">
+      <div class="context-card-header">SDK</div>
+      <div class="context-card-body">
+        <div class="context-row">
+          <span class="key">Name</span>
+          <span class="value">sentry.go</span>
+        </div>
+        <div class="context-row">
+          <span class="key">Version</span>
+          <span class="value">0.29.1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Raw JSON toggle -->
+<div id="raw-json" class="raw-json raw-json-top-lg"><pre class="json-highlighted" id="raw-json-pre">{{.RawJSON}}</pre></div>
+
+<script>
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.innerHTML;
+    btn.textContent = '\u2713';
+    setTimeout(function() { btn.innerHTML = orig; }, 1500);
+  });
+}
+function toggleFrame(header) {
+  var code = header.nextElementSibling;
+  var toggle = header.querySelector('.frame-toggle');
+  if (code.style.display === 'none') {
+    code.style.display = 'block';
+    toggle.innerHTML = '\u25BC';
+  } else {
+    code.style.display = 'none';
+    toggle.innerHTML = '\u25B6';
+  }
+}
+
+/* JSON syntax highlighting */
+function highlightJSON(text) {
+  var escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.replace(
+    /("(?:\\.|[^"\\])*")\s*:/g,
+    '<span class="json-key">$1</span>:'
+  ).replace(
+    /:\s*("(?:\\.|[^"\\])*")/g,
+    ': <span class="json-string">$1</span>'
+  ).replace(
+    /:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    ': <span class="json-number">$1</span>'
+  ).replace(
+    /:\s*(true|false|null)/g,
+    ': <span class="json-bool">$1</span>'
+  );
+}
+
+(function() {
+  var pre = document.getElementById('raw-json-pre');
+  if (pre && pre.textContent.trim()) {
+    pre.innerHTML = highlightJSON(pre.textContent);
+  }
+  /* Lazy-load text attachment content */
+  var textPres = document.querySelectorAll('.attachment-text[data-src]');
+  textPres.forEach(function(el) {
+    fetch(el.getAttribute('data-src'))
+      .then(function(r) { return r.text(); })
+      .then(function(t) { el.textContent = t; })
+      .catch(function() { el.textContent = '(failed to load)'; });
+  });
+})();
+</script>
+{{end}}

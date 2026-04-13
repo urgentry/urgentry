@@ -1,0 +1,670 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="detail-layout">
+  <!-- MAIN CONTENT -->
+  <div class="detail-main">
+    <!-- Issue header -->
+    <div class="detail-header">
+      <div class="detail-breadcrumb">
+        <a href="/issues/">Issues</a> <span class="bc-sep">/</span>
+        <span class="short-id mono">{{.Issue.ShortID}}</span>
+        <button class="copy-btn" onclick="copyToClipboard('{{.Issue.ShortID}}', this)" title="Copy short ID"><i data-feather="copy"></i></button>
+      </div>
+      <h1 class="detail-title">{{.Issue.ExcType}}</h1>
+      {{if .Issue.ExcValue}}<p class="detail-subtitle">{{.Issue.ExcValue}}</p>{{end}}
+      <div class="detail-meta-row">
+        <span class="status-pill status-{{.Issue.Status}}">{{.Issue.StatusLabel}}</span>
+        <span class="detail-level level-{{.Issue.Level}}">{{.Issue.Level}}</span>
+      </div>
+      {{if .Issue.ResolutionLabel}}<p class="detail-subtitle">{{.Issue.ResolutionLabel}}</p>{{end}}
+    </div>
+
+    <!-- Action bar -->
+    <div class="detail-actions">
+      <div class="detail-actions-left">
+        {{if ne .Issue.Status "resolved"}}
+        <button class="btn btn-resolve"
+                hx-post="/issues/{{.Issue.ID}}/status"
+                hx-vals='{"action":"resolve"}'
+                hx-swap="none">&#10003; Resolve</button>
+        {{end}}
+        {{if ne .Issue.Status "ignored"}}
+        <button class="btn btn-archive"
+                hx-post="/issues/{{.Issue.ID}}/status"
+                hx-vals='{"action":"ignore"}'
+                hx-swap="none">Archive</button>
+        {{end}}
+        {{if or (eq .Issue.Status "resolved") (eq .Issue.Status "ignored")}}
+        <button class="btn btn-reopen"
+                hx-post="/issues/{{.Issue.ID}}/status"
+                hx-vals='{"action":"reopen"}'
+                hx-swap="none">Reopen</button>
+        {{end}}
+        <form method="POST" action="/issues/{{.Issue.ID}}/bookmark" class="inline-form-inline">
+          <input type="hidden" name="bookmark" value="{{if .Workflow.Bookmarked}}0{{else}}1{{end}}">
+          <button class="btn" type="submit">{{if .Workflow.Bookmarked}}Unbookmark{{else}}Bookmark{{end}}</button>
+        </form>
+        <form method="POST" action="/issues/{{.Issue.ID}}/subscribe" class="inline-form-inline">
+          <input type="hidden" name="subscribe" value="{{if .Workflow.Subscribed}}0{{else}}1{{end}}">
+          <button class="btn" type="submit">{{if .Workflow.Subscribed}}Unsubscribe{{else}}Subscribe{{end}}</button>
+        </form>
+        <form method="POST" action="/issues/{{.Issue.ID}}/status" class="inline-form-inline">
+          <select name="action" class="filter-select" onchange="if(this.value){var f=this.form;var t=urgentryCSRFToken();if(t){var i=f.querySelector('input[name=_csrf]');if(!i){i=document.createElement('input');i.type='hidden';i.name='_csrf';f.appendChild(i);}i.value=t;}if(f.requestSubmit){f.requestSubmit();}else{f.submit();}}">
+            <option value="">More actions...</option>
+            <option value="resolve">Resolve</option>
+            <option value="resolve_next">Resolve in next release</option>
+            <option value="ignore">Ignore</option>
+            {{if or (eq .Issue.Status "resolved") (eq .Issue.Status "ignored")}}
+            <option value="reopen">Reopen</option>
+            {{end}}
+          </select>
+        </form>
+      </div>
+      <div class="detail-stats-bar">
+        <div class="detail-stat">
+          <span class="detail-stat-label">Events</span>
+          <span class="detail-stat-value">{{.Issue.EventCount}}</span>
+        </div>
+        <div class="detail-stat">
+          <span class="detail-stat-label">Users</span>
+          <span class="detail-stat-value">{{.Issue.UserCount}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab navigation -->
+    <nav class="issue-tabs" aria-label="Issue detail tabs">
+      <a href="/issues/{{.Issue.ID}}/" class="issue-tab issue-tab-active">Details</a>
+      <a href="/issues/{{.Issue.ID}}/events/" class="issue-tab">Events</a>
+      <a href="/issues/{{.Issue.ID}}/activity/" class="issue-tab">Activity</a>
+      <a href="/issues/{{.Issue.ID}}/similar/" class="issue-tab">Similar Issues</a>
+      <a href="/issues/{{.Issue.ID}}/merged/" class="issue-tab">Merged Issues</a>
+      <a href="/issues/{{.Issue.ID}}/tags/" class="issue-tab">Tags</a>
+      <a href="/issues/{{.Issue.ID}}/replays/" class="issue-tab">Replays</a>
+    </nav>
+
+    <!-- Event Chart + Tag Distribution -->
+    {{if .ChartPoints}}
+    <div class="chart-tag-row">
+      <div class="event-chart">
+        <div class="chart-labels">
+          <span class="chart-label">Events</span>
+          <span class="chart-count">{{.Issue.EventCount}}</span>
+        </div>
+        <div class="chart-bars">
+          {{range .ChartPoints}}
+          <div class="chart-bar" style="height:{{.Height}}%" title="{{.Day}}: {{.Count}} events"></div>
+          {{end}}
+        </div>
+        <div class="chart-dates">
+          <span>{{(index .ChartPoints 0).Day}}</span>
+          <span>{{(index .ChartPoints (sub (len .ChartPoints) 1)).Day}}</span>
+        </div>
+      </div>
+      {{if .TagDistribution}}
+      <div class="tag-distribution">
+        {{range .TagDistribution}}
+        <div class="tag-dist-row">
+          <span class="tag-dist-key">{{.Key}}</span>
+          <div class="tag-dist-bar-wrap">
+            <div class="tag-dist-bar" style="width:{{.Percent}}%; background: hsl({{.Hue}}, 60%, 50%);">
+              <span class="tag-dist-value">{{.Percent}}% {{.Value}}</span>
+            </div>
+          </div>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="empty-inline card-gap">Issue trend data unavailable in memory mode.</div>
+    {{end}}
+
+    {{if .HasEvent}}
+    <!-- Event navigator -->
+    <div class="detail-event-nav">
+      <span class="detail-event-info">
+        Event <strong class="mono">{{.Event.ShortEventID}}</strong>
+        <button class="copy-btn" onclick="copyToClipboard('{{.Event.EventID}}', this)" title="Copy event ID"><i data-feather="copy"></i></button>
+        &middot; {{.Event.TimeAgo}}
+      </span>
+      <div class="detail-event-nav-btns">
+        <a href="/issues/{{.Issue.ID}}/?event_offset={{sub .TotalEvents 1}}" class="btn-sm">First</a>
+        {{if .HasNextEvent}}<a href="/issues/{{.Issue.ID}}/?event_offset={{inc .EventOffset}}" class="btn-sm">&lsaquo; Prev</a>{{end}}
+        <span class="event-counter">Event {{inc .EventOffset}} of {{.TotalEvents}}</span>
+        {{if .HasPrevEvent}}<a href="/issues/{{.Issue.ID}}/?event_offset={{sub .EventOffset 1}}" class="btn-sm">Next &rsaquo;</a>{{end}}
+        <a href="/issues/{{.Issue.ID}}/?event_offset=0" class="btn-sm">Latest</a>
+        <a href="/events/{{.Event.EventID}}/" class="btn-sm">View Full Event</a>
+        <button class="btn-sm" id="raw-json-toggle" onclick="document.getElementById('raw-json').classList.toggle('visible'); this.textContent = this.textContent === 'JSON' ? 'Hide JSON' : 'JSON';">JSON</button>
+      </div>
+    </div>
+    {{if or .Event.ProcessingStatus .Event.IngestError .Event.UnresolvedFrames}}
+    <div class="detail-meta-row card-gap">
+      {{if .Event.ProcessingStatus}}<span class="status-pill status-{{.Event.ProcessingStatus}}">Native {{.Event.ProcessingStatus}}</span>{{end}}
+      <span class="detail-level">Resolved {{.Event.ResolvedFrames}}</span>
+      <span class="detail-level">Unresolved {{.Event.UnresolvedFrames}}</span>
+      {{if .Event.IngestError}}<span class="detail-subtitle detail-inline-meta">{{.Event.IngestError}}</span>{{end}}
+    </div>
+    {{end}}
+
+    <!-- Highlights -->
+    {{if .Highlights}}
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> Highlights</h3>
+      <div class="section-body">
+        <div class="highlights-grid">
+          {{range .Highlights}}
+          <div class="hl-item">
+            <span class="hl-key">{{.Key}}</span>
+            <span class="hl-value">{{.Value}}</span>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Stack Trace -->
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> Stack Trace</h3>
+      <div class="section-body">
+        {{if .FrameGroups}}
+        <div class="stacktrace">
+          <div class="stacktrace-header">
+            <span class="stacktrace-type">{{.Event.ExceptionType}}</span>
+            <span class="stacktrace-value">{{.Event.ExceptionValue}}</span>
+          </div>
+          {{range .FrameGroups}}
+            {{if .IsCollapsed}}
+            <div class="collapsed-frames" onclick="this.classList.toggle('expanded')">
+              <div class="collapsed-bar">Show {{.Count}} more frames &#9662;</div>
+              <div class="collapsed-content">
+                {{range .Frames}}
+                <div class="frame frame-system">
+                  <div class="frame-header" onclick="event.stopPropagation(); var c=this.nextElementSibling; if(c){c.style.display=c.style.display==='none'?'block':'none'; this.querySelector('.frame-toggle').textContent=c.style.display==='none'?'\u25B6':'\u25BC';}">
+                    <span class="frame-toggle">&#9660;</span>
+                    <span class="frame-file">{{.File}}</span>
+                    <span class="frame-in">in</span>
+                    <span class="frame-func">{{.Function}}</span>
+                    <span class="frame-line">at line {{.LineNo}}</span>
+                    <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy"></i></button>
+                  </div>
+                  {{if .CodeLines}}
+                  <div class="frame-code">
+                    {{range .CodeLines}}
+                    <div class="code-line {{if .Highlight}}highlight{{end}}">
+                      <span class="line-no">{{.Number}}</span>
+                      <span class="line-content">{{.Content}}</span>
+                    </div>
+                    {{end}}
+                  </div>
+                  {{end}}
+                  {{if .MappedFrom}}<div class="frame-mapped">{{.MappedFrom}}</div>{{end}}
+                </div>
+                {{end}}
+              </div>
+            </div>
+            {{else}}
+            {{range .Frames}}
+            <div class="frame frame-inapp">
+              <div class="frame-header" onclick="var c=this.nextElementSibling; if(c){c.style.display=c.style.display==='none'?'block':'none'; this.querySelector('.frame-toggle').textContent=c.style.display==='none'?'\u25B6':'\u25BC';}">
+                <span class="frame-toggle">&#9660;</span>
+                <span class="frame-file">{{.File}}</span>
+                <span class="frame-in">in</span>
+                <span class="frame-func">{{.Function}}</span>
+                <span class="frame-line">at line {{.LineNo}}</span>
+                {{if .InApp}}<span class="inapp-badge">In App</span>{{end}}
+                <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy"></i></button>
+              </div>
+              {{if .CodeLines}}
+              <div class="frame-code">
+                {{range .CodeLines}}
+                <div class="code-line {{if .Highlight}}highlight{{end}}">
+                  <span class="line-no">{{.Number}}</span>
+                  <span class="line-content">{{.Content}}</span>
+                </div>
+                {{end}}
+              </div>
+              {{end}}
+              {{if .MappedFrom}}<div class="frame-mapped">{{.MappedFrom}}</div>{{end}}
+            </div>
+            {{end}}
+            {{end}}
+          {{end}}
+        </div>
+        {{else if .Frames}}
+        <div class="stacktrace">
+          <div class="stacktrace-header">
+            <span class="stacktrace-type">{{.Event.ExceptionType}}</span>
+            <span class="stacktrace-value">{{.Event.ExceptionValue}}</span>
+          </div>
+          {{range .Frames}}
+          <div class="frame {{if .InApp}}frame-inapp{{else}}frame-system{{end}}">
+            <div class="frame-header" onclick="var c=this.nextElementSibling; if(c){c.style.display=c.style.display==='none'?'block':'none'; this.querySelector('.frame-toggle').textContent=c.style.display==='none'?'\u25B6':'\u25BC';}">
+              <span class="frame-toggle">&#9660;</span>
+              <span class="frame-file">{{.File}}</span>
+              <span class="frame-in">in</span>
+              <span class="frame-func">{{.Function}}</span>
+              <span class="frame-line">at line {{.LineNo}}</span>
+              {{if .InApp}}<span class="inapp-badge">In App</span>{{end}}
+              <button class="copy-btn frame-copy" onclick="event.stopPropagation(); copyToClipboard('{{.File}}:{{.LineNo}} in {{.Function}}', this)" title="Copy frame path"><i data-feather="copy"></i></button>
+            </div>
+            {{if .CodeLines}}
+            <div class="frame-code">
+              {{range .CodeLines}}
+              <div class="code-line {{if .Highlight}}highlight{{end}}">
+                <span class="line-no">{{.Number}}</span>
+                <span class="line-content">{{.Content}}</span>
+              </div>
+              {{end}}
+            </div>
+            {{end}}
+            {{if .MappedFrom}}<div class="frame-mapped">{{.MappedFrom}}</div>{{end}}
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="empty-inline">No stacktrace available for this event.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <!-- Tags -->
+    {{if .Tags}}
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> Tags</h3>
+      <div class="section-body">
+        <div class="tags-table">
+          {{range .Tags}}
+          <div class="tag-row">
+            <span class="tag-key">{{.Key}}</span>
+            <span class="tag-value">{{.Value}}</span>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Breadcrumbs -->
+    {{if .Breadcrumbs}}
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> Breadcrumbs</h3>
+      <div class="section-body">
+        <div class="breadcrumbs">
+          {{range .Breadcrumbs}}
+          <div class="breadcrumb-row {{if eq .Level "error"}}error-row{{end}}">
+            <span class="breadcrumb-dot {{.Level}}"></span>
+            <div class="breadcrumb-body">
+              {{if or .Category .Time}}
+              <div class="breadcrumb-meta">
+                {{if .Category}}<span class="breadcrumb-category">{{.Category}}</span>{{end}}
+                {{if .Time}}<span class="breadcrumb-time">{{.Time}}</span>{{end}}
+              </div>
+              {{end}}
+              <span class="breadcrumb-message">{{.Message}}</span>
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </section>
+    {{end}}
+
+    <!-- User -->
+    {{if .User}}
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> User</h3>
+      <div class="section-body">
+        <div class="context-card context-card-flat">
+          <div class="context-card-body">
+            {{range .User}}
+            <div class="context-row">
+              <span class="key">{{.Key}}</span>
+              <span class="value">{{.Value}}</span>
+            </div>
+            {{end}}
+          </div>
+        </div>
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Request -->
+    {{if .Request}}
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> Request</h3>
+      <div class="section-body">
+        <div class="context-card context-card-flat">
+          <div class="context-card-body">
+            {{range .Request}}
+            <div class="context-row">
+              <span class="key">{{.Key}}</span>
+              <span class="value">{{.Value}}</span>
+            </div>
+            {{end}}
+          </div>
+        </div>
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Raw JSON -->
+    <div id="raw-json" class="raw-json raw-json-top">{{.RawJSON}}</div>
+
+    {{else}}
+    <!-- No event data — show event list -->
+    <div class="detail-section">
+      <h3 class="section-toggle"><span class="toggle-arrow">&#9660;</span> Events ({{.Issue.EventCount}})</h3>
+      <div class="section-body">
+        {{if .Events}}
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Event ID</th>
+              <th>Message</th>
+              <th>Level</th>
+              <th>Platform</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Events}}
+            <tr>
+              <td class="mono"><a href="/events/{{.EventID}}/">{{.ShortEventID}}</a></td>
+              <td>{{.Title}}</td>
+              <td><span class="level-badge {{.Level}}">{{.Level}}</span></td>
+              <td>{{.Platform}}</td>
+              <td class="mono">{{.TimeAgo}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No events recorded for this issue.</div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+    <section class="detail-section">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9660;</span> Comments</h3>
+      <div class="section-body">
+        <form method="POST" action="/issues/{{.Issue.ID}}/comments" class="comment-form">
+          <textarea name="body" rows="4" placeholder="Add a comment for your team..."></textarea>
+          <div class="comment-form-actions">
+            <button class="btn btn-primary" type="submit">Add comment</button>
+          </div>
+        </form>
+        {{if .Comments}}
+        <div class="comment-list">
+          {{range .Comments}}
+          <div class="comment-card">
+            <div class="comment-meta">
+              <strong>{{.Author}}</strong>
+              <span class="mono">{{.CreatedAt}}</span>
+            </div>
+            <div class="comment-body">{{.Body}}</div>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="empty-inline">No comments yet.</div>
+        {{end}}
+      </div>
+    </section>
+
+    <!-- All Events list (below main content, always visible) -->
+    {{if and .HasEvent .Events}}
+    <section class="detail-section section-top-gap-sm">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9654;</span> All Events ({{.Issue.EventCount}})</h3>
+      <div class="section-body is-hidden">
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Event ID</th>
+              <th>Message</th>
+              <th>Level</th>
+              <th>Platform</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Events}}
+            <tr>
+              <td class="mono"><a href="/events/{{.EventID}}/">{{.ShortEventID}}</a></td>
+              <td>{{.Title}}</td>
+              <td><span class="level-badge {{.Level}}">{{.Level}}</span></td>
+              <td>{{.Platform}}</td>
+              <td class="mono">{{.TimeAgo}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Tag Facets (below events) -->
+    {{if .TagFacets}}
+    <section class="detail-section section-top-gap-sm">
+      <h3 class="section-toggle" onclick="toggleSection(this)"><span class="toggle-arrow">&#9654;</span> Tag Distribution</h3>
+      <div class="section-body is-hidden">
+        <table class="events-table">
+          <thead>
+            <tr><th>Tag</th><th>Value</th><th>Count</th></tr>
+          </thead>
+          <tbody>
+            {{range .TagFacets}}
+            <tr>
+              <td class="mono">{{.Key}}</td>
+              <td>{{.Value}}</td>
+              <td class="mono">{{.Count}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {{end}}
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="detail-sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-item">
+        <span class="sidebar-label">Assignee</span>
+        <span class="sidebar-value">
+          <div class="assignee-dropdown">
+            <div class="assignee-circle" title="{{if .Issue.Assignee}}{{.Issue.Assignee}}{{else}}Unassigned{{end}}" onclick="toggleAssignee(this.parentElement)">
+              {{if .Issue.Assignee}}<span class="assignee-initial">{{slice .Issue.Assignee 0 1}}</span>{{end}}
+            </div>
+            <div class="assignee-menu is-hidden">
+              <input type="text" placeholder="Assign to..." class="assign-input" value="{{.Issue.Assignee}}"
+                     onkeydown="if(event.key==='Enter') assignTo(this, '{{.Issue.ID}}')">
+              <button onclick="assignTo(this.previousElementSibling, '{{.Issue.ID}}')" class="btn-sm">Assign</button>
+            </div>
+          </div>
+        </span>
+      </div>
+      <div class="sidebar-item">
+        <span class="sidebar-label">Priority</span>
+        <span class="sidebar-value">
+          <span class="priority-icon priority-{{.Issue.Priority}}" title="{{.Issue.PriorityLabel}} - Click to cycle"
+                onclick="cyclePriority('{{.Issue.ID}}', {{.Issue.Priority}})" class="interactive-inline">
+            {{if eq .Issue.Priority 0}}<span class="priority-bars p-critical">&#9608;&#9608;&#9608;&#9608;</span>
+            {{else if eq .Issue.Priority 1}}<span class="priority-bars p-high">&#9608;&#9608;&#9608;</span>
+            {{else if eq .Issue.Priority 3}}<span class="priority-bars p-low">&#9608;</span>
+            {{else}}<span class="priority-bars p-medium">&#9608;&#9608;</span>
+            {{end}}
+            <span class="priority-text">{{.Issue.PriorityLabel}}</span>
+          </span>
+        </span>
+      </div>
+      <div class="sidebar-item">
+        <span class="sidebar-label">Last seen</span>
+        <span class="sidebar-value">{{.Issue.LastSeen}}</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="sidebar-label">First seen</span>
+        <span class="sidebar-value">{{.Issue.FirstSeen}}</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="sidebar-label">Status</span>
+        <span class="sidebar-value"><span class="status-pill status-{{.Issue.Status}}">{{.Issue.StatusLabel}}</span></span>
+      </div>
+      {{if .Issue.ResolutionLabel}}
+      <div class="sidebar-item">
+        <span class="sidebar-label">Resolution</span>
+        <span class="sidebar-value">{{.Issue.ResolutionLabel}}</span>
+      </div>
+      {{end}}
+      {{if .Workflow.MergedIntoGroupID}}
+      <div class="sidebar-item">
+        <span class="sidebar-label">Merged into</span>
+        <span class="sidebar-value"><a href="/issues/{{.Workflow.MergedIntoGroupID}}/">{{.Workflow.MergedIntoGroupID}}</a></span>
+      </div>
+      {{end}}
+      <div class="sidebar-item">
+        <span class="sidebar-label">Level</span>
+        <span class="sidebar-value detail-level level-{{.Issue.Level}}">{{.Issue.Level}}</span>
+      </div>
+    </div>
+
+    {{if .Activity}}
+    <div class="sidebar-card">
+      <h4 class="sidebar-card-title">Activity</h4>
+      {{range .Activity}}
+      <div class="activity-entry">
+        <span class="activity-dot activity-dot-{{.Color}}"></span>
+        <div class="activity-body">
+          <span class="activity-text">{{.Text}}</span>
+          <span class="activity-time">{{.TimeAgo}}</span>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    <div class="sidebar-card">
+      <h4 class="sidebar-card-title">People</h4>
+      <p class="sidebar-muted">{{.Issue.UserCount}} users affected</p>
+    </div>
+
+    {{if .IssueDiff}}
+    <div class="sidebar-card">
+      <h4 class="sidebar-card-title">Changed Since First Seen</h4>
+      {{range .IssueDiff}}
+      <div class="sidebar-item">
+        <span class="sidebar-label">{{.Key}}</span>
+        <span class="sidebar-value">{{.OldValue}} → {{.NewValue}}</span>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    {{if .SimilarIssues}}
+    <div class="sidebar-card">
+      <h4 class="sidebar-card-title">Similar Issues</h4>
+      {{range .SimilarIssues}}
+      <div class="activity-entry">
+        <span class="activity-dot activity-dot-warning"></span>
+        <div class="activity-body">
+          <a class="activity-text" href="/issues/{{.ID}}/">{{.ShortID}} · {{.Title}}</a>
+          <span class="activity-time">{{.StatusTag}} · {{.LastSeen}}</span>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    {{if .MergedChildren}}
+    <div class="sidebar-card">
+      <h4 class="sidebar-card-title">Merged Issues</h4>
+      {{range .MergedChildren}}
+      <div class="activity-entry">
+        <span class="activity-dot activity-dot-muted"></span>
+        <div class="activity-body">
+          <a class="activity-text" href="/issues/{{.ID}}/">{{.ShortID}} · {{.Title}}</a>
+          <span class="activity-time">{{.StatusTag}} · {{.LastSeen}}</span>
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+
+    <div class="sidebar-card">
+      <h4 class="sidebar-card-title">Merge</h4>
+      <form method="POST" action="/issues/{{.Issue.ID}}/merge" class="merge-form merge-form-vertical">
+        <label class="detail-label" for="merge-target-{{.Issue.ID}}">Target issue ID</label>
+        <input id="merge-target-{{.Issue.ID}}" type="text" name="target_issue_id" placeholder="Merge into issue id" autocomplete="off" required>
+        <button class="btn btn-sm" type="submit">Merge</button>
+      </form>
+      {{if .Workflow.MergedIntoGroupID}}
+      <form method="POST" action="/issues/{{.Issue.ID}}/unmerge" class="inline-form-spaced">
+        <button class="btn btn-sm" type="submit">Unmerge</button>
+      </form>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleSection(header) {
+  var body = header.nextElementSibling;
+  if (!body) return;
+  var arrow = header.querySelector('.toggle-arrow');
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    if (arrow) arrow.innerHTML = '&#9660;';
+  } else {
+    body.style.display = 'none';
+    if (arrow) arrow.innerHTML = '&#9654;';
+  }
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.innerHTML;
+    btn.textContent = '\u2713';
+    setTimeout(function() { btn.innerHTML = orig; }, 1500);
+  });
+}
+
+function cyclePriority(id, current) {
+  var next = (current + 1) % 4;
+  fetch('/issues/' + id + '/priority', {
+    method: 'POST',
+    headers: {'HX-Request': 'true', 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'priority=' + next
+  }).then(function() { location.reload(); });
+}
+
+function toggleAssignee(dropdown) {
+  var menu = dropdown.querySelector('.assignee-menu');
+  if (!menu) return;
+  var visible = menu.style.display !== 'none';
+  document.querySelectorAll('.assignee-menu').forEach(function(m) { m.style.display = 'none'; });
+  if (!visible) {
+    menu.style.display = 'flex';
+    menu.querySelector('input').focus();
+  }
+}
+
+function assignTo(input, id) {
+  var val = input.value.trim();
+  fetch('/issues/' + id + '/assign', {
+    method: 'POST',
+    headers: {'HX-Request': 'true', 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'assignee=' + encodeURIComponent(val)
+  }).then(function() { location.reload(); });
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.assignee-dropdown')) {
+    document.querySelectorAll('.assignee-menu').forEach(function(m) { m.style.display = 'none'; });
+  }
+});
+</script>
+{{end}}

@@ -1,0 +1,66 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="detail-layout">
+  <div class="detail-main">
+    <div class="detail-header">
+      <div class="detail-breadcrumb">
+        <a href="/issues/">Issues</a> <span class="bc-sep">/</span>
+        <a href="/issues/{{.Issue.ID}}/" class="short-id mono">{{.Issue.ShortID}}</a>
+      </div>
+      <h1 class="detail-title">{{.Issue.ExcType}}</h1>
+      {{if .Issue.ExcValue}}<p class="detail-subtitle">{{.Issue.ExcValue}}</p>{{end}}
+      <div class="detail-meta-row">
+        <span class="status-pill status-{{.Issue.Status}}">{{.Issue.StatusLabel}}</span>
+        <span class="detail-level level-{{.Issue.Level}}">{{.Issue.Level}}</span>
+      </div>
+    </div>
+
+    <!-- Tab navigation -->
+    <nav class="issue-tabs" aria-label="Issue detail tabs">
+      {{range .Tabs}}
+      <a href="{{.URL}}" class="issue-tab{{if .Active}} issue-tab-active{{end}}">{{.Label}}</a>
+      {{end}}
+    </nav>
+
+    <!-- Similar issues tab content -->
+    <div class="detail-section">
+      <div class="section-body">
+        {{if .SimilarIssues}}
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Issue</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .SimilarIssues}}
+            <tr>
+              <td class="mono"><a href="/issues/{{.ID}}/">{{.ShortID}}</a></td>
+              <td>{{.Title}}</td>
+              <td><span class="status-pill status-{{.Status}}">{{.StatusTag}}</span></td>
+              <td class="mono">{{.LastSeen}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty-inline">No similar issues found.</div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-item">
+        <span class="sidebar-label">Similar</span>
+        <span class="sidebar-value">{{len .SimilarIssues}} issue{{if ne (len .SimilarIssues) 1}}s{{end}}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

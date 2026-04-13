@@ -1,0 +1,108 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Metrics Explorer</h1>
+    <p class="page-subtitle">Inspect custom metrics and query the last hour of aggregates without leaving the shared telemetry shell.</p>
+  </div>
+</div>
+
+{{if .Error}}
+<div class="card card-shell card-gap">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+<div class="card guide-card section-narrow">
+  <div class="section-header section-header-tight">How metrics land here</div>
+  <div class="empty-text">Send metrics via the statsd or metrics envelope endpoint, then use this page to query recent aggregates and jump into the emitted series by name.</div>
+</div>
+
+<div class="card card-shell card-gap section-narrow">
+  <div class="section-header section-header-tight">Query a metric</div>
+  <form method="get" action="/metrics/" class="toolbar-row">
+    <div>
+      <label class="filter-label" for="metricSelect">Metric</label>
+      <select name="metric" id="metricSelect" class="filter-select">
+        <option value="">-- select metric --</option>
+        {{range .MetricNames}}
+        <option value="{{.}}"{{if eq . $.SelectedMetric}} selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </div>
+    <div>
+      <label class="filter-label" for="aggSelect">Aggregate</label>
+      <select name="aggregate" id="aggSelect" class="filter-select">
+        {{$agg := .Aggregate}}
+        <option value="avg"{{if eq $agg "avg"}} selected{{end}}>avg</option>
+        <option value="sum"{{if eq $agg "sum"}} selected{{end}}>sum</option>
+        <option value="min"{{if eq $agg "min"}} selected{{end}}>min</option>
+        <option value="max"{{if eq $agg "max"}} selected{{end}}>max</option>
+        <option value="count"{{if eq $agg "count"}} selected{{end}}>count</option>
+        <option value="p50"{{if eq $agg "p50"}} selected{{end}}>p50</option>
+        <option value="p95"{{if eq $agg "p95"}} selected{{end}}>p95</option>
+        <option value="p99"{{if eq $agg "p99"}} selected{{end}}>p99</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-sm">Query</button>
+  </form>
+</div>
+
+{{if .ChartResult}}
+<div class="card card-shell card-gap section-narrow">
+  <div class="section-header">{{.ChartResult.MetricName}} ({{.ChartResult.Aggregate}})</div>
+  <div class="metrics-grid card-top-gap">
+    <div class="metric-card">
+      <div class="metric-label">Value</div>
+      <div class="metric-value">{{printf "%.4f" .ChartResult.Value}}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Data Points</div>
+      <div class="metric-value">{{.ChartResult.Count}}</div>
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{if .Metrics}}
+<div class="card">
+  <div class="section-header">All Metrics (last hour)</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Count</th>
+        <th>Sum</th>
+        <th>Avg</th>
+        <th>Min</th>
+        <th>Max</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Metrics}}
+      <tr>
+        <td><a href="/metrics/?metric={{.Name}}&aggregate=avg">{{.Name}}</a></td>
+        <td>{{.Type}}</td>
+        <td>{{.Count}}</td>
+        <td>{{printf "%.2f" .Sum}}</td>
+        <td>{{printf "%.2f" .Avg}}</td>
+        <td>{{printf "%.2f" .Min}}</td>
+        <td>{{printf "%.2f" .Max}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+{{if not .Error}}
+<div class="card guide-card section-narrow">
+  <div class="empty-state empty-state-inline">
+    <div class="empty-title">No custom metrics found yet</div>
+    <div class="empty-text">Once your app emits metrics, Urgentry will list the last hour of aggregates here so you can query them by name and aggregate.</div>
+  </div>
+</div>
+{{end}}
+{{end}}
+{{end}}

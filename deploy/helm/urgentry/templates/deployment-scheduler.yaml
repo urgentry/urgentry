@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "urgentry.fullname" . }}-scheduler
+  labels:
+    {{- include "urgentry.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: {{ .Values.replicas.scheduler }}
+  selector:
+    matchLabels:
+      {{- include "urgentry.roleSelectorLabels" (dict "root" . "role" "scheduler") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "urgentry.roleSelectorLabels" (dict "root" . "role" "scheduler") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "urgentry.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: scheduler
+          image: {{ include "urgentry.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args: ["serve", "--role=scheduler", "--addr=:8083"]
+          ports:
+            - name: http
+              containerPort: 8083
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "urgentry.fullname" . }}
+          env:
+            {{- if .Values.externalPostgres.existingSecret }}
+            - name: URGENTRY_CONTROL_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalPostgres.existingSecret }}
+                  key: URGENTRY_CONTROL_DATABASE_URL
+            - name: URGENTRY_TELEMETRY_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalPostgres.existingSecret }}
+                  key: URGENTRY_TELEMETRY_DATABASE_URL
+            {{- end }}
+            {{- if .Values.bootstrap.existingSecret }}
+            - name: URGENTRY_BOOTSTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.bootstrap.existingSecret }}
+                  key: URGENTRY_BOOTSTRAP_PASSWORD
+            - name: URGENTRY_BOOTSTRAP_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.bootstrap.existingSecret }}
+                  key: URGENTRY_BOOTSTRAP_PAT
+            {{- else }}
+            - name: URGENTRY_BOOTSTRAP_PASSWORD
+              value: {{ .Values.bootstrap.password | quote }}
+            - name: URGENTRY_BOOTSTRAP_PAT
+              value: {{ .Values.bootstrap.pat | quote }}
+            {{- end }}
+            {{- if .Values.externalMinio.existingSecret }}
+            - name: URGENTRY_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalMinio.existingSecret }}
+                  key: URGENTRY_S3_ACCESS_KEY
+            - name: URGENTRY_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalMinio.existingSecret }}
+                  key: URGENTRY_S3_SECRET_KEY
+            {{- else }}
+            - name: URGENTRY_S3_ACCESS_KEY
+              value: {{ .Values.externalMinio.accessKey | quote }}
+            - name: URGENTRY_S3_SECRET_KEY
+              value: {{ .Values.externalMinio.secretKey | quote }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources.scheduler | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim }}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "urgentry.fullname" . }}-data
+          {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

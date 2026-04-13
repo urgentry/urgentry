@@ -1,0 +1,117 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <div class="page-heading">
+    <h1 class="page-title">Performance</h1>
+    <p class="page-subtitle">Review transaction latency, throughput, and web vitals from the shared performance surfaces.</p>
+  </div>
+  <div class="page-actions">
+    <a href="/performance/" class="btn btn-sm btn-active">Transactions</a>
+    <a href="/performance/queues/" class="btn btn-sm">Queues</a>
+    <a href="/performance/spans/" class="btn btn-sm">Spans</a>
+  </div>
+</div>
+
+{{if .Error}}
+<div class="card card-shell card-gap">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+<div class="performance-shell">
+<div class="card guide-card">
+  <div class="section-header section-header-tight">How to read this page</div>
+  <div class="empty-text">Start with the transaction summary, then pivot into queues or spans when the slowest requests need deeper breakdowns.</div>
+</div>
+
+<div class="metrics-grid card-gap">
+  <div class="metric-card">
+    <div class="metric-label">Throughput</div>
+    <div class="metric-value">{{if .Throughput}}{{.Throughput}}{{else}}0{{end}}</div>
+    <div class="metric-sub">Total transactions</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">p50 Latency</div>
+    <div class="metric-value">{{if .OverallP50}}{{.OverallP50}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">p95 Latency</div>
+    <div class="metric-value">{{if .OverallP95}}{{.OverallP95}} ms{{else}}-{{end}}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Max Latency</div>
+    <div class="metric-value">{{if .OverallMax}}{{.OverallMax}} ms{{else}}-{{end}}</div>
+  </div>
+</div>
+
+<div class="card card-gap">
+  <div class="section-header">Slowest Transactions (by p95)</div>
+  {{if .Transactions}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Transaction</th>
+        <th>Count</th>
+        <th>p95 (ms)</th>
+        <th style="min-width: 5rem;">Trend (p95)</th>
+        <th>Avg (ms)</th>
+        <th style="min-width: 5rem;">Trend (Avg)</th>
+        <th>Apdex</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Transactions}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td>{{.Count}}</td>
+        <td>{{.P95}}</td>
+        <td>{{if .DeltaP95}}<span class="perf-delta">{{.DeltaP95}}</span>{{else}}-{{end}}</td>
+        <td>{{.Avg}}</td>
+        <td>{{if .DeltaAvg}}<span class="perf-delta">{{.DeltaAvg}}</span>{{else}}-{{end}}</td>
+        <td>{{if .Apdex}}<span class="apdex-score apdex-{{.ApdexRank}}" title="{{.ApdexRank}}">{{.Apdex}}</span>{{else}}-{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state empty-state-inline">
+    <div class="empty-title">No transactions captured yet</div>
+    <div class="empty-text">Send transaction data to populate throughput, latency, and the slowest transaction table on this page.</div>
+  </div>
+  {{end}}
+</div>
+
+{{if .WebVitals}}
+<div class="card card-top-gap">
+  <div class="section-header">Web Vitals by Page</div>
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Page</th>
+        <th>Count</th>
+        <th>LCP (ms)</th>
+        <th>CLS</th>
+        <th>INP (ms)</th>
+        <th>TTFB (ms)</th>
+        <th>FCP (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .WebVitals}}
+      <tr>
+        <td>{{.Page}}</td>
+        <td>{{.Count}}</td>
+        <td>{{if .LCP}}<span class="vital-score vital-{{.LCPRating}}">{{.LCP}}</span>{{else}}-{{end}}</td>
+        <td>{{if .CLS}}<span class="vital-score vital-{{.CLSRating}}">{{.CLS}}</span>{{else}}-{{end}}</td>
+        <td>{{if .INP}}<span class="vital-score vital-{{.INPRating}}">{{.INP}}</span>{{else}}-{{end}}</td>
+        <td>{{if .TTFB}}<span class="vital-score vital-{{.TTFBRating}}">{{.TTFB}}</span>{{else}}-{{end}}</td>
+        <td>{{if .FCP}}<span class="vital-score vital-{{.FCPRating}}">{{.FCP}}</span>{{else}}-{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+</div>
+{{end}}

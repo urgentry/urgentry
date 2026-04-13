@@ -1,0 +1,59 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+  <h1 class="page-title">Queue Performance</h1>
+  <div class="page-actions">
+    <a href="/performance/" class="btn btn-sm">Transactions</a>
+    <a href="/performance/queues/" class="btn btn-sm btn-active">Queues</a>
+    <a href="/performance/spans/" class="btn btn-sm">Spans</a>
+  </div>
+</div>
+
+{{if .Error}}
+<div class="card card-shell card-gap">
+  <div class="empty-text">{{.Error}}</div>
+</div>
+{{end}}
+
+<div class="card">
+  <div class="section-header">Queue Processing (last 24h)</div>
+  {{if .Queues}}
+  <table class="events-table">
+    <thead>
+      <tr>
+        <th>Queue</th>
+        <th>Processed</th>
+        <th>Published</th>
+        <th>Avg (ms)</th>
+        <th>p95 (ms)</th>
+        <th>Failures</th>
+        <th>Failure Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Queues}}
+      <tr>
+        <td><span class="mono">{{.Name}}</span></td>
+        <td>{{.ProcessCount}}</td>
+        <td>{{.PublishCount}}</td>
+        <td>{{if .AvgProcessing}}{{.AvgProcessing}}{{else}}-{{end}}</td>
+        <td>{{if .P95Processing}}{{.P95Processing}}{{else}}-{{end}}</td>
+        <td>{{.FailureCount}}</td>
+        <td><span class="queue-failure-rate">{{.FailureRate}}</span></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state empty-state-inline">
+    <div class="empty-text">No queue spans captured yet. Send spans with op <code>queue.process</code> or <code>queue.publish</code> to see queue metrics.</div>
+  </div>
+  {{end}}
+</div>
+
+<style>
+  .btn-active { background: var(--accent-bg, #e8dcc7); font-weight: 600; }
+  .queue-failure-rate { font-weight: 500; }
+</style>
+{{end}}

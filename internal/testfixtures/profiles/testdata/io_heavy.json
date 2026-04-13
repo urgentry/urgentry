@@ -1,0 +1,12 @@
+{
+  "frames": [
+    {"function": "dbQuery", "filename": "db.go", "lineno": 12},
+    {"function": "readReplica", "filename": "replica.go", "lineno": 8},
+    {"function": "checkout", "filename": "checkout.go", "lineno": 41},
+    {"function": "rootHandler", "filename": "app.go", "lineno": 1}
+  ],
+  "samples": [
+    {"frames": [0, 2, 3], "weight": 5},
+    {"frames": [1, 2, 3], "weight": 3}
+  ]
+}
