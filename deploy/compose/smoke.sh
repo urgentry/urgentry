@@ -2,12 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 ENV_TEMPLATE="$SCRIPT_DIR/.env.example"
 LIB_SH="$SCRIPT_DIR/lib.sh"
 PROJECT_NAME="${URGENTRY_SELF_HOSTED_PROJECT:-}"
 KEEP_STACK="${URGENTRY_SELF_HOSTED_KEEP_STACK:-false}"
 UP_ATTEMPTS="${URGENTRY_SELF_HOSTED_SMOKE_ATTEMPTS:-3}"
+SKIP_IMAGE_BUILD="${URGENTRY_SELF_HOSTED_SKIP_BUILD:-false}"
 
 # shellcheck disable=SC1090
 source "$LIB_SH"
@@ -58,6 +60,22 @@ else:
 
 compose() {
   docker compose --project-name "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+build_shared_image() {
+  local build_log
+  build_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-compose-build.XXXXXX")"
+  if docker build \
+    --build-arg "URGENTRY_BUILD_TAGS=${URGENTRY_BUILD_TAGS:-netgo,osusergo}" \
+    -t urgentry:latest \
+    -f "$APP_DIR/Dockerfile" \
+    "$APP_DIR" >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    return 0
+  fi
+  cat "$build_log" >&2
+  rm -f "$build_log"
+  return 1
 }
 
 columnar_enabled() {
@@ -182,22 +200,30 @@ ensure_env_file() {
   ENV_FILE="$(mktemp "${TMPDIR:-/tmp}/urgentry-selfhosted-env.XXXXXX")"
   GENERATED_ENV_FILE="true"
   cp -f "$ENV_TEMPLATE" "$ENV_FILE"
+  local bootstrap_password bootstrap_pat metrics_token postgres_password minio_password
+  bootstrap_password="$(generate_secret "" 28)"
+  bootstrap_pat="$(generate_secret "gpat_" 28)"
+  metrics_token="$(generate_secret "metrics_" 28)"
+  postgres_password="$(generate_secret "" 28)"
+  minio_password="$(generate_secret "" 28)"
   {
     echo "COMPOSE_PROJECT_NAME=${PROJECT_NAME}"
-    echo "POSTGRES_PASSWORD=serious-selfhosted-postgres"
-    echo "MINIO_ROOT_PASSWORD=serious-selfhosted-minio"
-    echo "URGENTRY_CONTROL_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:serious-selfhosted-postgres@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
-    echo "URGENTRY_TELEMETRY_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:serious-selfhosted-postgres@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
-    echo "URGENTRY_BOOTSTRAP_PAT=gpat_serious_self_hosted_smoke"
-    echo "URGENTRY_BOOTSTRAP_PASSWORD=SeriousSelfHosted!123"
-    echo "URGENTRY_METRICS_TOKEN=metrics-self-hosted-smoke"
+    echo "POSTGRES_PASSWORD=${postgres_password}"
+    echo "MINIO_ROOT_PASSWORD=${minio_password}"
+    echo "URGENTRY_CONTROL_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:${postgres_password}@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
+    echo "URGENTRY_TELEMETRY_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:${postgres_password}@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
+    echo "URGENTRY_BOOTSTRAP_PAT=${bootstrap_pat}"
+    echo "URGENTRY_BOOTSTRAP_PASSWORD=${bootstrap_password}"
+    echo "URGENTRY_METRICS_TOKEN=${metrics_token}"
     if [[ "${URGENTRY_SELF_HOSTED_ENABLE_COLUMNAR_PILOT:-false}" == "true" ]]; then
       echo "COMPOSE_PROFILES=columnar"
       echo "URGENTRY_BUILD_TAGS=netgo,osusergo,clickhouse"
       echo "CLICKHOUSE_DB=urgentry"
       echo "CLICKHOUSE_USER=urgentry"
-      echo "CLICKHOUSE_PASSWORD=serious-selfhosted-clickhouse"
-      echo "URGENTRY_COLUMNAR_DATABASE_URL=clickhouse://urgentry:serious-selfhosted-clickhouse@clickhouse:9000/urgentry"
+      local clickhouse_password
+      clickhouse_password="$(generate_secret "" 28)"
+      echo "CLICKHOUSE_PASSWORD=${clickhouse_password}"
+      echo "URGENTRY_COLUMNAR_DATABASE_URL=clickhouse://urgentry:${clickhouse_password}@clickhouse:9000/urgentry"
       echo "URGENTRY_COLUMNAR_BACKEND=clickhouse"
     fi
   } >>"$ENV_FILE"
@@ -274,18 +300,20 @@ boot_stack() {
   local attempt output
 
   if [[ -n "${URGENTRY_SELF_HOSTED_ENV_FILE:-}" ]]; then
-    compose up -d --build
+    compose up -d --no-build
     return 0
   fi
 
   for attempt in 1 2 3 4 5; do
     output="$(mktemp "${TMPDIR:-/tmp}/urgentry-compose-up.XXXXXX")"
-    if compose up -d --build >"$output" 2>&1; then
+    if compose up -d --no-build >"$output" 2>&1; then
       cat "$output"
       rm -f "$output"
       return 0
     fi
-    if ! command_hit_port_conflict "$output"; then
+    if command_hit_network_pool_exhaustion "$output"; then
+      docker network prune -f >/dev/null 2>&1 || true
+    elif ! command_hit_port_conflict "$output"; then
       cat "$output" >&2
       rm -f "$output"
       return 1
@@ -448,6 +476,9 @@ smoke_columnar_logs_flow() {
 run_smoke_flow() {
   local command="$1"
   if [[ "$command" == "up" ]]; then
+    if [[ "$SKIP_IMAGE_BUILD" != "true" ]]; then
+      build_shared_image
+    fi
     boot_stack
   fi
   render_urls
@@ -470,32 +501,32 @@ main() {
   resolve_project_name
   load_env
 
+  local attempt smoke_log status
   if [[ "$command" == "up" ]]; then
     trap cleanup EXIT
-    local attempt smoke_log status
-    for attempt in $(seq 1 "$UP_ATTEMPTS"); do
-      smoke_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-selfhosted-smoke.XXXXXX")"
-      set +e
-      run_smoke_flow "$command" >"$smoke_log" 2>&1
-      status=$?
-      set -e
-      if [[ "$status" == "0" ]]; then
-        cat "$smoke_log"
-        rm -f "$smoke_log"
-        break
-      fi
-      if [[ "$attempt" == "$UP_ATTEMPTS" ]]; then
-        cat "$smoke_log" >&2
-        rm -f "$smoke_log"
-        exit "$status"
-      fi
-      prepare_retry_attempt
-      rm -f "$smoke_log"
-      sleep 2
-    done
-  else
-    run_smoke_flow "$command"
   fi
+  for attempt in $(seq 1 "$UP_ATTEMPTS"); do
+    smoke_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-selfhosted-smoke.XXXXXX")"
+    set +e
+    run_smoke_flow "$command" >"$smoke_log" 2>&1
+    status=$?
+    set -e
+    if [[ "$status" == "0" ]]; then
+      cat "$smoke_log"
+      rm -f "$smoke_log"
+      break
+    fi
+    if [[ "$attempt" == "$UP_ATTEMPTS" ]]; then
+      cat "$smoke_log" >&2
+      rm -f "$smoke_log"
+      exit "$status"
+    fi
+    if [[ "$command" == "up" ]]; then
+      prepare_retry_attempt
+    fi
+    rm -f "$smoke_log"
+    sleep 2
+  done
 
   cat <<EOF
 compose smoke passed

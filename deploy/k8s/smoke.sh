@@ -2,9 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 KUSTOMIZE_DIR="${URGENTRY_SELF_HOSTED_KUSTOMIZE_DIR:-$SCRIPT_DIR}"
 NAMESPACE="${URGENTRY_SELF_HOSTED_NAMESPACE:-urgentry-system}"
 KEEP_RESOURCES="${URGENTRY_SELF_HOSTED_KEEP_STACK:-false}"
+ROTATE_SECRETS="$APP_DIR/deploy/rotate-secrets.sh"
+SMOKE_ATTEMPTS="${URGENTRY_SELF_HOSTED_SMOKE_ATTEMPTS:-3}"
 
 API_URL=""
 INGEST_URL=""
@@ -17,6 +20,8 @@ WORKER_PF_PID=""
 SCHEDULER_PF_PID=""
 APPLIED_BUNDLE="false"
 PF_LOG_DIR=""
+APPLY_DIR=""
+KIND_HOSTPATH=""
 
 usage() {
   cat <<'EOF'
@@ -33,6 +38,146 @@ Optional environment:
 Notes:
   The applied urgentry-secret must already contain real secret values. Placeholder values fail closed.
 EOF
+}
+
+current_context() {
+  kubectl config current-context 2>/dev/null || true
+}
+
+kind_cluster_name() {
+  local context
+  context="$(current_context)"
+  if [[ "$context" == kind-* ]]; then
+    printf '%s\n' "${context#kind-}"
+  fi
+}
+
+is_kind_context() {
+  [[ -n "$(kind_cluster_name)" ]]
+}
+
+safe_slug() {
+  python3 - "$1" <<'PY'
+import re
+import sys
+
+slug = re.sub(r"[^a-z0-9-]+", "-", sys.argv[1].lower()).strip("-")
+print(slug or "smoke")
+PY
+}
+
+build_local_image() {
+  local build_log
+  build_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-k8s-build.XXXXXX")"
+  if docker build \
+    --build-arg "URGENTRY_BUILD_TAGS=${URGENTRY_BUILD_TAGS:-netgo,osusergo}" \
+    -t urgentry:latest \
+    -f "$APP_DIR/Dockerfile" \
+    "$APP_DIR" >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    return 0
+  fi
+  cat "$build_log" >&2
+  rm -f "$build_log"
+  return 1
+}
+
+ensure_kind_image() {
+  local cluster
+  cluster="$(kind_cluster_name)"
+  if [[ -z "$cluster" ]]; then
+    return 0
+  fi
+  build_local_image
+  kind load docker-image urgentry:latest --name "$cluster" >/dev/null
+}
+
+rewrite_namespace() {
+  python3 - "$1" "$2" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+namespace = sys.argv[2]
+kustom = root / "kustomization.yaml"
+text = kustom.read_text(encoding="utf-8")
+lines = []
+replaced = False
+for line in text.splitlines():
+    if line.startswith("namespace:"):
+        lines.append(f"namespace: {namespace}")
+        replaced = True
+    else:
+        lines.append(line)
+if not replaced:
+    lines.insert(0, f"namespace: {namespace}")
+kustom.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+}
+
+prepare_apply_dir() {
+  APPLY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/urgentry-k8s-smoke.XXXXXX")"
+  cp -R "$KUSTOMIZE_DIR/." "$APPLY_DIR/"
+  rewrite_namespace "$APPLY_DIR" "$NAMESPACE"
+
+  if grep -q 'REPLACE_ME_' "$APPLY_DIR/secret.yaml"; then
+    "$ROTATE_SECRETS" k8s \
+      --secret-file "$APPLY_DIR/secret.yaml" \
+      --bootstrap-password "K8sSmokeBootstrap!123" \
+      --bootstrap-pat "gpat_k8s_smoke" \
+      --metrics-token "metrics_k8s_smoke" \
+      --postgres-password "k8s-smoke-postgres" \
+      --minio-password "k8s-smoke-minio" >/dev/null
+  fi
+
+  if is_kind_context; then
+    python3 - "$APPLY_DIR" "$NAMESPACE" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(sys.argv[1])
+namespace = sys.argv[2]
+slug = re.sub(r"[^a-z0-9-]+", "-", namespace.lower()).strip("-") or "smoke"
+pv_name = f"urgentry-k8s-data-{slug}"
+host_path = f"/var/local/{pv_name}"
+pvc = root / "urgentry-data-pvc.yaml"
+text = pvc.read_text(encoding="utf-8")
+needle = "  resources:\n"
+replacement = f'  storageClassName: ""\n  volumeName: {pv_name}\n  resources:\n'
+if needle not in text:
+    raise SystemExit("urgentry-data pvc shape changed")
+pvc.write_text(text.replace(needle, replacement, 1), encoding="utf-8")
+(root / "urgentry-data-pv.yaml").write_text(
+    "apiVersion: v1\n"
+    "kind: PersistentVolume\n"
+    f"metadata:\n  name: {pv_name}\n"
+    "spec:\n"
+    "  capacity:\n"
+    "    storage: 5Gi\n"
+    "  accessModes:\n"
+    "    - ReadWriteMany\n"
+    "  persistentVolumeReclaimPolicy: Delete\n"
+    '  storageClassName: ""\n'
+    "  hostPath:\n"
+    f"    path: {host_path}\n"
+    "    type: DirectoryOrCreate\n",
+    encoding="utf-8",
+)
+kustom = root / "kustomization.yaml"
+ktext = kustom.read_text(encoding="utf-8")
+if "urgentry-data-pv.yaml" not in ktext:
+    ktext = ktext.replace("resources:\n", "resources:\n  - urgentry-data-pv.yaml\n", 1)
+kustom.write_text(ktext, encoding="utf-8")
+PY
+    KIND_HOSTPATH="$(python3 - "$NAMESPACE" <<'PY'
+import re
+import sys
+slug = re.sub(r"[^a-z0-9-]+", "-", sys.argv[1].lower()).strip("-") or "smoke"
+print(f"/var/local/urgentry-k8s-data-{slug}")
+PY
+)"
+  fi
 }
 
 free_port() {
@@ -197,7 +342,17 @@ cleanup() {
     rm -rf "$PF_LOG_DIR"
   fi
   if [[ "$APPLIED_BUNDLE" == "true" && "$KEEP_RESOURCES" != "true" ]]; then
-    kubectl delete -k "$KUSTOMIZE_DIR" --ignore-not-found >/dev/null 2>&1 || true
+    kubectl delete -k "${APPLY_DIR:-$KUSTOMIZE_DIR}" --ignore-not-found >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$APPLY_DIR" ]]; then
+    rm -rf "$APPLY_DIR"
+  fi
+  if [[ -n "$KIND_HOSTPATH" && "$KEEP_RESOURCES" != "true" ]]; then
+    local cluster
+    cluster="$(kind_cluster_name)"
+    if [[ -n "$cluster" ]]; then
+      docker exec "${cluster}-control-plane" rm -rf "$KIND_HOSTPATH" >/dev/null 2>&1 || true
+    fi
   fi
 }
 
@@ -322,7 +477,9 @@ main() {
 
   if [[ "$command" == "up" ]]; then
     trap cleanup EXIT
-    kubectl apply -k "$KUSTOMIZE_DIR" >/dev/null
+    prepare_apply_dir
+    ensure_kind_image
+    kubectl apply -k "${APPLY_DIR:-$KUSTOMIZE_DIR}" >/dev/null
     APPLIED_BUNDLE="true"
   else
     trap cleanup EXIT
@@ -334,8 +491,16 @@ main() {
     echo "k8s smoke requires a real URGENTRY_BOOTSTRAP_PAT in secret/urgentry-secret" >&2
     exit 1
   fi
-  assert_runtime_backends
-  smoke_event_flow
+  local attempt
+  for attempt in $(seq 1 "$SMOKE_ATTEMPTS"); do
+    if assert_runtime_backends && smoke_event_flow; then
+      break
+    fi
+    if [[ "$attempt" == "$SMOKE_ATTEMPTS" ]]; then
+      exit 1
+    fi
+    sleep 2
+  done
 
   cat <<EOF
 k8s smoke passed

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
@@ -156,6 +157,7 @@ main() {
 
   local backup_dir="$1"
   mkdir -p "$backup_dir"
+  chmod 700 "$backup_dir"
 
   set -a
   # shellcheck disable=SC1090
@@ -174,6 +176,7 @@ main() {
   wait_service_healthy urgentry-api
 
   cp -f "$ENV_FILE" "$backup_dir/compose.env"
+  chmod 600 "$backup_dir/compose.env"
   compose exec -T urgentry-api sh -lc 'urgentry self-hosted preflight --control-dsn "$URGENTRY_CONTROL_DATABASE_URL" --telemetry-dsn "$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$URGENTRY_TELEMETRY_BACKEND"' >"$backup_dir/preflight.json"
   compose exec -T urgentry-api sh -lc 'urgentry self-hosted status --control-dsn "$URGENTRY_CONTROL_DATABASE_URL" --telemetry-dsn "$URGENTRY_TELEMETRY_DATABASE_URL" --telemetry-backend "$URGENTRY_TELEMETRY_BACKEND"' >"$backup_dir/status.json"
   compose exec -T urgentry-api sh -lc 'urgentry self-hosted backup-plan --telemetry-backend "$URGENTRY_TELEMETRY_BACKEND" --blob-backend "$URGENTRY_BLOB_BACKEND" --async-backend "$URGENTRY_ASYNC_BACKEND" --cache-backend "$URGENTRY_CACHE_BACKEND"' >"$backup_dir/backup-plan.json"

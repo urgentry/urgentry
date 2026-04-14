@@ -49,6 +49,11 @@ load_env() {
   INGEST_URL="http://127.0.0.1:${URGENTRY_INGEST_PORT}"
 }
 
+discover_ports() {
+  API_URL="http://127.0.0.1:$(docker_host_port "${PROJECT_NAME}-urgentry-api-1" 8080)"
+  INGEST_URL="http://127.0.0.1:$(docker_host_port "${PROJECT_NAME}-urgentry-ingest-1" 8081)"
+}
+
 ensure_env_file() {
   if [[ -n "${URGENTRY_SELF_HOSTED_ENV_FILE:-}" ]]; then
     ENV_FILE="$URGENTRY_SELF_HOSTED_ENV_FILE"
@@ -56,21 +61,33 @@ ensure_env_file() {
   fi
   ENV_FILE="$(mktemp "${TMPDIR:-/tmp}/urgentry-selfhosted-role.XXXXXX")"
   cp -f "$ENV_TEMPLATE" "$ENV_FILE"
+  local bootstrap_password bootstrap_pat metrics_token postgres_password minio_password
+  bootstrap_password="$(generate_secret "" 28)"
+  bootstrap_pat="$(generate_secret "gpat_" 28)"
+  metrics_token="$(generate_secret "metrics_" 28)"
+  postgres_password="$(generate_secret "" 28)"
+  minio_password="$(generate_secret "" 28)"
   {
     echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME"
-    echo "POSTGRES_PASSWORD=serious-selfhosted-postgres"
-    echo "MINIO_ROOT_PASSWORD=serious-selfhosted-minio"
-    echo "URGENTRY_CONTROL_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:serious-selfhosted-postgres@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
-    echo "URGENTRY_TELEMETRY_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:serious-selfhosted-postgres@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
-    echo "URGENTRY_BOOTSTRAP_PAT=gpat_serious_self_hosted_role_drill"
-    echo "URGENTRY_BOOTSTRAP_PASSWORD=SeriousSelfHosted!123"
-    echo "URGENTRY_METRICS_TOKEN=metrics-self-hosted-role-drill"
+    echo "POSTGRES_PASSWORD=${postgres_password}"
+    echo "MINIO_ROOT_PASSWORD=${minio_password}"
+    echo "URGENTRY_CONTROL_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:${postgres_password}@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
+    echo "URGENTRY_TELEMETRY_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:${postgres_password}@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
+    echo "URGENTRY_BOOTSTRAP_PAT=${bootstrap_pat}"
+    echo "URGENTRY_BOOTSTRAP_PASSWORD=${bootstrap_password}"
+    echo "URGENTRY_METRICS_TOKEN=${metrics_token}"
   } >>"$ENV_FILE"
   append_random_port_overrides "$ENV_FILE"
 }
 
 boot_stack() {
   local attempt
+  if [[ -n "${URGENTRY_SELF_HOSTED_ENV_FILE:-}" ]]; then
+    URGENTRY_SELF_HOSTED_ENV_FILE="$ENV_FILE" \
+    URGENTRY_SELF_HOSTED_PROJECT="$PROJECT_NAME" \
+    "$SMOKE_SCRIPT" check >/dev/null
+    return 0
+  fi
   for attempt in 1 2 3 4 5; do
     if URGENTRY_SELF_HOSTED_ENV_FILE="$ENV_FILE" \
       URGENTRY_SELF_HOSTED_PROJECT="$PROJECT_NAME" \
@@ -149,6 +166,27 @@ wait_ready() {
   done
 }
 
+wait_container_ready() {
+  local service="$1"
+  local timeout="${2:-120}"
+  local deadline=$((SECONDS + timeout))
+  local container_id status
+  while (( SECONDS < deadline )); do
+    container_id="$(compose ps -q "$service")"
+    if [[ -z "$container_id" ]]; then
+      sleep 2
+      continue
+    fi
+    status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+    if [[ "$status" == "healthy" || "$status" == "running" ]]; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "timed out waiting for container ${service}" >&2
+  return 1
+}
+
 create_backfill() {
   curl -fsS -X POST -H "Authorization: Bearer ${URGENTRY_BOOTSTRAP_PAT}" -H "Content-Type: application/json" \
     "$API_URL/api/0/organizations/urgentry-org/backfills/" \
@@ -196,10 +234,11 @@ main() {
   load_env
 
   boot_stack
+  discover_ports
   local public_key worker_event run_json run_id scheduler_url worker_url
   public_key="$(fetch_public_key)"
-  worker_url="http://127.0.0.1:${URGENTRY_WORKER_PORT}"
-  scheduler_url="http://127.0.0.1:${URGENTRY_SCHEDULER_PORT}"
+  worker_url="http://127.0.0.1:$(docker_host_port "${PROJECT_NAME}-urgentry-worker-1" 8082)"
+  scheduler_url="http://127.0.0.1:$(docker_host_port "${PROJECT_NAME}-urgentry-scheduler-1" 8083)"
 
   compose stop urgentry-worker >/dev/null
   worker_event="rolerestart$(date +%s)"
@@ -207,7 +246,7 @@ main() {
   sleep 5
   assert_event_absent "$worker_event"
   compose start urgentry-worker >/dev/null
-  wait_ready "$worker_url"
+  wait_container_ready urgentry-worker 180
   wait_for_event "$worker_event" 90
 
   compose stop urgentry-scheduler >/dev/null
@@ -234,7 +273,7 @@ main() {
     exit 1
   fi
   compose start urgentry-scheduler >/dev/null
-  wait_ready "$scheduler_url"
+  wait_container_ready urgentry-scheduler 180
   wait_for_backfill "$run_id" 90
 
   cat <<EOF

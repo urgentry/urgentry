@@ -34,6 +34,8 @@ For a long-running Linux service, use `scripts/deploy-server.sh` or a systemd un
 - `URGENTRY_BOOTSTRAP_PASSWORD`
 - `URGENTRY_BOOTSTRAP_PAT`
 
+`scripts/deploy-server.sh` now builds a compressed Linux binary locally, uploads it atomically with checksum verification, writes `/etc/urgentry/urgentry.env`, installs a hardened systemd unit, and prints the effective bootstrap email/password/PAT at the end. If you omit `--password` or `--pat`, the script generates secure values for you.
+
 ## Self-hosted mode
 
 The same binary can run the split-role self-hosted deployment:

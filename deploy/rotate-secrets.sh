@@ -252,6 +252,22 @@ with open(path, "w", encoding="utf-8") as fh:
 PY
 }
 
+running_pod_name() {
+  local namespace="$1"
+  local selector="$2"
+  kubectl -n "$namespace" get pods -l "$selector" -o json | python3 -c '
+import json
+import sys
+
+items = json.load(sys.stdin).get("items", [])
+for item in items:
+    if item.get("status", {}).get("phase") == "Running":
+        print(item["metadata"]["name"])
+        raise SystemExit(0)
+raise SystemExit(1)
+'
+}
+
 usage() {
   cat <<'EOF'
 usage: rotate-secrets.sh <compose|k8s> [options]
@@ -425,10 +441,10 @@ rotate_k8s() {
   rewrite_secret_file "$secret_file" "$backup_file" "$postgres_user" "$postgres_db" \
     "$bootstrap_password" "$bootstrap_pat" "$metrics_token" "$postgres_password" "$minio_user" "$minio_password"
   if [[ "$apply_live" == "true" ]]; then
-    postgres_pod="$(kubectl -n "$namespace" get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}')"
+    postgres_pod="$(running_pod_name "$namespace" app=postgres)"
     kubectl -n "$namespace" exec "$postgres_pod" -- psql -U "$postgres_user" -d "$postgres_db" \
       -c "ALTER USER \"$postgres_user\" WITH PASSWORD '${postgres_password}';" >/dev/null
-    kubectl apply -f "$secret_file" >/dev/null
+    kubectl -n "$namespace" apply -f "$secret_file" >/dev/null
     applied="true"
     if [[ "$no_restart" != "true" ]]; then
       kubectl -n "$namespace" rollout restart deployment/urgentry-api deployment/urgentry-ingest deployment/urgentry-worker deployment/urgentry-scheduler >/dev/null
@@ -438,7 +454,7 @@ rotate_k8s() {
       kubectl -n "$namespace" rollout status deployment/urgentry-worker --timeout=300s >/dev/null
       kubectl -n "$namespace" rollout status deployment/urgentry-scheduler --timeout=300s >/dev/null
       kubectl -n "$namespace" rollout status statefulset/minio --timeout=300s >/dev/null
-      api_pod="$(kubectl -n "$namespace" get pods -l app=urgentry-api -o jsonpath='{.items[0].metadata.name}')"
+      api_pod="$(running_pod_name "$namespace" app=urgentry,role=api)"
       kubectl -n "$namespace" exec "$api_pod" -- sh -lc 'urgentry self-hosted rotate-bootstrap --control-dsn "$URGENTRY_CONTROL_DATABASE_URL" --email "$URGENTRY_BOOTSTRAP_EMAIL" --password "$URGENTRY_BOOTSTRAP_PASSWORD" --pat "$URGENTRY_BOOTSTRAP_PAT"' >/dev/null
       restarted="true"
     fi

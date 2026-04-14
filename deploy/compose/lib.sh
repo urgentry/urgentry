@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 
+generate_secret() {
+  local prefix="$1"
+  local length="$2"
+  python3 - "$prefix" "$length" <<'PY'
+import secrets
+import string
+import sys
+
+prefix, length = sys.argv[1], int(sys.argv[2])
+alphabet = string.ascii_letters + string.digits
+print(prefix + "".join(secrets.choice(alphabet) for _ in range(length)))
+PY
+}
+
 append_random_port_overrides() {
   local env_file="$1"
   # Use port 0 to let Docker assign random host ports, eliminating TOCTOU
@@ -42,4 +56,9 @@ docker_host_port() {
 command_hit_port_conflict() {
   local output_file="$1"
   grep -Eq 'ports are not available|address already in use|port is already allocated' "$output_file"
+}
+
+command_hit_network_pool_exhaustion() {
+  local output_file="$1"
+  grep -Eq 'all predefined address pools have been fully subnetted|could not find an available, non-overlapping IPv4 address pool' "$output_file"
 }

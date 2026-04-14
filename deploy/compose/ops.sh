@@ -5,6 +5,7 @@ set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../scripts/lib-paths.sh"
 resolve_urgentry_paths "$0"
 COMPOSE_DIR="$APP_DIR/deploy/compose"
+COMPOSE_FILE="$COMPOSE_DIR/docker-compose.yml"
 DEFAULT_ENV_FILE="$COMPOSE_DIR/.env"
 ENV_FILE="${URGENTRY_SELF_HOSTED_ENV_FILE:-$DEFAULT_ENV_FILE}"
 
@@ -19,8 +20,6 @@ Commands:
   enter-maintenance <reason>
   leave-maintenance
   record-action <action> [detail]
-  repair-action <surface> <action> <target> <reason>
-  pitr-action <surface> <target-type> <target> <reason>
   backup-plan
   security-report
   rotate-bootstrap
@@ -35,30 +34,6 @@ Environment:
 EOF
 }
 
-rewrite_compose_dsn() {
-  python3 - "$1" "$POSTGRES_PORT" <<'PY'
-import sys
-import urllib.parse
-
-dsn, port = sys.argv[1], sys.argv[2]
-parsed = urllib.parse.urlsplit(dsn)
-if parsed.hostname not in {"postgres", "postgresql"}:
-    print(dsn)
-    raise SystemExit(0)
-
-host = "127.0.0.1"
-netloc = host
-if parsed.username:
-    auth = urllib.parse.quote(parsed.username)
-    if parsed.password:
-        auth += ":" + urllib.parse.quote(parsed.password)
-    netloc = auth + "@" + netloc
-netloc += ":" + port
-rebuilt = urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
-print(rebuilt)
-PY
-}
-
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -66,16 +41,42 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
+PROJECT_NAME="${URGENTRY_SELF_HOSTED_PROJECT:-${COMPOSE_PROJECT_NAME:-urgentry-selfhosted}}"
 CONTROL_DSN="${URGENTRY_CONTROL_DATABASE_URL:-${URGENTRY_DATABASE_URL:-}}"
 TELEMETRY_DSN="${URGENTRY_TELEMETRY_DATABASE_URL:-${URGENTRY_DATABASE_URL:-}}"
 TELEMETRY_BACKEND="${URGENTRY_TELEMETRY_BACKEND:-postgres}"
-POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 
-CONTROL_DSN="$(rewrite_compose_dsn "$CONTROL_DSN")"
-TELEMETRY_DSN="$(rewrite_compose_dsn "$TELEMETRY_DSN")"
+compose() {
+  docker compose --project-name "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
 
 operator_actor() {
   printf '%s' "${URGENTRY_OPERATOR_ACTOR:-${USER:-compose}}"
+}
+
+ensure_compose_env() {
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "compose env file not found: $ENV_FILE" >&2
+    exit 1
+  fi
+}
+
+ensure_control_plane_dsns() {
+  if [[ -z "$CONTROL_DSN" || -z "$TELEMETRY_DSN" ]]; then
+    echo "URGENTRY_CONTROL_DATABASE_URL / URGENTRY_TELEMETRY_DATABASE_URL are not set in the environment or ${ENV_FILE}" >&2
+    exit 1
+  fi
+}
+
+ensure_local_image() {
+  if ! docker image inspect urgentry:latest >/dev/null 2>&1; then
+    echo "urgentry:latest image not found. Boot the compose stack or run deploy/compose/smoke.sh up first." >&2
+    exit 1
+  fi
+}
+
+compose_run_urgentry() {
+  compose run --rm --no-deps -T urgentry-api self-hosted "$@"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -83,45 +84,57 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
+ensure_compose_env
+
 command="$1"
 shift
 
-pushd "$APP_DIR" >/dev/null
 case "$command" in
   preflight)
-    exec go run ./cmd/urgentry self-hosted preflight \
+    ensure_control_plane_dsns
+    compose_run_urgentry preflight \
       --control-dsn "$CONTROL_DSN" \
       --telemetry-dsn "$TELEMETRY_DSN" \
       --telemetry-backend "$TELEMETRY_BACKEND"
+    exit $?
     ;;
   status)
-    exec go run ./cmd/urgentry self-hosted status \
+    ensure_control_plane_dsns
+    compose_run_urgentry status \
       --control-dsn "$CONTROL_DSN" \
       --telemetry-dsn "$TELEMETRY_DSN" \
       --telemetry-backend "$TELEMETRY_BACKEND"
+    exit $?
     ;;
   maintenance-status)
-    exec go run ./cmd/urgentry self-hosted maintenance-status \
+    ensure_control_plane_dsns
+    compose_run_urgentry maintenance-status \
       --control-dsn "$CONTROL_DSN"
+    exit $?
     ;;
   enter-maintenance)
+    ensure_control_plane_dsns
     if [[ $# -lt 1 ]]; then
       usage >&2
       exit 2
     fi
-    exec go run ./cmd/urgentry self-hosted enter-maintenance \
+    compose_run_urgentry enter-maintenance \
       --control-dsn "$CONTROL_DSN" \
       --actor "$(operator_actor)" \
       --source compose \
       --reason "$*"
+    exit $?
     ;;
   leave-maintenance)
-    exec go run ./cmd/urgentry self-hosted leave-maintenance \
+    ensure_control_plane_dsns
+    compose_run_urgentry leave-maintenance \
       --control-dsn "$CONTROL_DSN" \
       --actor "$(operator_actor)" \
       --source compose
+    exit $?
     ;;
   record-action)
+    ensure_control_plane_dsns
     if [[ $# -lt 1 ]]; then
       usage >&2
       exit 2
@@ -129,7 +142,7 @@ case "$command" in
     action="$1"
     shift
     args=(
-      go run ./cmd/urgentry self-hosted record-action
+      record-action
       --control-dsn "$CONTROL_DSN"
       --action "$action"
       --status "${URGENTRY_OPERATOR_ACTION_STATUS:-succeeded}"
@@ -142,67 +155,49 @@ case "$command" in
     if [[ $# -gt 0 ]]; then
       args+=(--detail "$*")
     fi
-    exec "${args[@]}"
-    ;;
-  repair-action)
-    if [[ $# -ne 4 ]]; then
-      usage >&2
-      exit 2
-    fi
-    exec go run ./cmd/urgentry self-hosted repair-action \
-      --control-dsn "$CONTROL_DSN" \
-      --surface "$1" \
-      --action "$2" \
-      --target "$3" \
-      --reason "$4" \
-      --source "${URGENTRY_OPERATOR_ACTION_SOURCE:-compose}" \
-      --actor "$(operator_actor)" \
-      --confirm
-    ;;
-  pitr-action)
-    if [[ $# -ne 4 ]]; then
-      usage >&2
-      exit 2
-    fi
-    exec go run ./cmd/urgentry self-hosted pitr-action \
-      --control-dsn "$CONTROL_DSN" \
-      --surface "$1" \
-      --target-type "$2" \
-      --target "$3" \
-      --reason "$4" \
-      --source "${URGENTRY_OPERATOR_ACTION_SOURCE:-compose}" \
-      --actor "$(operator_actor)" \
-      --confirm
+    compose_run_urgentry "${args[@]}"
+    exit $?
     ;;
   backup-plan)
-    exec go run ./cmd/urgentry self-hosted backup-plan \
+    compose_run_urgentry backup-plan \
       --telemetry-backend "$TELEMETRY_BACKEND" \
       --blob-backend "${URGENTRY_BLOB_BACKEND:-s3}" \
       --async-backend "${URGENTRY_ASYNC_BACKEND:-jetstream}" \
       --cache-backend "${URGENTRY_CACHE_BACKEND:-valkey}"
+    exit $?
     ;;
   security-report)
-    exec go run ./cmd/urgentry self-hosted security-report \
+    ensure_control_plane_dsns
+    compose_run_urgentry security-report \
       --env "${URGENTRY_ENV:-production}" \
       --control-dsn "$CONTROL_DSN" \
       --telemetry-dsn "$TELEMETRY_DSN"
+    exit $?
     ;;
   rotate-bootstrap)
-    exec go run ./cmd/urgentry self-hosted rotate-bootstrap \
+    ensure_control_plane_dsns
+    compose_run_urgentry rotate-bootstrap \
       --control-dsn "$CONTROL_DSN" \
       --email "${URGENTRY_BOOTSTRAP_EMAIL:-admin@urgentry.local}" \
       --password "${URGENTRY_BOOTSTRAP_PASSWORD:-}" \
       --pat "${URGENTRY_BOOTSTRAP_PAT:-}"
+    exit $?
     ;;
   verify-backup)
     if [[ $# -ne 1 ]]; then
       usage >&2
       exit 2
     fi
-    exec go run ./cmd/urgentry self-hosted verify-backup \
-      --dir "$1" \
+    ensure_local_image
+    docker run --rm \
+      -v "$1:/backup:ro" \
+      urgentry:latest \
+      self-hosted \
+      verify-backup \
+      --dir /backup \
       --telemetry-backend "$TELEMETRY_BACKEND" \
       --strict-target-match="${URGENTRY_SELF_HOSTED_STRICT_TARGET_MATCH:-false}"
+    exit $?
     ;;
   rollback-plan)
     if [[ $# -ne 4 ]]; then
@@ -210,19 +205,25 @@ case "$command" in
       exit 2
     fi
     output="$(
-      go run ./cmd/urgentry self-hosted rollback-plan \
+      ensure_local_image
+      docker run --rm \
+        urgentry:latest \
+        self-hosted \
+        rollback-plan \
         --current-control-version "$1" \
         --target-control-version "$2" \
         --current-telemetry-version "$3" \
         --target-telemetry-version "$4" \
         --telemetry-backend "$TELEMETRY_BACKEND"
     )"
-    go run ./cmd/urgentry self-hosted record-action \
-      --control-dsn "$CONTROL_DSN" \
-      --action rollback.plan_generated \
-      --source compose \
-      --actor "$(operator_actor)" \
-      --detail "generated rollback plan" >/dev/null
+    if [[ -n "$CONTROL_DSN" ]]; then
+      compose_run_urgentry record-action \
+        --control-dsn "$CONTROL_DSN" \
+        --action rollback.plan_generated \
+        --source compose \
+        --actor "$(operator_actor)" \
+        --detail "generated rollback plan" >/dev/null
+    fi
     printf '%s\n' "$output"
     exit 0
     ;;

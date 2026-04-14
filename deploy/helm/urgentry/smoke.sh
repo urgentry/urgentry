@@ -10,6 +10,7 @@ RELEASE="${URGENTRY_HELM_RELEASE:-urgentry}"
 NAMESPACE="${URGENTRY_SELF_HOSTED_NAMESPACE:-urgentry-system}"
 KEEP_RESOURCES="${URGENTRY_SELF_HOSTED_KEEP_STACK:-false}"
 FULLNAME="${URGENTRY_HELM_FULLNAME:-}"
+SMOKE_ATTEMPTS="${URGENTRY_SELF_HOSTED_SMOKE_ATTEMPTS:-3}"
 DEPENDENCY_DIR=""
 APPLIED_DEPS="false"
 INSTALLED_HELM="false"
@@ -23,6 +24,7 @@ INGEST_URL=""
 WORKER_URL=""
 SCHEDULER_URL=""
 BOOTSTRAP_PAT=""
+KIND_HOSTPATH=""
 
 usage() {
   cat <<'EOF'
@@ -43,6 +45,39 @@ Notes:
   Postgres, MinIO, Valkey, and NATS substrate. It does not claim a custom
   Kubernetes controller or a no-shared-disk HA data plane.
 EOF
+}
+
+current_context() {
+  kubectl config current-context 2>/dev/null || true
+}
+
+kind_cluster_name() {
+  local context
+  context="$(current_context)"
+  if [[ "$context" == kind-* ]]; then
+    printf '%s\n' "${context#kind-}"
+  fi
+}
+
+build_local_image() {
+  local cluster build_log
+  cluster="$(kind_cluster_name)"
+  if [[ -z "$cluster" ]]; then
+    return 0
+  fi
+  build_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-helm-build.XXXXXX")"
+  if docker build \
+    --build-arg "URGENTRY_BUILD_TAGS=${URGENTRY_BUILD_TAGS:-netgo,osusergo}" \
+    -t urgentry:latest \
+    -f "$APP_DIR/Dockerfile" \
+    "$APP_DIR" >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    kind load docker-image urgentry:latest --name "$cluster" >/dev/null
+    return 0
+  fi
+  cat "$build_log" >&2
+  rm -f "$build_log"
+  return 1
 }
 
 chart_fullname() {
@@ -171,15 +206,21 @@ EOF
     --metrics-token "metrics_helm_smoke" \
     --postgres-password "helm-smoke-postgres" \
     --minio-password "helm-smoke-minio" >/dev/null
-  python3 - "$DEPENDENCY_DIR" <<'PY'
+  python3 - "$DEPENDENCY_DIR" "$NAMESPACE" "$RELEASE" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 root = Path(sys.argv[1])
+namespace = sys.argv[2]
+release = sys.argv[3]
+slug = re.sub(r"[^a-z0-9-]+", "-", f"{namespace}-{release}".lower()).strip("-") or "smoke"
+pv_name = f"urgentry-helm-data-{slug}"
+host_path = f"/var/local/{pv_name}"
 pvc = root / "urgentry-data-pvc.yaml"
 text = pvc.read_text(encoding="utf-8")
 needle = "  resources:\n"
-replacement = '  storageClassName: ""\n  volumeName: urgentry-helm-data-kind\n  resources:\n'
+replacement = f'  storageClassName: ""\n  volumeName: {pv_name}\n  resources:\n'
 if needle not in text:
     raise SystemExit("urgentry-data pvc shape changed")
 pvc.write_text(text.replace(needle, replacement, 1), encoding="utf-8")
@@ -187,7 +228,7 @@ pvc.write_text(text.replace(needle, replacement, 1), encoding="utf-8")
     """apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: urgentry-helm-data-kind
+  name: {pv_name}
 spec:
   capacity:
     storage: 5Gi
@@ -196,12 +237,19 @@ spec:
   persistentVolumeReclaimPolicy: Delete
   storageClassName: ""
   hostPath:
-    path: /var/local/urgentry-helm-data
+    path: {host_path}
     type: DirectoryOrCreate
-""",
+""".format(pv_name=pv_name, host_path=host_path),
     encoding="utf-8",
 )
 PY
+  KIND_HOSTPATH="$(python3 - "$NAMESPACE" "$RELEASE" <<'PY'
+import re
+import sys
+slug = re.sub(r"[^a-z0-9-]+", "-", f"{sys.argv[1]}-{sys.argv[2]}".lower()).strip("-") or "smoke"
+print(f"/var/local/urgentry-helm-data-{slug}")
+PY
+)"
 }
 
 apply_dependencies() {
@@ -351,6 +399,13 @@ cleanup() {
   if [[ -n "$DEPENDENCY_DIR" ]]; then
     rm -rf "$DEPENDENCY_DIR"
   fi
+  if [[ -n "$KIND_HOSTPATH" && "$KEEP_RESOURCES" != "true" ]]; then
+    local cluster
+    cluster="$(kind_cluster_name)"
+    if [[ -n "$cluster" ]]; then
+      docker exec "${cluster}-control-plane" rm -rf "$KIND_HOSTPATH" >/dev/null 2>&1 || true
+    fi
+  fi
 }
 
 main() {
@@ -363,6 +418,7 @@ main() {
 
   trap cleanup EXIT
   if [[ "$command" == "up" ]]; then
+    build_local_image
     prepare_dependency_bundle
     apply_dependencies
     install_chart
@@ -373,8 +429,16 @@ main() {
     echo "helm smoke requires a real URGENTRY_BOOTSTRAP_PAT in secret/urgentry-secret" >&2
     exit 1
   fi
-  assert_runtime_backends
-  smoke_event_flow
+  local attempt
+  for attempt in $(seq 1 "$SMOKE_ATTEMPTS"); do
+    if assert_runtime_backends && smoke_event_flow; then
+      break
+    fi
+    if [[ "$attempt" == "$SMOKE_ATTEMPTS" ]]; then
+      exit 1
+    fi
+    sleep 2
+  done
 
   cat <<EOF
 helm smoke passed

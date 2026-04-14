@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
@@ -24,6 +25,13 @@ EOF
 
 compose() {
   docker compose --project-name "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+ensure_local_image() {
+  if ! docker image inspect urgentry:latest >/dev/null 2>&1; then
+    echo "urgentry:latest image not found. Boot the compose stack or run deploy/compose/smoke.sh up first." >&2
+    exit 1
+  fi
 }
 
 record_action() {
@@ -132,13 +140,14 @@ main() {
     PROJECT_NAME="${COMPOSE_PROJECT_NAME:-urgentry-selfhosted}"
   fi
 
-  (
-    cd "$APP_DIR"
-    go run ./cmd/urgentry self-hosted verify-backup \
-      --dir "$backup_dir" \
-      --telemetry-backend "${URGENTRY_TELEMETRY_BACKEND:-postgres}" \
-      --strict-target-match=false
-  ) >"$backup_dir/verify-backup.json"
+  ensure_local_image
+  docker run --rm \
+    -v "$backup_dir:/backup:ro" \
+    urgentry:latest \
+    self-hosted verify-backup \
+    --dir /backup \
+    --telemetry-backend "${URGENTRY_TELEMETRY_BACKEND:-postgres}" \
+    --strict-target-match=false >"$backup_dir/verify-backup.json"
   if [[ "$verify_only" == "true" ]]; then
     cat <<EOF
 backup verification passed

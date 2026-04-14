@@ -38,4 +38,6 @@ Use these from the repository root:
 ```bash
 make tiny-smoke
 bash deploy/compose/smoke.sh up
+bash deploy/k8s/smoke.sh up     # on a prepared Kubernetes context; kind is the simplest local path
+bash deploy/helm/urgentry/smoke.sh up
 ```

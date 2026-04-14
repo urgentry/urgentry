@@ -64,15 +64,21 @@ ensure_env_file() {
   fi
   ENV_FILE="$(mktemp "${TMPDIR:-/tmp}/urgentry-selfhosted-active.XXXXXX")"
   cp -f "$ENV_TEMPLATE" "$ENV_FILE"
+  local bootstrap_password bootstrap_pat metrics_token postgres_password minio_password
+  bootstrap_password="$(generate_secret "" 28)"
+  bootstrap_pat="$(generate_secret "gpat_" 28)"
+  metrics_token="$(generate_secret "metrics_" 28)"
+  postgres_password="$(generate_secret "" 28)"
+  minio_password="$(generate_secret "" 28)"
   {
     echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME"
-    echo "POSTGRES_PASSWORD=serious-selfhosted-postgres"
-    echo "MINIO_ROOT_PASSWORD=serious-selfhosted-minio"
-    echo "URGENTRY_CONTROL_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:serious-selfhosted-postgres@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
-    echo "URGENTRY_TELEMETRY_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:serious-selfhosted-postgres@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
-    echo "URGENTRY_BOOTSTRAP_PAT=gpat_serious_self_hosted_active_active"
-    echo "URGENTRY_BOOTSTRAP_PASSWORD=SeriousSelfHosted!123"
-    echo "URGENTRY_METRICS_TOKEN=metrics-self-hosted-active-active"
+    echo "POSTGRES_PASSWORD=${postgres_password}"
+    echo "MINIO_ROOT_PASSWORD=${minio_password}"
+    echo "URGENTRY_CONTROL_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:${postgres_password}@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
+    echo "URGENTRY_TELEMETRY_DATABASE_URL=postgres://\${POSTGRES_USER:-urgentry}:${postgres_password}@postgres:5432/\${POSTGRES_DB:-urgentry}?sslmode=disable"
+    echo "URGENTRY_BOOTSTRAP_PAT=${bootstrap_pat}"
+    echo "URGENTRY_BOOTSTRAP_PASSWORD=${bootstrap_password}"
+    echo "URGENTRY_METRICS_TOKEN=${metrics_token}"
   } >>"$ENV_FILE"
   append_random_port_overrides "$ENV_FILE"
 }
