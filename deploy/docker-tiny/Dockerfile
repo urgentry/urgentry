@@ -12,7 +12,7 @@ ARG VERSION=dev
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN VERSION="$VERSION" bash ./scripts/build-urgentry.sh --output /build/urgentry
+RUN VERSION="$VERSION" sh ./scripts/build-urgentry.sh --output /build/urgentry
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata

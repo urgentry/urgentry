@@ -149,8 +149,8 @@ prepare_dependency_bundle() {
     urgentry-data-pvc.yaml; do
     cp -f "$K8S_DIR/$file" "$DEPENDENCY_DIR/$file"
   done
-  cat >"$DEPENDENCY_DIR/kustomization.yaml" <<'EOF'
-namespace: urgentry-system
+  cat >"$DEPENDENCY_DIR/kustomization.yaml" <<EOF
+namespace: ${NAMESPACE}
 resources:
   - urgentry-data-pv.yaml
   - namespace.yaml
