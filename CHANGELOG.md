@@ -6,6 +6,20 @@ The release workflow requires a section for every published tag.
 
 ## [Unreleased]
 
+## [v0.2.9] - 2026-04-14
+
+### Changed
+
+- The public deployment lane now validates from a clean checkout without assuming a matching host Go toolchain for the compose operator wrappers.
+- Raw Kubernetes and Helm smoke helpers now prepare kind-friendly temporary overlays, auto-load the local image, and isolate temporary RWX host paths by namespace and release.
+
+### Fixed
+
+- The direct Linux installer now uploads atomically with checksum verification before it replaces the live binary and writes a hardened systemd unit plus env file.
+- The Tiny Docker builder now uses the shared POSIX-shell build helper correctly inside Alpine.
+- Compose smoke and drill helpers now generate real temporary secrets, resolve random host ports correctly, and retry through short post-rollout API inconsistency windows.
+- Kubernetes secret rotation now applies the rewritten secret in the target namespace and selects running workload pods instead of accidentally targeting completed bootstrap jobs.
+
 ## [v0.2.8] - 2026-04-13
 
 ### Added
