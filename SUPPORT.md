@@ -5,10 +5,10 @@ Use this file to decide where to ask for help and what to include.
 ## Before opening an issue
 
 Start with:
-- [README.md](README.md)
-- [QUICKSTART.md](QUICKSTART.md)
-- [docs/tiny/README.md](docs/tiny/README.md)
-- [docs/self-hosted/README.md](docs/self-hosted/README.md)
+- [Project overview](README.md)
+- [Getting started](QUICKSTART.md)
+- [Tiny mode](docs/tiny/README.md)
+- [Self-hosted mode](docs/self-hosted/README.md)
 
 ## Which issue should I open?
 
@@ -26,4 +26,4 @@ Include:
 
 Do not report vulnerabilities in public issues.
 
-Use [SECURITY.md](SECURITY.md).
+Use the [security policy](SECURITY.md).

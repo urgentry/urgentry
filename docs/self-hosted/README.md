@@ -4,10 +4,10 @@ Self-hosted mode runs split `api`, `ingest`, `worker`, and `scheduler` roles on 
 
 ## Start here
 
-- [deployment-guide.md](deployment-guide.md)
-- [kubernetes-and-helm.md](kubernetes-and-helm.md)
-- [ha-baseline.md](ha-baseline.md)
-- [maintenance-mode.md](maintenance-mode.md)
+- [Deployment guide](deployment-guide.md)
+- [Kubernetes and Helm](kubernetes-and-helm.md)
+- [HA baseline](ha-baseline.md)
+- [Maintenance mode](maintenance-mode.md)
 
 ## Quick start
 

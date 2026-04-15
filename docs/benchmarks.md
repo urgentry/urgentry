@@ -1,6 +1,6 @@
 # Benchmarks
 
-These numbers answer a simple question: what do Tiny mode, Urgentry self-hosted, and Sentry self-hosted look like on the same machine when you feed them the same error-tracking workload?
+These numbers answer a simple question: what do Tiny mode, urgentry self-hosted, and Sentry self-hosted look like on the same machine when you feed them the same error-tracking workload?
 
 The workload for these comparisons stays narrow on purpose:
 
@@ -24,13 +24,13 @@ Server:
 | Self-hosted | `2200 eps` | `0.71 ms` | `48.82 ms` | `391.8 MB` | `6/6` |
 | Sentry self-hosted `26.3.1`, `errors-only` | `1000 eps` | `0.62 ms` | `1400.81 ms` | `8191.7 MB` | `6/6` |
 
-What this tells you:
+Read that table this way:
 
 - Tiny is the easy path. It stays small and simple, and the recovered default binary is back in the old low-memory class.
 - Self-hosted gives you much more headroom than Tiny on the same box and keeps query latency under `50 ms`, but you pay for that with a bigger operational footprint.
 - Sentry still wins raw ingest latency on this host, but it uses far more memory and its post-load query latency is much worse.
 
-This page now anchors on fresh April 13 host reruns for Tiny and the self-hosted release lane, with Sentry kept as the latest same-host three-way reference row.
+The current public line is anchored on the April 13, 2026 host reruns for Tiny and the self-hosted release lane, with Sentry kept as the latest same-host three-way reference row.
 
 ## Self-hosted feature tradeoffs
 
@@ -41,14 +41,14 @@ This page now anchors on fresh April 13 host reruns for Tiny and the self-hosted
 | ClickHouse pilot | `clickhouse` | on | `40.29 MB` | `2500 eps` | `0.588 ms` | `44.71 ms` | `442.7 MB` |
 | ClickHouse + controller | `clickhouse,k8scontroller` | on | `68.95 MB` | `2500 eps` | `0.576 ms` | `47.58 ms` | `427.0 MB` |
 
-What to take from that table:
+Read that table this way:
 
 - The binary-size tradeoff is the clearest signal: controller support roughly doubles the default binary, while the logs-only ClickHouse pilot adds about `6.4 MB` over the lean default.
 - Peak-memory differences are also clear enough to guide operator decisions.
 - The throughput spread between `2200` and `2500` should be treated as directional on this shared benchmark host. The controller code and the logs-only ClickHouse pilot are mostly dormant on the issue/event path exercised here, so some of that spread is host noise.
 - The old self-hosted query and peak-memory line is not treated as an absolute host floor anymore. Same-host control reruns of the recovered `5d11c88` binary on April 13 bounced above and below the old line, so the current release lane now uses a dedicated capped rerun plus the feature matrix to separate real regressions from host variance.
 
-This public repo ships Tiny and self-hosted. Sentry is in the table so you can compare the tradeoffs, not because this repo ships Sentry.
+This public repo ships Tiny and self-hosted. Sentry stays in the table so you can compare the tradeoffs. It is not part of what this repo ships.
 
 ## Small box, lower-cost reference
 

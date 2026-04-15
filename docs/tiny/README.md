@@ -4,7 +4,7 @@ Tiny mode runs the full product in one process with one SQLite data directory.
 
 ## Start here
 
-1. Read [../../QUICKSTART.md](../../QUICKSTART.md)
+1. Read [Getting started](../../QUICKSTART.md)
 2. Build and boot the binary:
 
 ```bash
@@ -18,17 +18,17 @@ URGENTRY_BASE_URL=http://localhost:8080 ./urgentry serve --role=all
 make tiny-smoke
 ```
 
-## Deployment options
+## Pick a deployment shape
 
-- [../../deploy/direct/README.md](../../deploy/direct/README.md)
-- [../../deploy/docker-tiny/README.md](../../deploy/docker-tiny/README.md)
+- [Direct binary install](../../deploy/direct/README.md)
+- [Docker install](../../deploy/docker-tiny/README.md)
 
-## Operating notes
+## Keep these details in mind
 
 - Tiny mode stores data under `URGENTRY_DATA_DIR`
 - Backup is a copy of that data directory or mounted volume
 - `URGENTRY_BASE_URL` should match the external URL when you want stable links in the UI and generated outputs
 
-## When to switch to self-hosted mode
+## Move to self-hosted mode when
 
-Move to [../self-hosted/README.md](../self-hosted/README.md) when you need shared PostgreSQL-backed infrastructure, split roles, or operator workflows around backup, restore, and maintenance.
+Move to [self-hosted mode](../self-hosted/README.md) when you need shared PostgreSQL-backed infrastructure, split roles, or operator workflows around backup, restore, and maintenance.

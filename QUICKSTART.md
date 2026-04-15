@@ -1,13 +1,13 @@
-# Urgentry Quick Start
+# Getting started with urgentry
 
 This is the shortest path to a working Tiny-mode node.
 
-## Prerequisites
+## Before you start
 
 - Go 1.26+
 - a free local port, usually `8080`
 
-## Build
+## Build the binary
 
 ```bash
 make build
@@ -15,13 +15,13 @@ make build
 
 This writes the binary at `./urgentry`.
 
-## Start
+## Start the server
 
 ```bash
 URGENTRY_BASE_URL=http://localhost:8080 ./urgentry serve --role=all
 ```
 
-On first boot Urgentry creates:
+On first boot, urgentry creates:
 - a default organization
 - a default project
 - a bootstrap owner account
@@ -46,8 +46,8 @@ curl -X POST http://localhost:8080/api/default-project/store/ \
   }'
 ```
 
-## Next docs
+## Next steps
 
-- [docs/tiny/README.md](docs/tiny/README.md)
-- [docs/self-hosted/README.md](docs/self-hosted/README.md)
-- [deploy/README.md](deploy/README.md)
+- [Tiny mode guide](docs/tiny/README.md)
+- [Self-hosted mode](docs/self-hosted/README.md)
+- [Download and install options](deploy/README.md)
