@@ -13,7 +13,7 @@ func TestReleaseStore_CreateReleaseWorkflow(t *testing.T) {
 	store := NewReleaseStore(db)
 	groups := NewGroupStore(db)
 	ctx := context.Background()
-	now := time.Now().UTC()
+	now := time.Date(2026, 4, 28, 12, 0, 0, 123456000, time.UTC)
 
 	group := createTestGroup(t, groups, fx.ProjectID, "grp-release", "checkout panic", "checkout/service.go", now)
 	status := "resolved"
@@ -146,6 +146,22 @@ func TestReleaseStore_CreateReleaseWorkflow(t *testing.T) {
 
 	if err := store.DeleteRelease(ctx, fx.OrgSlug, "checkout@2.0.0"); err != nil {
 		t.Fatalf("DeleteRelease: %v", err)
+	}
+	for _, child := range []struct {
+		name  string
+		query string
+	}{
+		{"release_projects", `SELECT COUNT(*) FROM release_projects WHERE release_id = $1`},
+		{"release_deploys", `SELECT COUNT(*) FROM release_deploys WHERE release_id = $1`},
+		{"release_commits", `SELECT COUNT(*) FROM release_commits WHERE release_id = $1`},
+	} {
+		var count int
+		if err := db.QueryRowContext(ctx, child.query, release.ID).Scan(&count); err != nil {
+			t.Fatalf("count %s rows after delete: %v", child.name, err)
+		}
+		if count != 0 {
+			t.Fatalf("%s rows after delete = %d, want 0", child.name, count)
+		}
 	}
 	deleted, err := store.GetReleaseBySlug(ctx, fx.OrgSlug, "checkout@2.0.0")
 	if err != nil {

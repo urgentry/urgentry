@@ -6,8 +6,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   launch-gate:
@@ -52,6 +51,9 @@ jobs:
     needs: launch-gate
     if: github.repository == 'urgentry/urgentry' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubicloud-standard-4
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-qemu-action@v3
@@ -87,6 +89,8 @@ jobs:
       - docker
     if: github.repository == 'urgentry/urgentry' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubicloud-standard-4
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   merge-gate:
-    runs-on: ubicloud-standard-4
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || 'ubicloud-standard-4' }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
