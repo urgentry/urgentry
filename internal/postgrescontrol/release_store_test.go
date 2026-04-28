@@ -42,7 +42,7 @@ func TestReleaseStore_CreateReleaseWorkflow(t *testing.T) {
 
 	ref := "refs/tags/checkout@2.0.0"
 	url := "https://deploy.example.com/releases/checkout@2.0.0"
-	dateReleased := now.Add(2 * time.Minute).UTC()
+	dateReleased := now.Add(2 * time.Minute).UTC().Truncate(time.Microsecond)
 	updatedRelease, err := store.UpdateRelease(ctx, fx.OrgSlug, "checkout@2.0.0", &ref, &url, &dateReleased)
 	if err != nil {
 		t.Fatalf("UpdateRelease: %v", err)
