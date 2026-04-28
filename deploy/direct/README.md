@@ -20,11 +20,11 @@ curl -L https://github.com/urgentry/urgentry/releases/download/vX.Y.Z/urgentry-v
 
 Other packaged downloads:
 
+- `urgentry-vX.Y.Z-linux-amd64.tar.gz`
 - `urgentry-vX.Y.Z-linux-arm64.tar.gz`
 - `urgentry-vX.Y.Z-darwin-amd64.tar.gz`
 - `urgentry-vX.Y.Z-darwin-arm64.tar.gz`
 - `urgentry-vX.Y.Z-windows-amd64.zip`
-- `ghcr.io/urgentry/urgentry:vX.Y.Z`
 
 For a long-running Linux service, use `scripts/deploy-server.sh` or a systemd unit that sets:
 

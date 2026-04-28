@@ -14,11 +14,11 @@ Choose one of these:
 | [direct/README.md](direct/README.md) | You want a binary on a machine you control |
 | [docker-tiny/README.md](docker-tiny/README.md) | You want a single container with a mounted data volume |
 
-For packaged containers, use:
+For container installs, build the local image first:
 
 ```bash
-docker pull ghcr.io/urgentry/urgentry:v0.2.10
-docker run -p 8080:8080 -v urgentry-data:/data ghcr.io/urgentry/urgentry:v0.2.10 serve
+make docker VERSION=v0.2.10
+docker run -p 8080:8080 -v urgentry-data:/data urgentry:v0.2.10 serve
 ```
 
 ## Self-hosted mode

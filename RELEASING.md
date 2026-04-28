@@ -29,7 +29,9 @@ git push origin v0.2.7
 
 - GitHub Release assets for Linux, macOS, and Windows
 - checksums in `SHA256SUMS`
-- container images at `ghcr.io/urgentry/urgentry`
+- a GHCR image from the Docker job for maintainers
+
+Verify anonymous GHCR pulls before documenting the image as a public install path.
 
 ## Contributor note
 

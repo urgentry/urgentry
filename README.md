@@ -98,7 +98,7 @@ If you only know that you need Sentry compatibility on one machine, start with T
 ## Downloads and releases
 
 - GitHub Releases publish packaged builds for Linux, macOS, and Windows
-- Docker images publish to `ghcr.io/urgentry/urgentry`
+- Container users can build the local Docker image with `make docker`
 - Every public release ships with a matching entry in [CHANGELOG.md](CHANGELOG.md)
 - Direct download details live in [deploy/direct/README.md](deploy/direct/README.md)
 - Maintainer release steps live in [RELEASING.md](RELEASING.md)

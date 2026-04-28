@@ -24,7 +24,7 @@ The release workflow requires a section for every published tag.
 - Runtime config loading now fails fast on malformed numbers, booleans, durations, CIDRs, and unreadable secret files.
 - Docker images now run as a non-root user by default.
 - Compose and Kubernetes smoke paths use `urgentry:dev` for local images instead of `latest`.
-- Public container examples now use the pinned release tag.
+- Public container examples now use local image commands until GHCR public pull access is verified.
 
 ### Fixed
 

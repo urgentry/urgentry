@@ -65,6 +65,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/urgentry/urgentry
+          flavor: |
+            latest=false
           tags: |
             type=raw,value=${{ github.ref_name }}
             type=semver,pattern={{version}}
