@@ -12,7 +12,7 @@ permissions:
 jobs:
   launch-gate:
     if: github.repository == 'urgentry/urgentry' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -28,7 +28,7 @@ jobs:
   build:
     needs: launch-gate
     if: github.repository == 'urgentry/urgentry' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -51,7 +51,7 @@ jobs:
   docker:
     needs: launch-gate
     if: github.repository == 'urgentry/urgentry' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-qemu-action@v3
@@ -86,7 +86,7 @@ jobs:
       - build
       - docker
     if: github.repository == 'urgentry/urgentry' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8

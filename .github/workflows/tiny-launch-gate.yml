@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   tiny-launch-gate:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
