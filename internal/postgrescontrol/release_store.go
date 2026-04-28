@@ -108,7 +108,7 @@ func (s *ReleaseStore) GetReleaseBySlug(ctx context.Context, orgSlug, version st
 	return s.GetRelease(ctx, orgID, version)
 }
 
-// DeleteRelease removes a release and its associated deploys and commits.
+// DeleteRelease removes a release and its associated workflow rows.
 func (s *ReleaseStore) DeleteRelease(ctx context.Context, orgSlug, version string) error {
 	releaseID, err := s.lookupReleaseID(ctx, orgSlug, version)
 	if err != nil || releaseID == "" {
@@ -123,6 +123,9 @@ func (s *ReleaseStore) DeleteRelease(ctx context.Context, orgSlug, version strin
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM release_commits WHERE release_id = $1`, releaseID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM release_projects WHERE release_id = $1`, releaseID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM releases WHERE id = $1`, releaseID); err != nil {
