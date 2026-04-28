@@ -19,8 +19,8 @@ import (
 type discoverPageData struct {
 	Title         string
 	Nav           string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment   string   // selected environment ("" = all)
+	Environments  []string // available environments for global nav
 	Action        string
 	CurrentURL    string
 	ExportCSVURL  string
@@ -38,8 +38,8 @@ type discoverPageData struct {
 type discoverQueryDetailData struct {
 	Title              string
 	Nav                string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment        string   // selected environment ("" = all)
+	Environments       []string // available environments for global nav
 	CurrentURL         string
 	Saved              discoverSavedQuery
 	CanManage          bool
@@ -96,10 +96,10 @@ func (h *Handler) discoverStarterPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := discoverPageData{
-		Title:        starter.Name,
-		Nav:          starter.Nav,
-		Environment:  readSelectedEnvironment(r),
-		Environments: h.loadEnvironments(r.Context()),
+		Title:         starter.Name,
+		Nav:           starter.Nav,
+		Environment:   readSelectedEnvironment(r),
+		Environments:  h.loadEnvironments(r.Context()),
 		Action:        discoverStarterAction(starter),
 		CurrentURL:    r.URL.RequestURI(),
 		ExportCSVURL:  exportURL(r.URL.RequestURI(), "csv"),

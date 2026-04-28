@@ -1,12 +1,12 @@
 package web
 
 import (
-	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"urgentry/internal/auth"
+	"urgentry/internal/requestmeta"
 )
 
 type loginData struct {
@@ -43,7 +43,7 @@ func (h *Handler) loginAction(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	next := safeNextPath(r.FormValue("next"))
 
-	rawToken, principal, err := h.authz.Login(r.Context(), email, password, r.UserAgent(), requestIP(r))
+	rawToken, principal, err := h.authz.Login(r.Context(), email, password, r.UserAgent(), requestmeta.ClientIP(r))
 	if err != nil {
 		h.renderLogin(w, loginData{
 			Title: "Sign In",
@@ -78,7 +78,7 @@ func (h *Handler) renderLogin(w http.ResponseWriter, data loginData) {
 }
 
 func setAuthCookies(w http.ResponseWriter, r *http.Request, authz *auth.Authorizer, sessionToken, csrfToken string) {
-	secure := requestIsSecure(r)
+	secure := requestmeta.IsSecure(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     authz.SessionCookieName(),
 		Value:    sessionToken,
@@ -100,7 +100,7 @@ func setAuthCookies(w http.ResponseWriter, r *http.Request, authz *auth.Authoriz
 }
 
 func clearAuthCookies(w http.ResponseWriter, r *http.Request, authz *auth.Authorizer) {
-	secure := requestIsSecure(r)
+	secure := requestmeta.IsSecure(r)
 	for _, name := range []string{authz.SessionCookieName(), authz.CSRFCookieName()} {
 		http.SetCookie(w, &http.Cookie{
 			Name:     name,
@@ -120,23 +120,4 @@ func safeNextPath(value string) string {
 		return "/"
 	}
 	return value
-}
-
-func requestIsSecure(r *http.Request) bool {
-	if r.TLS != nil {
-		return true
-	}
-	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
-}
-
-func requestIP(r *http.Request) string {
-	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
-		parts := strings.Split(forwarded, ",")
-		return strings.TrimSpace(parts[0])
-	}
-	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
-	if err != nil {
-		return strings.TrimSpace(r.RemoteAddr)
-	}
-	return host
 }

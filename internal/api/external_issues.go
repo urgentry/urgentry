@@ -60,7 +60,7 @@ func handleUpsertInstallationExternalIssue(db *sql.DB, catalog controlplane.Cata
 
 		var body externalIssueUpsertRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		issueID := parseFlexibleID(body.IssueID)

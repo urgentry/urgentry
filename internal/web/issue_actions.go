@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"urgentry/internal/auth"
 	"urgentry/internal/store"
-	"github.com/rs/zerolog/log"
 )
 
 // ---------------------------------------------------------------------------

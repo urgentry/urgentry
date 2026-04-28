@@ -25,9 +25,10 @@ func NewFileBlobStore(dir string) (*FileBlobStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(absDir, 0o755); err != nil {
+	if err := os.MkdirAll(absDir, 0o700); err != nil {
 		return nil, err
 	}
+	_ = os.Chmod(absDir, 0o700)
 	return &FileBlobStore{dir: absDir}, nil
 }
 
@@ -53,10 +54,11 @@ func (s *FileBlobStore) Put(_ context.Context, key string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	_ = os.Chmod(filepath.Dir(path), 0o700)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // Get reads the full contents of the blob identified by key.

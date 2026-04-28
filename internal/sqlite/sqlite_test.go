@@ -3,6 +3,9 @@ package sqlite
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -28,6 +31,36 @@ func TestOpenCreatesDirAndDB(t *testing.T) {
 	if count != len(migrations) {
 		t.Errorf("expected %d migrations applied, got %d", len(migrations), count)
 	}
+}
+
+func TestOpenCreatesOwnerOnlyDataDirAndDB(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("mode bits are not portable on Windows")
+	}
+	dir := filepath.Join(t.TempDir(), "sub", "deep")
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer db.Close()
+
+	assertPathMode(t, dir, 0o700)
+	assertPathMode(t, filepath.Join(dir, "urgentry.db"), 0o600)
+}
+
+func TestOpenQueueCreatesOwnerOnlyQueueDirAndDB(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("mode bits are not portable on Windows")
+	}
+	dir := filepath.Join(t.TempDir(), "queue")
+	db, err := OpenQueue(dir)
+	if err != nil {
+		t.Fatalf("OpenQueue: %v", err)
+	}
+	defer db.Close()
+
+	assertPathMode(t, dir, 0o700)
+	assertPathMode(t, filepath.Join(dir, queueDBFileName), 0o600)
 }
 
 func TestMigrationsIdempotent(t *testing.T) {
@@ -94,6 +127,17 @@ func TestOpenQueueSupportsDurableJobsWithoutProjectCatalog(t *testing.T) {
 	}
 	if job.CreatedAt.IsZero() {
 		t.Fatal("CreatedAt should be populated")
+	}
+}
+
+func assertPathMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("mode %s = %o, want %o", path, got, want)
 	}
 }
 

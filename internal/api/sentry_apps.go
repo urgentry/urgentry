@@ -119,7 +119,7 @@ func handleUpdateSentryApp(registry *integration.Registry, appStore integration.
 
 		var body sentryAppMutationRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" || len(body.Scopes) == 0 {

@@ -9,6 +9,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"urgentry/internal/requestmeta"
 )
 
 func TestRequestLogging_SetsRequestID(t *testing.T) {
@@ -124,12 +126,19 @@ func TestExtractSentryKey_Header(t *testing.T) {
 	}
 }
 
-func TestClientIP_XForwardedFor(t *testing.T) {
+func TestClientIP_XForwardedForRequiresTrustedProxy(t *testing.T) {
+	t.Cleanup(func() { _ = requestmeta.ConfigureTrustedProxies("") })
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "198.51.100.10:12345"
 	req.Header.Set("X-Forwarded-For", "203.0.113.50, 70.41.3.18")
-	ip := clientIP(req)
-	if ip != "203.0.113.50" {
-		t.Errorf("clientIP = %q, want %q", ip, "203.0.113.50")
+	if ip := clientIP(req); ip != "198.51.100.10" {
+		t.Errorf("clientIP without trusted proxy = %q, want remote address", ip)
+	}
+	if err := requestmeta.ConfigureTrustedProxies("198.51.100.10"); err != nil {
+		t.Fatal(err)
+	}
+	if ip := clientIP(req); ip != "203.0.113.50" {
+		t.Errorf("clientIP with trusted proxy = %q, want forwarded address", ip)
 	}
 }
 
@@ -137,8 +146,8 @@ func TestClientIP_RemoteAddr(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	ip := clientIP(req)
-	if ip != "192.168.1.1:12345" {
-		t.Errorf("clientIP = %q, want %q", ip, "192.168.1.1:12345")
+	if ip != "192.168.1.1" {
+		t.Errorf("clientIP = %q, want %q", ip, "192.168.1.1")
 	}
 }
 

@@ -108,7 +108,7 @@ func handleCreateHook(
 		}
 		var body createHookRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.URL == "" {
@@ -206,7 +206,7 @@ func handleUpdateHook(
 		}
 		var body updateHookRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.URL != "" {

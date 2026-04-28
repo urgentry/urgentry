@@ -140,18 +140,18 @@ func handleRemoveMemberFromTeam(admin controlplane.AdminStore, auth authFunc) ht
 
 // teamDetailResponse is the Sentry-compatible team detail shape.
 type teamDetailResponse struct {
-	ID           string                   `json:"id"`
-	Slug         string                   `json:"slug"`
-	Name         string                   `json:"name"`
-	DateCreated  time.Time                `json:"dateCreated"`
-	IsMember     bool                     `json:"isMember"`
-	MemberCount  int                      `json:"memberCount"`
-	ProjectCount int                      `json:"projectCount,omitempty"`
-	Avatar       teamAvatar               `json:"avatar"`
-	HasAccess    bool                     `json:"hasAccess"`
-	IsPending    bool                     `json:"isPending"`
-	Organization *teamOrgEmbed            `json:"organization,omitempty"`
-	Projects     []teamProjectResponse    `json:"projects,omitempty"`
+	ID           string                `json:"id"`
+	Slug         string                `json:"slug"`
+	Name         string                `json:"name"`
+	DateCreated  time.Time             `json:"dateCreated"`
+	IsMember     bool                  `json:"isMember"`
+	MemberCount  int                   `json:"memberCount"`
+	ProjectCount int                   `json:"projectCount,omitempty"`
+	Avatar       teamAvatar            `json:"avatar"`
+	HasAccess    bool                  `json:"hasAccess"`
+	IsPending    bool                  `json:"isPending"`
+	Organization *teamOrgEmbed         `json:"organization,omitempty"`
+	Projects     []teamProjectResponse `json:"projects,omitempty"`
 }
 
 // teamOrgEmbed is a compact organization reference embedded in team detail.
@@ -207,7 +207,7 @@ func handleCreateTeam(admin controlplane.AdminStore, auth authFunc) http.Handler
 
 		var body createTeamRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		body.Slug = strings.TrimSpace(body.Slug)
@@ -306,7 +306,7 @@ func handleUpdateTeam(admin controlplane.AdminStore, auth authFunc) http.Handler
 
 		var body updateTeamRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name == nil && body.Slug == nil {

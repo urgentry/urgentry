@@ -15,12 +15,12 @@ import (
 )
 
 type replaysData struct {
-	Title   string
-	Nav     string
+	Title        string
+	Nav          string
 	Environment  string   // selected environment ("" = all)
 	Environments []string // available environments for global nav
-	Guide   analyticsGuide
-	Replays []replayRow
+	Guide        analyticsGuide
+	Replays      []replayRow
 }
 
 type replayRow struct {
@@ -39,8 +39,8 @@ type replayRow struct {
 type replayDetailData struct {
 	Title            string
 	Nav              string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment      string   // selected environment ("" = all)
+	Environments     []string // available environments for global nav
 	Replay           replayRow
 	Attachments      []eventAttachmentRow
 	AssetBytes       string
@@ -63,13 +63,13 @@ type replayDetailData struct {
 }
 
 type profilesData struct {
-	Title    string
-	Nav      string
+	Title        string
+	Nav          string
 	Environment  string   // selected environment ("" = all)
 	Environments []string // available environments for global nav
-	Guide    analyticsGuide
-	Filters  profileListFilters
-	Profiles []profileRow
+	Guide        analyticsGuide
+	Filters      profileListFilters
+	Profiles     []profileRow
 }
 
 type profileRow struct {
@@ -89,8 +89,8 @@ type profileRow struct {
 type profileDetailData struct {
 	Title            string
 	Nav              string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment      string   // selected environment ("" = all)
+	Environments     []string // available environments for global nav
 	Profile          profileRow
 	Summary          sharedstore.ProfileSummary
 	TopFrames        []sharedstore.ProfileBreakdown
@@ -135,8 +135,8 @@ func (h *Handler) replaysPage(w http.ResponseWriter, r *http.Request) {
 		Nav:          "replays",
 		Environment:  readSelectedEnvironment(r),
 		Environments: h.loadEnvironments(r.Context()),
-		Guide:   replaysGuide(),
-		Replays: rows,
+		Guide:        replaysGuide(),
+		Replays:      rows,
 	})
 }
 

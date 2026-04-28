@@ -11,11 +11,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type feedbackData struct {
-	Title    string
-	Nav      string
+	Title        string
+	Nav          string
 	Environment  string   // selected environment ("" = all)
 	Environments []string // available environments for global nav
-	Feedback []feedbackRow
+	Feedback     []feedbackRow
 }
 
 type feedbackRow struct {
@@ -46,7 +46,7 @@ func (h *Handler) feedbackPage(w http.ResponseWriter, r *http.Request) {
 		Nav:          "feedback",
 		Environment:  readSelectedEnvironment(r),
 		Environments: h.loadEnvironments(ctx),
-		Feedback: items,
+		Feedback:     items,
 	}
 
 	h.render(w, "feedback.html", data)

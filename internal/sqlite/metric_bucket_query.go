@@ -57,9 +57,9 @@ type MetricBucketResult struct {
 
 // MetricBucketTimeSeries holds a time-bucketed series result.
 type MetricBucketTimeSeries struct {
-	MetricName string                    `json:"metricName"`
-	Aggregate  string                    `json:"aggregate"`
-	Buckets    []MetricBucketTimePoint   `json:"buckets"`
+	MetricName string                  `json:"metricName"`
+	Aggregate  string                  `json:"aggregate"`
+	Buckets    []MetricBucketTimePoint `json:"buckets"`
 }
 
 // MetricBucketTimePoint is a single point in a time series.
@@ -71,14 +71,14 @@ type MetricBucketTimePoint struct {
 
 // MetricSummary summarises a metric across a time window.
 type MetricSummary struct {
-	Name    string  `json:"name"`
-	Type    string  `json:"type"`
-	Count   int64   `json:"count"`
-	Sum     float64 `json:"sum"`
-	Avg     float64 `json:"avg"`
-	Min     float64 `json:"min"`
-	Max     float64 `json:"max"`
-	Latest  float64 `json:"latest"`
+	Name   string  `json:"name"`
+	Type   string  `json:"type"`
+	Count  int64   `json:"count"`
+	Sum    float64 `json:"sum"`
+	Avg    float64 `json:"avg"`
+	Min    float64 `json:"min"`
+	Max    float64 `json:"max"`
+	Latest float64 `json:"latest"`
 }
 
 // Query executes a metric bucket aggregation and returns a scalar result.

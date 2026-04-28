@@ -208,11 +208,11 @@ func (h *Handler) manageProjectsPage(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 type manageUser struct {
-	ID          string
-	Email       string
-	Name        string
-	OrgRoles    []manageUserOrgRole
-	CreatedAt   string
+	ID        string
+	Email     string
+	Name      string
+	OrgRoles  []manageUserOrgRole
+	CreatedAt string
 }
 
 type manageUserOrgRole struct {

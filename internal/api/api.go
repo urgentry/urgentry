@@ -2,12 +2,16 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"urgentry/internal/httputil"
 )
 
 // ---------------------------------------------------------------------------
@@ -162,12 +166,55 @@ func PathParam(r *http.Request, name string) string {
 
 const maxAPIBodySize = 2 << 20 // 2 MB
 
+var errRequestBodyTooLarge = errors.New("request body too large")
+
 // decodeJSON reads and decodes a JSON request body into v.
 func decodeJSON(r *http.Request, v any) error {
 	if r.Body == nil {
 		return fmt.Errorf("empty request body")
 	}
-	limited := io.LimitReader(r.Body, maxAPIBodySize)
 	defer r.Body.Close()
-	return json.NewDecoder(limited).Decode(v)
+	limited := &io.LimitedReader{R: r.Body, N: maxAPIBodySize + 1}
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return err
+	}
+	if len(body) > maxAPIBodySize {
+		return errRequestBodyTooLarge
+	}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	if err := dec.Decode(v); err != nil {
+		return err
+	}
+	var extra any
+	if err := dec.Decode(&extra); err == nil {
+		return fmt.Errorf("request body must contain a single JSON value")
+	} else if !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
+}
+
+func writeDecodeJSONError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errRequestBodyTooLarge) {
+		httputil.WriteError(w, http.StatusRequestEntityTooLarge, "Request body too large.")
+		return
+	}
+	httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+}
+
+func writeDecodeJSONAPIError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errRequestBodyTooLarge) {
+		httputil.WriteAPIError(w, httputil.APIError{
+			Status: http.StatusRequestEntityTooLarge,
+			Code:   "request_body_too_large",
+			Detail: "Request body too large.",
+		})
+		return
+	}
+	httputil.WriteAPIError(w, httputil.APIError{
+		Status: http.StatusBadRequest,
+		Code:   "invalid_request_body",
+		Detail: "Invalid request body.",
+	})
 }

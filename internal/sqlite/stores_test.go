@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"urgentry/internal/discover"
 	"urgentry/internal/issue"
 	"urgentry/internal/notify"
+	"urgentry/internal/sourcemap"
 	"urgentry/internal/store"
 )
 
@@ -522,6 +524,85 @@ func TestSourceMapStore_UploadAndLookup(t *testing.T) {
 	if len(artifacts) != 0 {
 		t.Errorf("expected 0 artifacts after delete, got %d", len(artifacts))
 	}
+}
+
+func TestSourceMapStoreUsesServerOwnedObjectKey(t *testing.T) {
+	db := openStoreTestDB(t)
+	blobs := &recordingBlobStore{}
+	sms := NewSourceMapStore(db, blobs)
+	ctx := context.Background()
+
+	artifact := &sourcemap.Artifact{
+		ID:        "artifact-1",
+		ProjectID: "proj-1",
+		ReleaseID: "v1.0.0",
+		Name:      "../../../attachments/probe",
+	}
+	if err := sms.SaveArtifact(ctx, artifact, []byte("payload")); err != nil {
+		t.Fatalf("SaveArtifact: %v", err)
+	}
+	if artifact.ObjectKey != "sourcemaps/proj-1/v1.0.0/artifact-1" {
+		t.Fatalf("ObjectKey = %q", artifact.ObjectKey)
+	}
+	if blobs.lastPutKey != artifact.ObjectKey {
+		t.Fatalf("blob key = %q, want artifact object key", blobs.lastPutKey)
+	}
+	if strings.Contains(artifact.ObjectKey, "attachments") || strings.Contains(artifact.ObjectKey, "..") {
+		t.Fatalf("ObjectKey includes filename-controlled segments: %q", artifact.ObjectKey)
+	}
+}
+
+func TestSourceMapStoreUsesServerOwnedOrgReleaseFileObjectKey(t *testing.T) {
+	db := openStoreTestDB(t)
+	blobs := &recordingBlobStore{}
+	sms := NewSourceMapStore(db, blobs)
+	ctx := context.Background()
+
+	artifact := &sourcemap.Artifact{
+		ID:             "artifact-2",
+		OrganizationID: "org-1",
+		ReleaseID:      "v1.0.0",
+		Name:           "../../../sourcemaps/probe",
+	}
+	if err := sms.SaveOrgArtifact(ctx, artifact, []byte("payload")); err != nil {
+		t.Fatalf("SaveOrgArtifact: %v", err)
+	}
+	if artifact.ObjectKey != "release-files/org-1/v1.0.0/artifact-2" {
+		t.Fatalf("ObjectKey = %q", artifact.ObjectKey)
+	}
+	if blobs.lastPutKey != artifact.ObjectKey {
+		t.Fatalf("blob key = %q, want artifact object key", blobs.lastPutKey)
+	}
+	if strings.Contains(strings.TrimPrefix(artifact.ObjectKey, "release-files/"), "sourcemaps") || strings.Contains(artifact.ObjectKey, "..") {
+		t.Fatalf("ObjectKey includes filename-controlled segments: %q", artifact.ObjectKey)
+	}
+}
+
+type recordingBlobStore struct {
+	lastPutKey string
+	data       []byte
+}
+
+func (s *recordingBlobStore) Put(_ context.Context, key string, data []byte) error {
+	s.lastPutKey = key
+	s.data = append([]byte(nil), data...)
+	return nil
+}
+
+func (s *recordingBlobStore) Get(_ context.Context, key string) ([]byte, error) {
+	if key != s.lastPutKey {
+		return nil, store.ErrNotFound
+	}
+	return append([]byte(nil), s.data...), nil
+}
+
+func (s *recordingBlobStore) Delete(_ context.Context, key string) error {
+	if key != s.lastPutKey {
+		return store.ErrNotFound
+	}
+	s.lastPutKey = ""
+	s.data = nil
+	return nil
 }
 
 // ---------------------------------------------------------------------------

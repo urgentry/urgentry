@@ -1,12 +1,16 @@
 ![Gentry banner](assets/gentry/github_banner.png)
 
-# Urgentry
+# urgentry
 
-Urgentry is Sentry-compatible error tracking you can run yourself, with compatibility tracked as route coverage plus semantic behavior.
+urgentry is an ultra-efficient, self-hostable drop in replacement for Sentry.
+
+It provides two deployment paths: Tiny mode on one machine, or self-hosted mode with split roles on PostgreSQL, MinIO, Valkey, and NATS.
+
+If you already use Sentry SDKs, urgentry lets you change one DSN, send one event, and test the switch without rewriting the app.
 
 ## Why this exists
 
-A lot of teams want Sentry-compatible error tracking, but they do not want a hosted bill or a huge self-hosted install just to catch exceptions. Urgentry is the smaller option.
+Some teams want a smaller self-hosted path. Others want to test the Sentry switch on one machine before they touch production. This repo supports that first step.
 
 This public repo ships two deployment paths:
 
@@ -20,14 +24,27 @@ This public repo ships two deployment paths:
 - You want a small single-node path first, with a bigger path when you need it
 - You want the data and the upgrade path under your control
 
-## Start in under a minute
+## Who should not start here
+
+- You need full Sentry parity on day one
+- You are buying for enterprise governance first
+- You want a broad observability platform before you prove the switch
+
+## Fastest proof
+
+```bash
+curl -fsSL https://urgentry.com/install.sh | sh
+URGENTRY_BASE_URL=http://localhost:8080 urgentry serve --role=all
+```
+
+Then open `http://localhost:8080/login/`.
+
+If you want to build from source instead:
 
 ```bash
 make build
 URGENTRY_BASE_URL=http://localhost:8080 ./urgentry serve --role=all
 ```
-
-Then open `http://localhost:8080/login/`.
 
 If you want the shortest route, start with [QUICKSTART.md](QUICKSTART.md).
 
@@ -49,7 +66,7 @@ Current large-box reference, apples to apples:
 
 This repo ships Tiny and self-hosted. Sentry is here as a reference point so you can compare the tradeoffs on the same machine.
 
-For the full benchmark note, including the smaller-box reference run and methodology, see [docs/benchmarks.md](docs/benchmarks.md).
+For the full benchmark note, including the smaller-box reference run and methodology, see [docs/benchmarks/](https://urgentry.com/docs/benchmarks/).
 
 ## Pick a mode
 
@@ -66,7 +83,7 @@ Self-hosted feature tradeoff summary:
 - `clickhouse`: `40.29 MB` binary, `2500 eps`, `442.7 MB` peak memory
 - `clickhouse,k8scontroller`: `68.95 MB` binary, `2500 eps`, `427.0 MB` peak memory
 
-See [docs/benchmarks.md](docs/benchmarks.md) for the full matrix and caveats.
+See [docs/benchmarks/](https://urgentry.com/docs/benchmarks/) for the full matrix and caveats.
 
 If you only know that you need Sentry compatibility on one machine, start with Tiny. Move to self-hosted when you need the operational shape or the extra throughput headroom.
 

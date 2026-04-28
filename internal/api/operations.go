@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,7 +52,7 @@ func handleUpdateProjectSettings(catalog controlplane.CatalogStore, auth authFun
 		}
 		var body updateProjectSettingsRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -238,19 +237,9 @@ func handleUploadDebugFile(db *sql.DB, debugFiles *sqlite.DebugFileStore, auth a
 		if !ok {
 			return
 		}
-		if err := r.ParseMultipartForm(maxDebugFileSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form.")
-			return
-		}
-		file, header, err := r.FormFile("file")
+		body, header, err := readMultipartFile(w, r, "file", maxDebugFileSize)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing file.")
-			return
-		}
-		defer file.Close()
-		body, err := io.ReadAll(io.LimitReader(file, maxDebugFileSize))
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Failed to read file.")
+			writeMultipartError(w, err, "Invalid multipart form.")
 			return
 		}
 		kind := strings.ToLower(strings.TrimSpace(r.FormValue("kind")))

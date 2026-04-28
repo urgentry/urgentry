@@ -81,7 +81,6 @@ func newSQLiteAuthorizedServerWithBootstrap(t *testing.T, db *sql.DB, deps Depen
 	return httptest.NewServer(NewRouter(deps)), bootstrap.PAT
 }
 
-
 func orgMemberUserIDByEmail(t *testing.T, db *sql.DB, email string) string {
 	t.Helper()
 

@@ -39,9 +39,9 @@ type orgMetricAlertRuleRequest struct {
 }
 
 type orgMetricAlertTrigger struct {
-	Label          string `json:"label"`
+	Label          string  `json:"label"`
 	AlertThreshold float64 `json:"alertThreshold"`
-	Actions        []any  `json:"actions"`
+	Actions        []any   `json:"actions"`
 }
 
 var validMetrics = map[string]bool{
@@ -115,7 +115,7 @@ func handleCreateMetricAlertRule(catalog controlplane.CatalogStore, store contro
 
 		var body metricAlertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -188,7 +188,7 @@ func handleUpdateMetricAlertRule(catalog controlplane.CatalogStore, store contro
 
 		var body metricAlertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -299,7 +299,7 @@ func handleCreateOrgMetricAlertRule(catalog controlplane.CatalogStore, store con
 		}
 		var body orgMetricAlertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		project, ok := orgMetricAlertProjectFromBody(w, r, catalog, body.Projects)
@@ -342,7 +342,7 @@ func handleUpdateOrgMetricAlertRule(catalog controlplane.CatalogStore, store con
 		}
 		var body orgMetricAlertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		updated, ok := newOrgMetricAlertRule(w, existing.ProjectID, body)

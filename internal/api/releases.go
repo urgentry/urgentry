@@ -112,7 +112,7 @@ func handleCreateRelease(releases controlplane.ReleaseStore, auth authFunc) http
 
 		var body createReleaseRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Version == "" {
@@ -357,7 +357,7 @@ func handleUpdateRelease(catalog controlplane.CatalogStore, releases controlplan
 
 		var body updateReleaseRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 
@@ -425,7 +425,7 @@ func handleCreateReleaseDeploy(catalog controlplane.CatalogStore, releases contr
 		}
 		var body releaseDeployRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := releases.AddDeploy(r.Context(), org, PathParam(r, "version"), sharedstore.ReleaseDeploy{
@@ -476,7 +476,7 @@ func handleCreateReleaseCommit(catalog controlplane.CatalogStore, releases contr
 		}
 		var body releaseCommitRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := releases.AddCommit(r.Context(), org, PathParam(r, "version"), sharedstore.ReleaseCommit{
@@ -657,7 +657,7 @@ func handleUpdateProjectReleaseFile(catalog controlplane.CatalogStore, smStore *
 
 		var body updateReleaseFileRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name == "" {

@@ -68,11 +68,11 @@ build_local_image() {
   build_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-helm-build.XXXXXX")"
   if docker build \
     --build-arg "URGENTRY_BUILD_TAGS=${URGENTRY_BUILD_TAGS:-netgo,osusergo}" \
-    -t urgentry:latest \
+    -t urgentry:dev \
     -f "$APP_DIR/Dockerfile" \
     "$APP_DIR" >"$build_log" 2>&1; then
     rm -f "$build_log"
-    kind load docker-image urgentry:latest --name "$cluster" >/dev/null
+    kind load docker-image urgentry:dev --name "$cluster" >/dev/null
     return 0
   fi
   cat "$build_log" >&2
@@ -270,7 +270,7 @@ install_chart() {
     --wait \
     --timeout 5m \
     --set image.repository=urgentry \
-    --set image.tag=latest \
+    --set image.tag=dev \
     --set image.pullPolicy=IfNotPresent \
     --set bootstrap.existingSecret=urgentry-secret \
     --set externalPostgres.existingSecret=urgentry-secret \

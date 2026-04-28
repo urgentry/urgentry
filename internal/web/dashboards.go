@@ -15,21 +15,21 @@ import (
 )
 
 type dashboardsPageData struct {
-	Title      string
-	Nav        string
+	Title        string
+	Nav          string
 	Environment  string   // selected environment ("" = all)
 	Environments []string // available environments for global nav
-	Guide      analyticsGuide
-	Dashboards []sqlite.Dashboard
-	Templates  []dashboardTemplateCard
-	Error      string
+	Guide        analyticsGuide
+	Dashboards   []sqlite.Dashboard
+	Templates    []dashboardTemplateCard
+	Error        string
 }
 
 type dashboardDetailPageData struct {
 	Title                   string
 	Nav                     string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment             string   // selected environment ("" = all)
+	Environments            []string // available environments for global nav
 	Dashboard               *sqlite.Dashboard
 	DashboardConfig         dashboardPresentationConfig
 	DashboardFilters        []string
@@ -56,9 +56,9 @@ func (h *Handler) dashboardsPage(w http.ResponseWriter, r *http.Request) {
 		Nav:          "dashboards",
 		Environment:  readSelectedEnvironment(r),
 		Environments: h.loadEnvironments(r.Context()),
-		Guide:      dashboardsGuide(),
-		Dashboards: dashboards,
-		Templates:  dashboardTemplateCards(),
+		Guide:        dashboardsGuide(),
+		Dashboards:   dashboards,
+		Templates:    dashboardTemplateCards(),
 	})
 }
 

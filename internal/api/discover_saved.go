@@ -12,11 +12,11 @@ import (
 
 // SavedQuery is the Sentry-compatible API response shape for a discover saved query.
 type SavedQuery struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Fields      []string `json:"fields"`
-	Query       string   `json:"query"`
-	OrderBy     string   `json:"orderby"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Fields      []string  `json:"fields"`
+	Query       string    `json:"query"`
+	OrderBy     string    `json:"orderby"`
 	DateCreated time.Time `json:"dateCreated"`
 	DateUpdated time.Time `json:"dateUpdated"`
 }
@@ -62,7 +62,7 @@ func handleCreateDiscoverSavedQuery(searches analyticsservice.SearchStore, authe
 		}
 		var body savedQueryRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -131,7 +131,7 @@ func handleUpdateDiscoverSavedQuery(searches analyticsservice.SearchStore, authe
 		}
 		var body savedQueryRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		orgSlug := PathParam(r, "org_slug")

@@ -18,8 +18,8 @@ import (
 type eventDetailData struct {
 	Title           string
 	Nav             string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment     string   // selected environment ("" = all)
+	Environments    []string // available environments for global nav
 	Event           eventDetailView
 	Frames          []stackFrame
 	ExceptionGroups []exceptionGroup

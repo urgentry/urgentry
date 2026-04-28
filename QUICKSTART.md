@@ -30,7 +30,7 @@ On first boot, urgentry creates:
 
 ## Sign in
 
-Open `http://localhost:8080/login/` and use the bootstrap credentials from the startup log.
+Open `http://localhost:8080/login/` and use the bootstrap credentials from `bootstrap-credentials.txt` in the data directory.
 
 ## Send a first event
 

@@ -89,7 +89,12 @@ fi
 
 echo "checking startup log bootstrap output"
 if ! grep -q 'bootstrap owner account created' "$LOG_FILE"; then
-  echo "Tiny smoke failed: bootstrap credentials were not logged on first boot" >&2
+  echo "Tiny smoke failed: bootstrap owner creation was not logged on first boot" >&2
+  cat "$LOG_FILE" >&2
+  exit 1
+fi
+if grep -q "$BOOTSTRAP_PASSWORD\\|$BOOTSTRAP_PAT" "$LOG_FILE"; then
+  echo "Tiny smoke failed: bootstrap secrets leaked to startup log" >&2
   cat "$LOG_FILE" >&2
   exit 1
 fi

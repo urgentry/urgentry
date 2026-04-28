@@ -71,7 +71,7 @@ build_local_image() {
   build_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-k8s-build.XXXXXX")"
   if docker build \
     --build-arg "URGENTRY_BUILD_TAGS=${URGENTRY_BUILD_TAGS:-netgo,osusergo}" \
-    -t urgentry:latest \
+    -t "${URGENTRY_IMAGE:-urgentry:dev}" \
     -f "$APP_DIR/Dockerfile" \
     "$APP_DIR" >"$build_log" 2>&1; then
     rm -f "$build_log"
@@ -89,7 +89,7 @@ ensure_kind_image() {
     return 0
   fi
   build_local_image
-  kind load docker-image urgentry:latest --name "$cluster" >/dev/null
+  kind load docker-image "${URGENTRY_IMAGE:-urgentry:dev}" --name "$cluster" >/dev/null
 }
 
 rewrite_namespace() {

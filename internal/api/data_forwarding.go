@@ -83,7 +83,7 @@ func handleCreateDataForwarding(
 
 		var body createDataForwardingRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.URL == "" {

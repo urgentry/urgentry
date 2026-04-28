@@ -69,8 +69,8 @@ ensure_control_plane_dsns() {
 }
 
 ensure_local_image() {
-  if ! docker image inspect urgentry:latest >/dev/null 2>&1; then
-    echo "urgentry:latest image not found. Boot the compose stack or run deploy/compose/smoke.sh up first." >&2
+  if ! docker image inspect "${URGENTRY_IMAGE:-urgentry:dev}" >/dev/null 2>&1; then
+    echo "${URGENTRY_IMAGE:-urgentry:dev} image not found. Boot the compose stack or run deploy/compose/smoke.sh up first." >&2
     exit 1
   fi
 }
@@ -191,7 +191,7 @@ case "$command" in
     ensure_local_image
     docker run --rm \
       -v "$1:/backup:ro" \
-      urgentry:latest \
+      "${URGENTRY_IMAGE:-urgentry:dev}" \
       self-hosted \
       verify-backup \
       --dir /backup \
@@ -207,7 +207,7 @@ case "$command" in
     output="$(
       ensure_local_image
       docker run --rm \
-        urgentry:latest \
+        "${URGENTRY_IMAGE:-urgentry:dev}" \
         self-hosted \
         rollback-plan \
         --current-control-version "$1" \

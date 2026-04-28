@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"io"
 	"net/http"
 	"time"
 
@@ -35,21 +34,9 @@ func handleUploadSourceMap(db *sql.DB, smStore sourcemap.Store, auth authFunc) h
 			return
 		}
 
-		if err := r.ParseMultipartForm(maxSourceMapSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form: "+err.Error())
-			return
-		}
-
-		file, header, err := r.FormFile("file")
+		data, header, err := readMultipartFile(w, r, "file", maxSourceMapSize)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing 'file' field in multipart form.")
-			return
-		}
-		defer file.Close()
-
-		data, err := io.ReadAll(io.LimitReader(file, maxSourceMapSize))
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Failed to read file.")
+			writeMultipartError(w, err, "Invalid multipart form.")
 			return
 		}
 

@@ -67,7 +67,7 @@ build_shared_image() {
   build_log="$(mktemp "${TMPDIR:-/tmp}/urgentry-compose-build.XXXXXX")"
   if docker build \
     --build-arg "URGENTRY_BUILD_TAGS=${URGENTRY_BUILD_TAGS:-netgo,osusergo}" \
-    -t urgentry:latest \
+    -t "${URGENTRY_IMAGE:-urgentry:dev}" \
     -f "$APP_DIR/Dockerfile" \
     "$APP_DIR" >"$build_log" 2>&1; then
     rm -f "$build_log"

@@ -99,44 +99,44 @@ func buildOrganizationDetail(org *store.Organization, teams []store.Team, projec
 	}
 
 	return &OrganizationDetail{
-		ID:                    org.ID,
-		Slug:                  org.Slug,
-		Name:                  org.Name,
-		DateCreated:           org.DateCreated,
-		Features:              defaultOrgFeatures,
-		Access:                accessForRole("owner"),
-		AllowMemberInvite:     true,
+		ID:                         org.ID,
+		Slug:                       org.Slug,
+		Name:                       org.Name,
+		DateCreated:                org.DateCreated,
+		Features:                   defaultOrgFeatures,
+		Access:                     accessForRole("owner"),
+		AllowMemberInvite:          true,
 		AllowMemberProjectCreation: true,
-		AllowSuperuserAccess:  false,
-		Teams:                 orgTeams,
-		Projects:              orgProjects,
-		Avatar:                OrgAvatar{Type: "letter_avatar"},
-		HasAuthProvider:       false,
+		AllowSuperuserAccess:       false,
+		Teams:                      orgTeams,
+		Projects:                   orgProjects,
+		Avatar:                     OrgAvatar{Type: "letter_avatar"},
+		HasAuthProvider:            false,
 		Links: OrgLinks{
 			OrganizationURL: "/organizations/" + org.Slug + "/",
 			RegionURL:       "/",
 		},
-		Require2FA:            false,
-		ExtraOptions:          map[string]any{},
+		Require2FA:   false,
+		ExtraOptions: map[string]any{},
 		Status: OrgStatus{
 			ID:   "active",
 			Name: "active",
 		},
-		IsEarlyAdopter:        false,
-		AllowJoinRequests:     false,
-		OpenMembership:        false,
-		DefaultRole:           "member",
-		EnhancedPrivacy:       false,
-		DataScrubber:          false,
-		DataScrubberDefaults:  false,
-		SensitiveFields:       []string{},
-		SafeFields:            []string{},
-		ScrubIPAddresses:      false,
-		StoreCrashReports:     0,
-		RelayPiiConfig:        "",
-		AllowSharedIssues:     true,
-		TrustedRelays:         []string{},
-		OnboardingTasks:       []any{},
+		IsEarlyAdopter:       false,
+		AllowJoinRequests:    false,
+		OpenMembership:       false,
+		DefaultRole:          "member",
+		EnhancedPrivacy:      false,
+		DataScrubber:         false,
+		DataScrubberDefaults: false,
+		SensitiveFields:      []string{},
+		SafeFields:           []string{},
+		ScrubIPAddresses:     false,
+		StoreCrashReports:    0,
+		RelayPiiConfig:       "",
+		AllowSharedIssues:    true,
+		TrustedRelays:        []string{},
+		OnboardingTasks:      []any{},
 	}
 }
 
@@ -204,7 +204,7 @@ func handleUpdateOrg(catalog controlplane.CatalogStore, auth authFunc) http.Hand
 
 		var body store.OrganizationUpdate
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid JSON body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		// Accept the update as long as the JSON body was valid.

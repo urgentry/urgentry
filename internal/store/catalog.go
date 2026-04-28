@@ -259,22 +259,22 @@ type ProjectEnvironment struct {
 // to the database today. The remaining fields are parsed and returned so that
 // round-trip fidelity is preserved for IdP and SCIM integrations.
 type OrganizationUpdate struct {
-	Name                  string   `json:"name"`
-	Slug                  string   `json:"slug"`
-	IsEarlyAdopter        bool     `json:"isEarlyAdopter"`
-	AllowJoinRequests     bool     `json:"allowJoinRequests"`
-	OpenMembership        bool     `json:"openMembership"`
-	DefaultRole           string   `json:"defaultRole"`
-	EnhancedPrivacy       bool     `json:"enhancedPrivacy"`
-	DataScrubber          bool     `json:"dataScrubber"`
-	DataScrubberDefaults  bool     `json:"dataScrubberDefaults"`
-	SensitiveFields       []string `json:"sensitiveFields"`
-	SafeFields            []string `json:"safeFields"`
-	ScrubIPAddresses      bool     `json:"scrubIPAddresses"`
-	StoreCrashReports     int      `json:"storeCrashReports"`
-	RelayPiiConfig        string   `json:"relayPiiConfig"`
-	AllowSharedIssues     bool     `json:"allowSharedIssues"`
-	TrustedRelays         []string `json:"trustedRelays"`
+	Name                 string   `json:"name"`
+	Slug                 string   `json:"slug"`
+	IsEarlyAdopter       bool     `json:"isEarlyAdopter"`
+	AllowJoinRequests    bool     `json:"allowJoinRequests"`
+	OpenMembership       bool     `json:"openMembership"`
+	DefaultRole          string   `json:"defaultRole"`
+	EnhancedPrivacy      bool     `json:"enhancedPrivacy"`
+	DataScrubber         bool     `json:"dataScrubber"`
+	DataScrubberDefaults bool     `json:"dataScrubberDefaults"`
+	SensitiveFields      []string `json:"sensitiveFields"`
+	SafeFields           []string `json:"safeFields"`
+	ScrubIPAddresses     bool     `json:"scrubIPAddresses"`
+	StoreCrashReports    int      `json:"storeCrashReports"`
+	RelayPiiConfig       string   `json:"relayPiiConfig"`
+	AllowSharedIssues    bool     `json:"allowSharedIssues"`
+	TrustedRelays        []string `json:"trustedRelays"`
 }
 
 // AuditLogEntry is the shared redacted auth/admin activity record.

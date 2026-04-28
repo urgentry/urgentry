@@ -95,7 +95,7 @@ func handleCreateWorkflow(
 		}
 		var body createWorkflowRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name == "" {
@@ -143,7 +143,7 @@ func handleBulkUpdateWorkflows(
 		}
 		var body bulkWorkflowRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if len(body.IDs) == 0 {
@@ -224,7 +224,7 @@ func handleUpdateWorkflow(
 		}
 		var body updateWorkflowRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name != "" {

@@ -2,7 +2,7 @@
 
 image:
   repository: urgentry
-  tag: "latest"
+  tag: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -127,8 +127,18 @@ serviceAccount:
   name: ""
 
 podAnnotations: {}
-podSecurityContext: {}
-securityContext: {}
+podSecurityContext:
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsGroup: 10001
+  runAsNonRoot: true
+  runAsUser: 10001
 
 # Node selector, tolerations, and affinity
 nodeSelector: {}

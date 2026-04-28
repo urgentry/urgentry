@@ -21,8 +21,8 @@ import (
 type alertsData struct {
 	Title            string
 	Nav              string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment      string   // selected environment ("" = all)
+	Environments     []string // available environments for global nav
 	DefaultProjectID string
 	Rules            []alertRuleRow
 	History          []alertHistoryRow
@@ -704,4 +704,3 @@ func (h *Handler) alertDetailPage(w http.ResponseWriter, r *http.Request) {
 		Deliveries:   ruleDeliveries,
 	})
 }
-

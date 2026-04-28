@@ -46,7 +46,7 @@ func handleCreateOwnershipRule(catalog controlplane.CatalogStore, ownership cont
 		}
 		var body ownershipRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := ownership.CreateRule(r.Context(), sharedstore.OwnershipRule{

@@ -17,11 +17,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type releasesData struct {
-	Title    string
-	Nav      string
+	Title        string
+	Nav          string
 	Environment  string   // selected environment ("" = all)
 	Environments []string // available environments for global nav
-	Releases []releaseRow
+	Releases     []releaseRow
 }
 
 type releaseRow struct {
@@ -40,8 +40,8 @@ type releaseRow struct {
 type releaseDetailData struct {
 	Title          string
 	Nav            string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment    string   // selected environment ("" = all)
+	Environments   []string // available environments for global nav
 	DefaultProject string
 	Release        releaseRow
 	Regression     *releaseRegressionData

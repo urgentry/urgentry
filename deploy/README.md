@@ -17,8 +17,8 @@ Choose one of these:
 For packaged containers, use:
 
 ```bash
-docker pull ghcr.io/urgentry/urgentry:latest
-docker run -p 8080:8080 -v urgentry-data:/data ghcr.io/urgentry/urgentry:latest serve
+docker pull ghcr.io/urgentry/urgentry:v0.2.10
+docker run -p 8080:8080 -v urgentry-data:/data ghcr.io/urgentry/urgentry:v0.2.10 serve
 ```
 
 ## Self-hosted mode

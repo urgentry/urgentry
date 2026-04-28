@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: urgentry:latest
+          image: urgentry:dev
           imagePullPolicy: IfNotPresent
           args: ["serve", "--role=api", "--addr=:8080"]
           ports:

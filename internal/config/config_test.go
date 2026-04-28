@@ -1,6 +1,9 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -133,5 +136,72 @@ func TestLoadBlobConfig(t *testing.T) {
 	}
 	if !cfg.S3UseTLS {
 		t.Fatal("S3UseTLS = false, want true")
+	}
+}
+
+func TestLoadStrictFailsForUnreadableSecretFile(t *testing.T) {
+	t.Setenv("URGENTRY_TRUSTED_RELAY_SECRET_FILE", filepath.Join(t.TempDir(), "missing-secret"))
+
+	_, err := LoadStrict()
+	if err == nil || !strings.Contains(err.Error(), "URGENTRY_TRUSTED_RELAY_SECRET_FILE") {
+		t.Fatalf("LoadStrict error = %v, want trusted relay secret file error", err)
+	}
+}
+
+func TestLoadStrictFailsForUnreadableSAMLCertFile(t *testing.T) {
+	t.Setenv("URGENTRY_SAML_CERT_PEM_FILE", filepath.Join(t.TempDir(), "missing-cert"))
+
+	_, err := LoadStrict()
+	if err == nil || !strings.Contains(err.Error(), "URGENTRY_SAML_CERT_PEM_FILE") {
+		t.Fatalf("LoadStrict error = %v, want SAML cert file error", err)
+	}
+}
+
+func TestLoadStrictTrimsSecretFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(path, []byte("super-secret\n"), 0o600); err != nil {
+		t.Fatalf("write secret: %v", err)
+	}
+	t.Setenv("URGENTRY_TRUSTED_RELAY_SECRET_FILE", path)
+
+	cfg, err := LoadStrict()
+	if err != nil {
+		t.Fatalf("LoadStrict: %v", err)
+	}
+	if cfg.TrustedRelaySecret != "super-secret" {
+		t.Fatalf("TrustedRelaySecret = %q, want trimmed secret", cfg.TrustedRelaySecret)
+	}
+}
+
+func TestLoadStrictFailsForInvalidScalars(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		val  string
+	}{
+		{name: "int", key: "URGENTRY_PIPELINE_QUEUE_SIZE", val: "not-an-int"},
+		{name: "duration", key: "URGENTRY_HTTP_READ_TIMEOUT", val: "not-a-duration"},
+		{name: "bool", key: "URGENTRY_APPEND_ONLY_INGEST", val: "definitely"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(tt.key, tt.val)
+			_, err := LoadStrict()
+			if err == nil || !strings.Contains(err.Error(), tt.key) {
+				t.Fatalf("LoadStrict error = %v, want error mentioning %s", err, tt.key)
+			}
+		})
+	}
+}
+
+func TestLoadTrustedProxyCIDRs(t *testing.T) {
+	t.Setenv("URGENTRY_TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+
+	cfg, err := LoadStrict()
+	if err != nil {
+		t.Fatalf("LoadStrict: %v", err)
+	}
+	if cfg.TrustedProxyCIDRs != "10.0.0.0/8" {
+		t.Fatalf("TrustedProxyCIDRs = %q", cfg.TrustedProxyCIDRs)
 	}
 }

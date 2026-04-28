@@ -9,19 +9,20 @@ import (
 	"urgentry/internal/analyticssnapshot"
 	"urgentry/internal/auth"
 	"urgentry/internal/discover"
+	"urgentry/internal/requestmeta"
 	"urgentry/internal/sqlite"
 )
 
 type analyticsSnapshotPageData struct {
-	Title      string
-	Nav        string
+	Title        string
+	Nav          string
 	Environment  string   // selected environment ("" = all)
 	Environments []string // available environments for global nav
-	Snapshot   *sqlite.AnalyticsSnapshot
-	ShareURL   string
-	ExportCSV  string
-	ExportJSON string
-	Result     discoverResultView
+	Snapshot     *sqlite.AnalyticsSnapshot
+	ShareURL     string
+	ExportCSV    string
+	ExportJSON   string
+	Result       discoverResultView
 }
 
 func (h *Handler) createDiscoverQuerySnapshot(w http.ResponseWriter, r *http.Request) {
@@ -130,11 +131,11 @@ func (h *Handler) analyticsSnapshotPage(w http.ResponseWriter, r *http.Request) 
 		Nav:          "dashboards",
 		Environment:  readSelectedEnvironment(r),
 		Environments: h.loadEnvironments(r.Context()),
-		Snapshot:   snapshot,
-		ShareURL:   absoluteSnapshotURL(r, snapshot.ShareToken),
-		ExportCSV:  exportURL(r.URL.RequestURI(), "csv"),
-		ExportJSON: exportURL(r.URL.RequestURI(), "json"),
-		Result:     result,
+		Snapshot:     snapshot,
+		ShareURL:     absoluteSnapshotURL(r, snapshot.ShareToken),
+		ExportCSV:    exportURL(r.URL.RequestURI(), "csv"),
+		ExportJSON:   exportURL(r.URL.RequestURI(), "json"),
+		Result:       result,
 	})
 }
 
@@ -177,17 +178,12 @@ func absoluteSnapshotURL(r *http.Request, token string) string {
 		return "/analytics/snapshots/" + strings.TrimSpace(token) + "/"
 	}
 	item := &url.URL{
-		Scheme: "http",
-		Host:   r.Host,
+		Scheme: requestmeta.Scheme(r),
+		Host:   requestmeta.Host(r),
 		Path:   "/analytics/snapshots/" + strings.TrimSpace(token) + "/",
 	}
-	if proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); proto != "" {
-		item.Scheme = proto
-	} else if r.TLS != nil {
-		item.Scheme = "https"
-	}
-	if host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); host != "" {
-		item.Host = host
+	if item.Host == "" {
+		item.Host = "localhost:8080"
 	}
 	return item.String()
 }

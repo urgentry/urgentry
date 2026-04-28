@@ -8,7 +8,7 @@ Single-container deployment with SQLite storage. Zero external dependencies.
 docker compose up -d
 ```
 
-Open http://localhost:8080. Check logs for bootstrap credentials:
+Open http://localhost:8080. The logs point to `bootstrap-credentials.txt` in the data directory:
 
 ```bash
 docker compose logs urgentry

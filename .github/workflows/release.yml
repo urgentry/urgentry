@@ -66,9 +66,8 @@ jobs:
         with:
           images: ghcr.io/urgentry/urgentry
           tags: |
-            type=raw,value=latest
+            type=raw,value=${{ github.ref_name }}
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -77,6 +76,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
 
   publish:
     needs:

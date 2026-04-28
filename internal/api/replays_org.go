@@ -368,7 +368,7 @@ func handleListReplayDeletionJobs(w http.ResponseWriter, r *http.Request, db *sq
 func handleCreateReplayDeletionJob(w http.ResponseWriter, r *http.Request, db *sql.DB, projectID string) {
 	var body replayDeletionRequest
 	if err := decodeJSON(r, &body); err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+		writeDecodeJSONError(w, err)
 		return
 	}
 	if len(body.ReplayIDs) == 0 {

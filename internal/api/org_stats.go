@@ -226,7 +226,11 @@ func handleCreateOrgRepo(db *sql.DB, auth authFunc) http.HandlerFunc {
 			Provider string `json:"provider"`
 			URL      string `json:"url"`
 		}
-		if err := decodeJSON(r, &body); err != nil || body.Name == "" {
+		if err := decodeJSON(r, &body); err != nil {
+			writeDecodeJSONError(w, err)
+			return
+		}
+		if strings.TrimSpace(body.Name) == "" {
 			httputil.WriteError(w, http.StatusBadRequest, "name is required.")
 			return
 		}

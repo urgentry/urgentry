@@ -9,7 +9,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: urgentry-bootstrap
-          image: urgentry:latest
+          image: urgentry:dev
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh

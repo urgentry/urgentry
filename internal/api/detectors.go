@@ -86,7 +86,7 @@ func handleCreateDetector(
 		}
 		var body createDetectorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name == "" {
@@ -136,7 +136,7 @@ func handleBulkUpdateDetectors(
 		}
 		var body bulkDetectorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if len(body.IDs) == 0 {
@@ -186,7 +186,7 @@ func bulkDeleteByOrgHandler(
 			IDs []string `json:"ids"`
 		}
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if len(body.IDs) == 0 {
@@ -252,7 +252,7 @@ func handleUpdateDetector(
 		}
 		var body updateDetectorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name != "" {

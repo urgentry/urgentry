@@ -3,7 +3,7 @@ kind: UrgentryInstallation
 metadata:
   name: sample
 spec:
-  image: urgentry:latest
+  image: urgentry:dev
   configMapName: urgentry-config
   secretName: urgentry-secret
   dataPVCName: urgentry-data

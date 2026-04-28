@@ -18,8 +18,8 @@ import (
 type issueDetailData struct {
 	Title           string
 	Nav             string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment     string   // selected environment ("" = all)
+	Environments    []string // available environments for global nav
 	Issue           issueDetailView
 	Event           eventDetailView
 	Frames          []stackFrame

@@ -18,34 +18,34 @@ type replayPaneTab struct {
 }
 
 type replayTimelineView struct {
-	ID               string
-	Href             string
-	Pane             string
-	PaneLabel        string
-	Kind             string
-	KindLabel        string
-	Title            string
-	Summary          string
-	Message          string
-	URL              string
-	Method           string
-	Duration         string
-	Selector         string
-	Text             string
-	TraceID          string
-	TraceURL         string
-	LinkedEventID    string
-	LinkedEventURL   string
-	LinkedIssueID    string
-	LinkedIssueURL   string
-	LinkedIssueTitle string
+	ID                string
+	Href              string
+	Pane              string
+	PaneLabel         string
+	Kind              string
+	KindLabel         string
+	Title             string
+	Summary           string
+	Message           string
+	URL               string
+	Method            string
+	Duration          string
+	Selector          string
+	Text              string
+	TraceID           string
+	TraceURL          string
+	LinkedEventID     string
+	LinkedEventURL    string
+	LinkedIssueID     string
+	LinkedIssueURL    string
+	LinkedIssueTitle  string
 	LinkedIssueStatus string
-	TimestampMS      int64
-	TimeLabel        string
-	Level            string
-	StatusCode       int
-	Selected         bool
-	IsError          bool
+	TimestampMS       int64
+	TimeLabel         string
+	Level             string
+	StatusCode        int
+	Selected          bool
+	IsError           bool
 }
 
 func replayRowFromManifest(item sharedstore.ReplayManifest) replayRow {
@@ -191,26 +191,26 @@ func replayTimelineRows(orgSlug, projectSlug, replayID string, items []sharedsto
 	rows := make([]replayTimelineView, 0, len(items))
 	for _, item := range items {
 		row := replayTimelineView{
-			ID:             item.ID,
-			Pane:           item.Pane,
-			PaneLabel:      replayPaneLabel(item.Pane),
-			Kind:           item.Kind,
-			KindLabel:      replayKindLabel(item.Kind),
-			Title:          firstNonEmptyText(item.Title, item.Message, replayKindLabel(item.Kind)),
-			Summary:        replayTimelineSummary(item),
-			Message:        item.Message,
-			URL:            item.URL,
-			Method:         item.Method,
-			Selector:       item.Selector,
-			Text:           item.Text,
-			TraceID:        item.TraceID,
-			LinkedEventID:  item.LinkedEventID,
-			LinkedIssueID:  item.LinkedIssueID,
-			TimestampMS:    item.TSMS,
-			TimeLabel:      formatReplayOffset(item.TSMS),
-			Level:          strings.ToLower(strings.TrimSpace(item.Level)),
-			StatusCode:     item.StatusCode,
-			IsError:        item.Kind == "error",
+			ID:            item.ID,
+			Pane:          item.Pane,
+			PaneLabel:     replayPaneLabel(item.Pane),
+			Kind:          item.Kind,
+			KindLabel:     replayKindLabel(item.Kind),
+			Title:         firstNonEmptyText(item.Title, item.Message, replayKindLabel(item.Kind)),
+			Summary:       replayTimelineSummary(item),
+			Message:       item.Message,
+			URL:           item.URL,
+			Method:        item.Method,
+			Selector:      item.Selector,
+			Text:          item.Text,
+			TraceID:       item.TraceID,
+			LinkedEventID: item.LinkedEventID,
+			LinkedIssueID: item.LinkedIssueID,
+			TimestampMS:   item.TSMS,
+			TimeLabel:     formatReplayOffset(item.TSMS),
+			Level:         strings.ToLower(strings.TrimSpace(item.Level)),
+			StatusCode:    item.StatusCode,
+			IsError:       item.Kind == "error",
 		}
 		if item.DurationMS > 0 {
 			row.Duration = formatReplayOffset(item.DurationMS)

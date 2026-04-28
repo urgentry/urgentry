@@ -100,7 +100,7 @@ func handleUpsertQuotaRateLimit(quota *sqlite.QuotaStore, auth authFunc) http.Ha
 		}
 		var body quotaRateLimitRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.ProjectID == "" {

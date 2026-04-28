@@ -42,9 +42,10 @@ func OpenQueue(dataDir string) (*sql.DB, error) {
 }
 
 func openSQLiteFile(dataDir, dbPath string, migrateFn func(*sql.DB) error) (*sql.DB, error) {
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create data dir: %w", err)
 	}
+	_ = os.Chmod(dataDir, 0o700)
 
 	db, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=30000")
 	if err != nil {
@@ -69,6 +70,7 @@ func openSQLiteFile(dataDir, dbPath string, migrateFn func(*sql.DB) error) (*sql
 		db.Close()
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
+	secureSQLiteFiles(dbPath)
 
 	if err := withBusyRetry(30*time.Second, func() error {
 		return migrateFn(db)
@@ -76,8 +78,15 @@ func openSQLiteFile(dataDir, dbPath string, migrateFn func(*sql.DB) error) (*sql
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+	secureSQLiteFiles(dbPath)
 
 	return db, nil
+}
+
+func secureSQLiteFiles(dbPath string) {
+	for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
+		_ = os.Chmod(path, 0o600)
+	}
 }
 
 func migrateQueueOnly(db *sql.DB) error {

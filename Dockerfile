@@ -23,12 +23,16 @@ LABEL org.opencontainers.image.title="Urgentry" \
       org.opencontainers.image.source="https://github.com/urgentry/urgentry" \
       org.opencontainers.image.vendor="Urgentry"
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S urgentry \
+    && adduser -S -D -H -G urgentry -u 10001 urgentry \
+    && mkdir -p /data \
+    && chown -R urgentry:urgentry /data
 COPY --from=builder /build/urgentry /usr/local/bin/urgentry
-RUN mkdir -p /data
 ENV URGENTRY_DATA_DIR=/data
 ENV URGENTRY_HTTP_ADDR=:8080
 EXPOSE 8080
 VOLUME /data
+USER 10001:10001
 ENTRYPOINT ["urgentry"]
 CMD ["serve", "--role=all"]

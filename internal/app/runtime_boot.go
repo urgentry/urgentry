@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -138,23 +140,48 @@ func (s *runtimeState) bootAPI(ctx context.Context) (*bool, error) {
 
 	completed := true
 	if bootstrap != nil && bootstrap.Created {
-		// Show full credentials when auto-generated (no env vars set) so the
-		// user can actually log in on first run. When credentials come from
-		// env vars the user already knows them, so we mask.
 		userSupplied := s.cfg.BootstrapPassword != "" || s.cfg.BootstrapPAT != ""
 		if userSupplied {
 			log.Info().
 				Str("email", bootstrap.Email).
 				Msg("bootstrap owner account created")
 		} else {
+			credentialsPath, err := s.writeBootstrapCredentials(bootstrap)
+			if err != nil {
+				return nil, fmt.Errorf("write bootstrap credentials: %w", err)
+			}
 			log.Info().
 				Str("email", bootstrap.Email).
-				Str("password", bootstrap.Password).
-				Str("pat", bootstrap.PAT).
-				Msg("bootstrap owner account created — save these credentials, they are shown only once")
+				Str("credentials_file", credentialsPath).
+				Msg("bootstrap owner account created; credentials written to owner-only file")
 		}
 	}
 	return &completed, nil
+}
+
+func (s *runtimeState) writeBootstrapCredentials(bootstrap *bootstrapResult) (string, error) {
+	if bootstrap == nil {
+		return "", fmt.Errorf("bootstrap credentials are empty")
+	}
+	if err := os.MkdirAll(s.dataDir, 0o700); err != nil {
+		return "", err
+	}
+	if err := os.Chmod(s.dataDir, 0o700); err != nil {
+		return "", err
+	}
+	path := filepath.Join(s.dataDir, "bootstrap-credentials.txt")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	if _, err := fmt.Fprintf(file, "email=%s\npassword=%s\npat=%s\n", bootstrap.Email, bootstrap.Password, bootstrap.PAT); err != nil {
+		return "", err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (s *runtimeState) syncInstallState(ctx context.Context, bootstrapCompleted *bool) error {

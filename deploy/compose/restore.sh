@@ -28,8 +28,8 @@ compose() {
 }
 
 ensure_local_image() {
-  if ! docker image inspect urgentry:latest >/dev/null 2>&1; then
-    echo "urgentry:latest image not found. Boot the compose stack or run deploy/compose/smoke.sh up first." >&2
+  if ! docker image inspect "${URGENTRY_IMAGE:-urgentry:dev}" >/dev/null 2>&1; then
+    echo "${URGENTRY_IMAGE:-urgentry:dev} image not found. Boot the compose stack or run deploy/compose/smoke.sh up first." >&2
     exit 1
   fi
 }
@@ -143,7 +143,7 @@ main() {
   ensure_local_image
   docker run --rm \
     -v "$backup_dir:/backup:ro" \
-    urgentry:latest \
+    "${URGENTRY_IMAGE:-urgentry:dev}" \
     self-hosted verify-backup \
     --dir /backup \
     --telemetry-backend "${URGENTRY_TELEMETRY_BACKEND:-postgres}" \

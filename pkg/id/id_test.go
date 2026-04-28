@@ -1,27 +1,51 @@
 package id
 
 import (
-	"encoding/hex"
+	"errors"
+	"io"
 	"testing"
 )
 
-func TestNew(t *testing.T) {
-	first := New()
-	second := New()
+type failingReader struct{}
 
-	if len(first) != 32 {
-		t.Fatalf("len(first) = %d, want 32", len(first))
+func (failingReader) Read([]byte) (int, error) {
+	return 0, errors.New("entropy unavailable")
+}
+
+func TestNewPanicsWhenRandomReaderFails(t *testing.T) {
+	original := randomReader
+	randomReader = failingReader{}
+	defer func() {
+		randomReader = original
+		if r := recover(); r == nil {
+			t.Fatal("New did not panic when randomness failed")
+		}
+	}()
+
+	_ = New()
+}
+
+func TestNewReturnsThirtyTwoHexCharacters(t *testing.T) {
+	original := randomReader
+	randomReader = zeroReader{}
+	defer func() { randomReader = original }()
+
+	got := New()
+	if len(got) != 32 {
+		t.Fatalf("len(New()) = %d, want 32", len(got))
 	}
-	if len(second) != 32 {
-		t.Fatalf("len(second) = %d, want 32", len(second))
+	for _, ch := range got {
+		if ch != '0' {
+			t.Fatalf("New() = %q, want all zero hex from zeroReader", got)
+		}
 	}
-	if _, err := hex.DecodeString(first); err != nil {
-		t.Fatalf("first is not hex: %v", err)
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
 	}
-	if _, err := hex.DecodeString(second); err != nil {
-		t.Fatalf("second is not hex: %v", err)
-	}
-	if first == second {
-		t.Fatal("expected two generated ids to differ")
-	}
+	return len(p), io.EOF
 }

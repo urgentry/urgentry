@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,8 +26,9 @@ func handleUploadProjectAttachment(db *sql.DB, store attachmentstore.Store, auth
 		if !ok {
 			return
 		}
-		if err := r.ParseMultipartForm(maxAttachmentUploadSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form.")
+		data, header, err := readMultipartFile(w, r, "file", maxAttachmentUploadSize)
+		if err != nil {
+			writeMultipartError(w, err, "Invalid multipart form.")
 			return
 		}
 		eventID := strings.TrimSpace(r.FormValue("event_id"))
@@ -38,19 +38,6 @@ func handleUploadProjectAttachment(db *sql.DB, store attachmentstore.Store, auth
 		}
 		if !eventBelongsToProject(r, db, projectID, eventID) {
 			httputil.WriteError(w, http.StatusNotFound, "Event not found.")
-			return
-		}
-
-		file, header, err := r.FormFile("file")
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing file.")
-			return
-		}
-		defer file.Close()
-
-		data, err := io.ReadAll(io.LimitReader(file, maxAttachmentUploadSize))
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Failed to read attachment.")
 			return
 		}
 

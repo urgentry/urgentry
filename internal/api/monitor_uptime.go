@@ -86,7 +86,7 @@ func handleCreateUptimeMonitor(catalog controlplane.CatalogStore, uptime *sqlite
 		}
 		var body uptimeMonitorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {

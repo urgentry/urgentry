@@ -23,13 +23,13 @@ type performanceQueuesPageData struct {
 }
 
 type queueRow struct {
-	Name           string
-	ProcessCount   int64
-	PublishCount   int64
-	AvgProcessing  string // formatted ms
-	P95Processing  string
-	FailureCount   int64
-	FailureRate    string // e.g. "2.3%"
+	Name          string
+	ProcessCount  int64
+	PublishCount  int64
+	AvgProcessing string // formatted ms
+	P95Processing string
+	FailureCount  int64
+	FailureRate   string // e.g. "2.3%"
 }
 
 func (h *Handler) performanceQueuesPage(w http.ResponseWriter, r *http.Request) {

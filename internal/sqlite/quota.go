@@ -19,12 +19,12 @@ type QuotaUsage struct {
 
 // QuotaRateLimit is a per-project rate limit override.
 type QuotaRateLimit struct {
-	ID                   string    `json:"id"`
-	ProjectID            string    `json:"projectId"`
-	MaxEventsPerHour     int       `json:"maxEventsPerHour"`
-	MaxTransPerHour      int       `json:"maxTransactionsPerHour"`
-	DateCreated          time.Time `json:"dateCreated"`
-	UpdatedAt            time.Time `json:"updatedAt"`
+	ID               string    `json:"id"`
+	ProjectID        string    `json:"projectId"`
+	MaxEventsPerHour int       `json:"maxEventsPerHour"`
+	MaxTransPerHour  int       `json:"maxTransactionsPerHour"`
+	DateCreated      time.Time `json:"dateCreated"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 // QuotaStore aggregates quota data from outcomes and events.

@@ -73,7 +73,7 @@ func handleExecuteRetentionArchive(db *sql.DB, retention *sqlite.RetentionStore,
 		var body retentionActionRequest
 		if r.ContentLength > 0 {
 			if err := decodeJSON(r, &body); err != nil {
-				httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+				writeDecodeJSONError(w, err)
 				return
 			}
 		}
@@ -108,7 +108,7 @@ func handleExecuteRetentionRestore(db *sql.DB, retention *sqlite.RetentionStore,
 		var body retentionActionRequest
 		if r.ContentLength > 0 {
 			if err := decodeJSON(r, &body); err != nil {
-				httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+				writeDecodeJSONError(w, err)
 				return
 			}
 		}

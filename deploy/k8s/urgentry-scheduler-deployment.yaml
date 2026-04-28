@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: scheduler
-          image: urgentry:latest
+          image: urgentry:dev
           imagePullPolicy: IfNotPresent
           args: ["serve", "--role=scheduler", "--addr=:8083"]
           ports:

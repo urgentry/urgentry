@@ -15,7 +15,7 @@ spec:
       serviceAccountName: urgentry-controller
       containers:
         - name: controller
-          image: urgentry:latest
+          image: urgentry:dev
           imagePullPolicy: IfNotPresent
           args:
             - self-hosted

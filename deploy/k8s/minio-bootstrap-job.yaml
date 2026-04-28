@@ -9,7 +9,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: minio-bootstrap
-          image: minio/mc:latest
+          image: minio/mc:RELEASE.2025-08-13T08-35-41Z
           command:
             - /bin/sh
             - -lc

@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -47,6 +49,7 @@ type Config struct {
 	SAMLCertificatePEM  string
 	SAMLSPEntityID      string
 	SAMLACSURL          string
+	TrustedProxyCIDRs   string
 	IngestRateLimit     int
 	AppendOnlyIngest    bool
 	PipelineQueueSize   int
@@ -63,25 +66,76 @@ type Config struct {
 }
 
 func Load() Config {
+	cfg, _ := load(false)
+	return cfg
+}
+
+func LoadStrict() (Config, error) {
+	return load(true)
+}
+
+func load(strict bool) (Config, error) {
 	s3Endpoint := firstNonEmpty(os.Getenv("URGENTRY_S3_ENDPOINT"), os.Getenv("URGENTRY_MINIO_URL"))
 	s3AccessKey := firstNonEmpty(os.Getenv("URGENTRY_S3_ACCESS_KEY"), os.Getenv("URGENTRY_S3_ACCESS_KEY_ID"))
 	s3SecretKey := firstNonEmpty(os.Getenv("URGENTRY_S3_SECRET_KEY"), os.Getenv("URGENTRY_S3_SECRET_ACCESS_KEY"))
 	trustedRelaySecret := os.Getenv("URGENTRY_TRUSTED_RELAY_SECRET")
 	if trustedRelaySecret == "" {
-		if path := os.Getenv("URGENTRY_TRUSTED_RELAY_SECRET_FILE"); path != "" {
-			if data, err := os.ReadFile(path); err == nil {
-				trustedRelaySecret = string(data)
-			}
+		secret, err := envFile("URGENTRY_TRUSTED_RELAY_SECRET_FILE", strict)
+		if err != nil {
+			return Config{}, err
 		}
+		trustedRelaySecret = secret
 	}
 	samlCertPEM := os.Getenv("URGENTRY_SAML_CERT_PEM")
 	if samlCertPEM == "" {
-		if path := os.Getenv("URGENTRY_SAML_CERT_PEM_FILE"); path != "" {
-			if data, err := os.ReadFile(path); err == nil {
-				samlCertPEM = string(data)
-			}
+		cert, err := envFile("URGENTRY_SAML_CERT_PEM_FILE", strict)
+		if err != nil {
+			return Config{}, err
 		}
+		samlCertPEM = cert
 	}
+
+	s3UseTLS, err := envBoolValue("URGENTRY_S3_USE_TLS", false, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	profilingEnabled, err := envBoolValue("URGENTRY_PROFILING_ENABLED", false, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	ingestRateLimit, err := envIntValue("URGENTRY_INGEST_RATE_LIMIT", 60, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	appendOnlyIngest, err := envBoolValue("URGENTRY_APPEND_ONLY_INGEST", true, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	pipelineQueueSize, err := envIntValue("URGENTRY_PIPELINE_QUEUE_SIZE", 10000, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	pipelineWorkers, err := envIntValue("URGENTRY_PIPELINE_WORKERS", 0, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	readHeaderTimeout, err := envDurationValue("URGENTRY_HTTP_READ_HEADER_TIMEOUT", 5*time.Second, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	readTimeout, err := envDurationValue("URGENTRY_HTTP_READ_TIMEOUT", 30*time.Second, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	writeTimeout, err := envDurationValue("URGENTRY_HTTP_WRITE_TIMEOUT", 30*time.Second, strict)
+	if err != nil {
+		return Config{}, err
+	}
+	idleTimeout, err := envDurationValue("URGENTRY_HTTP_IDLE_TIMEOUT", 60*time.Second, strict)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		Env:                 envOr("URGENTRY_ENV", "development"),
 		HTTPAddr:            envOr("URGENTRY_HTTP_ADDR", ":8080"),
@@ -103,11 +157,11 @@ func Load() Config {
 		S3SecretKey:         s3SecretKey,
 		S3Region:            envOr("URGENTRY_S3_REGION", "us-east-1"),
 		S3Prefix:            os.Getenv("URGENTRY_S3_PREFIX"),
-		S3UseTLS:            envBool("URGENTRY_S3_USE_TLS", false),
+		S3UseTLS:            s3UseTLS,
 		NATSURL:             firstNonEmpty(os.Getenv("URGENTRY_NATS_URL"), os.Getenv("NATS_URL")),
 		ValkeyURL:           firstNonEmpty(os.Getenv("URGENTRY_VALKEY_URL"), os.Getenv("REDIS_URL")),
 		MetricsToken:        os.Getenv("URGENTRY_METRICS_TOKEN"),
-		ProfilingEnabled:    envBool("URGENTRY_PROFILING_ENABLED", false),
+		ProfilingEnabled:    profilingEnabled,
 		ProfilingToken:      os.Getenv("URGENTRY_PROFILING_TOKEN"),
 		SessionCookieName:   envOr("URGENTRY_SESSION_COOKIE", "urgentry_session"),
 		CSRFCookieName:      envOr("URGENTRY_CSRF_COOKIE", "urgentry_csrf"),
@@ -123,20 +177,36 @@ func Load() Config {
 		SAMLCertificatePEM:  samlCertPEM,
 		SAMLSPEntityID:      os.Getenv("URGENTRY_SAML_SP_ENTITY_ID"),
 		SAMLACSURL:          os.Getenv("URGENTRY_SAML_ACS_URL"),
-		IngestRateLimit:     envInt("URGENTRY_INGEST_RATE_LIMIT", 60),
-		AppendOnlyIngest:    envBool("URGENTRY_APPEND_ONLY_INGEST", true),
-		PipelineQueueSize:   envInt("URGENTRY_PIPELINE_QUEUE_SIZE", 10000),
-		PipelineWorkers:     envInt("URGENTRY_PIPELINE_WORKERS", 0),
-		ReadHeaderTimeout:   envDuration("URGENTRY_HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
-		ReadTimeout:         envDuration("URGENTRY_HTTP_READ_TIMEOUT", 30*time.Second),
-		WriteTimeout:        envDuration("URGENTRY_HTTP_WRITE_TIMEOUT", 30*time.Second),
-		IdleTimeout:         envDuration("URGENTRY_HTTP_IDLE_TIMEOUT", 60*time.Second),
+		TrustedProxyCIDRs:   firstNonEmpty(os.Getenv("URGENTRY_TRUSTED_PROXY_CIDRS"), os.Getenv("URGENTRY_TRUSTED_PROXIES")),
+		IngestRateLimit:     ingestRateLimit,
+		AppendOnlyIngest:    appendOnlyIngest,
+		PipelineQueueSize:   pipelineQueueSize,
+		PipelineWorkers:     pipelineWorkers,
+		ReadHeaderTimeout:   readHeaderTimeout,
+		ReadTimeout:         readTimeout,
+		WriteTimeout:        writeTimeout,
+		IdleTimeout:         idleTimeout,
 		SMTPHost:            os.Getenv("URGENTRY_SMTP_HOST"),
 		SMTPPort:            envOr("URGENTRY_SMTP_PORT", "587"),
 		SMTPFrom:            os.Getenv("URGENTRY_SMTP_FROM"),
 		SMTPUser:            os.Getenv("URGENTRY_SMTP_USER"),
 		SMTPPass:            os.Getenv("URGENTRY_SMTP_PASS"),
+	}, nil
+}
+
+func envFile(key string, strict bool) (string, error) {
+	path := strings.TrimSpace(os.Getenv(key))
+	if path == "" {
+		return "", nil
 	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if !strict {
+			return "", nil
+		}
+		return "", fmt.Errorf("read %s %q: %w", key, path, err)
+	}
+	return strings.TrimRight(string(data), "\r\n"), nil
 }
 
 func firstNonEmpty(values ...string) string {
@@ -155,38 +225,47 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
-func envInt(key string, fallback int) int {
+func envIntValue(key string, fallback int, strict bool) (int, error) {
 	value := os.Getenv(key)
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
-		return fallback
+		if !strict {
+			return fallback, nil
+		}
+		return 0, fmt.Errorf("parse %s=%q as int: %w", key, value, err)
 	}
-	return parsed
+	return parsed, nil
 }
 
-func envDuration(key string, fallback time.Duration) time.Duration {
+func envDurationValue(key string, fallback time.Duration, strict bool) (time.Duration, error) {
 	value := os.Getenv(key)
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 	parsed, err := time.ParseDuration(value)
 	if err != nil {
-		return fallback
+		if !strict {
+			return fallback, nil
+		}
+		return 0, fmt.Errorf("parse %s=%q as duration: %w", key, value, err)
 	}
-	return parsed
+	return parsed, nil
 }
 
-func envBool(key string, fallback bool) bool {
+func envBoolValue(key string, fallback bool, strict bool) (bool, error) {
 	value := os.Getenv(key)
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 	parsed, err := strconv.ParseBool(value)
 	if err != nil {
-		return fallback
+		if !strict {
+			return fallback, nil
+		}
+		return false, fmt.Errorf("parse %s=%q as bool: %w", key, value, err)
 	}
-	return parsed
+	return parsed, nil
 }

@@ -61,7 +61,7 @@ func handleCreateSamplingRule(catalog controlplane.CatalogStore, sampling *sqlit
 		}
 		var body samplingRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.SampleRate < 0.0 || body.SampleRate > 1.0 {

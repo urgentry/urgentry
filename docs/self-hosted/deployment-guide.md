@@ -31,7 +31,7 @@ Validate the stack:
 bash deploy/compose/smoke.sh up
 ```
 
-`deploy/compose/smoke.sh up` now builds the shared `urgentry:latest` image once per run and reuses it for the whole split-role stack, so retries do not pay for five redundant image builds. The packaged compose operator wrappers under `deploy/compose/ops.sh`, `backup.sh`, `restore.sh`, `rollback-plan.sh`, and `upgrade.sh` also run against that built image or the live compose services directly, so they no longer require a host Go toolchain.
+`deploy/compose/smoke.sh up` now builds the shared `urgentry:dev` image once per run and reuses it for the whole split-role stack, so retries do not pay for five redundant image builds. The packaged compose operator wrappers under `deploy/compose/ops.sh`, `backup.sh`, `restore.sh`, `rollback-plan.sh`, and `upgrade.sh` also run against that built image or the live compose services directly, so they no longer require a host Go toolchain.
 
 Optional logs-only ClickHouse pilot:
 
@@ -69,7 +69,7 @@ bash deploy/compose/ops.sh status
 bash deploy/compose/ops.sh maintenance-status
 ```
 
-For backup verification and rollback planning, `ops.sh` uses the local `urgentry:latest` image directly. Boot the stack or run `bash deploy/compose/smoke.sh up` once before using those wrappers on a fresh checkout.
+For backup verification and rollback planning, `ops.sh` uses the local `urgentry:dev` image directly. Boot the stack or run `bash deploy/compose/smoke.sh up` once before using those wrappers on a fresh checkout.
 
 ## Backup, restore, and upgrade
 

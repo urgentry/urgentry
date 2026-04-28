@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"io"
 	"net/http"
 	"strings"
 
@@ -102,21 +101,9 @@ func handleUploadDsym(db *sql.DB, debugFiles *sqlite.DebugFileStore, auth authFu
 			return
 		}
 
-		if err := r.ParseMultipartForm(maxDebugFileSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form.")
-			return
-		}
-
-		file, header, err := r.FormFile("file")
+		data, header, err := readMultipartFile(w, r, "file", maxDebugFileSize)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing file field.")
-			return
-		}
-		defer file.Close()
-
-		data, err := io.ReadAll(io.LimitReader(file, maxDebugFileSize))
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Failed to read file.")
+			writeMultipartError(w, err, "Invalid multipart form.")
 			return
 		}
 

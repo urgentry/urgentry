@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -96,21 +95,9 @@ func handleUploadProGuardMapping(db *sql.DB, pgStore proguard.Store, auth authFu
 			return
 		}
 
-		if err := r.ParseMultipartForm(maxProGuardSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form: "+err.Error())
-			return
-		}
-
-		file, header, err := r.FormFile("file")
+		data, header, err := readMultipartFile(w, r, "file", maxProGuardSize)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing 'file' field in multipart form.")
-			return
-		}
-		defer file.Close()
-
-		data, err := io.ReadAll(io.LimitReader(file, maxProGuardSize))
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Failed to read file.")
+			writeMultipartError(w, err, "Invalid multipart form.")
 			return
 		}
 

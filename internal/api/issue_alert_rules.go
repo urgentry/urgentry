@@ -14,15 +14,15 @@ import (
 // issueAlertRuleRequest is the Sentry-compatible request body for creating/updating
 // issue alert rules at /api/0/projects/{org}/{proj}/rules/.
 type issueAlertRuleRequest struct {
-	Name        string             `json:"name"`
-	Conditions  []alert.Condition  `json:"conditions"`
-	Actions     []alert.Action     `json:"actions"`
-	Filters     []alert.Filter     `json:"filters"`
-	ActionMatch string             `json:"actionMatch"`
-	FilterMatch string             `json:"filterMatch"`
-	Frequency   *int               `json:"frequency"`
-	Environment *string            `json:"environment"`
-	Status      string             `json:"status"`
+	Name        string            `json:"name"`
+	Conditions  []alert.Condition `json:"conditions"`
+	Actions     []alert.Action    `json:"actions"`
+	Filters     []alert.Filter    `json:"filters"`
+	ActionMatch string            `json:"actionMatch"`
+	FilterMatch string            `json:"filterMatch"`
+	Frequency   *int              `json:"frequency"`
+	Environment *string           `json:"environment"`
+	Status      string            `json:"status"`
 }
 
 // handleListIssueAlertRules handles GET /api/0/projects/{org_slug}/{proj_slug}/rules/.
@@ -85,7 +85,7 @@ func handleCreateIssueAlertRule(catalog controlplane.CatalogStore, alerts contro
 
 		var body issueAlertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -157,7 +157,7 @@ func handleUpdateIssueAlertRule(catalog controlplane.CatalogStore, alerts contro
 
 		var body issueAlertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {

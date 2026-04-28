@@ -325,7 +325,7 @@ func handleUpdateIssue(db *sql.DB, reads controlplane.IssueReadStore, issues con
 
 		var body updateIssueRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		// hasSeen is accepted silently — it's a per-user UI state marker.
@@ -473,7 +473,7 @@ func handleCreateIssueComment(issues controlplane.IssueWorkflowStore, auth authF
 		}
 		var body createIssueCommentRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		comment, err := issues.AddIssueComment(r.Context(), PathParam(r, "issue_id"), principal.User.ID, strings.TrimSpace(body.Body))
@@ -525,7 +525,7 @@ func handleMergeIssue(issues controlplane.IssueWorkflowStore, auth authFunc) htt
 			TargetIssueID string `json:"targetIssueId"`
 		}
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if err := issues.MergeIssue(r.Context(), PathParam(r, "issue_id"), strings.TrimSpace(body.TargetIssueID), principal.User.ID); err != nil {
@@ -671,7 +671,7 @@ func applyBulkIssueMutation(w http.ResponseWriter, r *http.Request, db *sql.DB, 
 
 	var body bulkMutateRequest
 	if err := decodeJSON(r, &body); err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+		writeDecodeJSONError(w, err)
 		return
 	}
 

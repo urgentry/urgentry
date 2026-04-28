@@ -32,18 +32,18 @@ type performancePageData struct {
 
 // webVitalSummary holds aggregate Web Vital scores for a page/transaction.
 type webVitalSummary struct {
-	Page      string
-	LCP       string // formatted value
-	LCPRating string // "good", "needs-improvement", "poor"
-	CLS       string
-	CLSRating string
-	INP       string
-	INPRating string
-	TTFB      string
+	Page       string
+	LCP        string // formatted value
+	LCPRating  string // "good", "needs-improvement", "poor"
+	CLS        string
+	CLSRating  string
+	INP        string
+	INPRating  string
+	TTFB       string
 	TTFBRating string
-	FCP       string
-	FCPRating string
-	Count     int
+	FCP        string
+	FCPRating  string
+	Count      int
 }
 
 type performanceTransactionRow struct {
@@ -296,9 +296,9 @@ func (h *Handler) performancePage(w http.ResponseWriter, r *http.Request) {
 				defer rows.Close()
 				for rows.Next() {
 					var (
-						page                                        string
-						cnt                                         int
-						lcpVal, clsVal, inpVal, ttfbVal, fcpVal     sql.NullFloat64
+						page                                    string
+						cnt                                     int
+						lcpVal, clsVal, inpVal, ttfbVal, fcpVal sql.NullFloat64
 					)
 					if err := rows.Scan(&page, &cnt, &lcpVal, &clsVal, &inpVal, &ttfbVal, &fcpVal); err != nil {
 						continue

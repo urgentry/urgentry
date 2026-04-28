@@ -24,7 +24,7 @@ func TestBuildWaterfallTreeStructure(t *testing.T) {
 			Transaction:    "GET /api/users",
 			Status:         "ok",
 			StartTimestamp: base,
-			EndTimestamp:    base.Add(500 * time.Millisecond),
+			EndTimestamp:   base.Add(500 * time.Millisecond),
 			DurationMS:     500,
 		},
 	}
@@ -36,7 +36,7 @@ func TestBuildWaterfallTreeStructure(t *testing.T) {
 			Description:    "SELECT * FROM users",
 			Status:         "ok",
 			StartTimestamp: base.Add(50 * time.Millisecond),
-			EndTimestamp:    base.Add(150 * time.Millisecond),
+			EndTimestamp:   base.Add(150 * time.Millisecond),
 			DurationMS:     100,
 		},
 		{
@@ -46,7 +46,7 @@ func TestBuildWaterfallTreeStructure(t *testing.T) {
 			Description:    "users/list.html",
 			Status:         "ok",
 			StartTimestamp: base.Add(200 * time.Millisecond),
-			EndTimestamp:    base.Add(400 * time.Millisecond),
+			EndTimestamp:   base.Add(400 * time.Millisecond),
 			DurationMS:     200,
 		},
 		{
@@ -56,7 +56,7 @@ func TestBuildWaterfallTreeStructure(t *testing.T) {
 			Description:    "pool.acquire",
 			Status:         "ok",
 			StartTimestamp: base.Add(50 * time.Millisecond),
-			EndTimestamp:    base.Add(60 * time.Millisecond),
+			EndTimestamp:   base.Add(60 * time.Millisecond),
 			DurationMS:     10,
 		},
 	}
@@ -122,7 +122,7 @@ func TestBuildWaterfallHasChildren(t *testing.T) {
 			SpanID:         "root",
 			Op:             "http.server",
 			StartTimestamp: base,
-			EndTimestamp:    base.Add(100 * time.Millisecond),
+			EndTimestamp:   base.Add(100 * time.Millisecond),
 			DurationMS:     100,
 		},
 	}
@@ -132,7 +132,7 @@ func TestBuildWaterfallHasChildren(t *testing.T) {
 			ParentSpanID:   "root",
 			Op:             "db",
 			StartTimestamp: base.Add(10 * time.Millisecond),
-			EndTimestamp:    base.Add(50 * time.Millisecond),
+			EndTimestamp:   base.Add(50 * time.Millisecond),
 			DurationMS:     40,
 		},
 	}
@@ -188,7 +188,7 @@ func TestBuildWaterfallMinWidth(t *testing.T) {
 			SpanID:         "root",
 			Op:             "http.server",
 			StartTimestamp: base,
-			EndTimestamp:    base.Add(10 * time.Second),
+			EndTimestamp:   base.Add(10 * time.Second),
 			DurationMS:     10000,
 		},
 	}
@@ -198,7 +198,7 @@ func TestBuildWaterfallMinWidth(t *testing.T) {
 			ParentSpanID:   "root",
 			Op:             "db",
 			StartTimestamp: base.Add(1 * time.Millisecond),
-			EndTimestamp:    base.Add(2 * time.Millisecond),
+			EndTimestamp:   base.Add(2 * time.Millisecond),
 			DurationMS:     1, // 1ms out of 10000ms = 0.01%
 		},
 	}
@@ -219,7 +219,7 @@ func TestBuildWaterfallOrphanedSpansAreRoots(t *testing.T) {
 			ParentSpanID:   "missing-parent",
 			Op:             "http",
 			StartTimestamp: base,
-			EndTimestamp:    base.Add(100 * time.Millisecond),
+			EndTimestamp:   base.Add(100 * time.Millisecond),
 			DurationMS:     100,
 		},
 		{
@@ -227,7 +227,7 @@ func TestBuildWaterfallOrphanedSpansAreRoots(t *testing.T) {
 			ParentSpanID:   "",
 			Op:             "db",
 			StartTimestamp: base.Add(50 * time.Millisecond),
-			EndTimestamp:    base.Add(150 * time.Millisecond),
+			EndTimestamp:   base.Add(150 * time.Millisecond),
 			DurationMS:     100,
 		},
 	}

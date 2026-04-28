@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"urgentry/internal/config"
+	"urgentry/internal/requestmeta"
 )
 
 /*
@@ -34,6 +35,9 @@ func WithVersion(v string) RunOption {
 }
 
 func Run(cfg config.Config, role Role, opts ...RunOption) error {
+	if err := requestmeta.ConfigureTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
+		return err
+	}
 	var runOpts runOptions
 	for _, o := range opts {
 		o(&runOpts)

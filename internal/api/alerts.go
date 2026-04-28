@@ -76,7 +76,7 @@ func handleCreateAlertRule(catalog controlplane.CatalogStore, alerts controlplan
 
 		var body alertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -131,7 +131,7 @@ func handleUpdateAlertRule(catalog controlplane.CatalogStore, alerts controlplan
 
 		var body alertRuleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Name) == "" {
@@ -269,7 +269,7 @@ func handleTestAlertWebhook(catalog controlplane.CatalogStore, deliveries contro
 
 		var body webhookTestRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		url := strings.TrimSpace(body.URL)

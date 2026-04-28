@@ -92,11 +92,7 @@ func handleCreatePersonalAccessToken(authz *auth.Authorizer, tokenManager auth.T
 
 		var body createTokenRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteAPIError(w, httputil.APIError{
-				Status: http.StatusBadRequest,
-				Code:   "invalid_request_body",
-				Detail: "Invalid request body.",
-			})
+			writeDecodeJSONAPIError(w, err)
 			return
 		}
 		scopes, err := normalizeScopes(body.Scopes, defaultPATScopes, allowedPATScopes)
@@ -216,11 +212,7 @@ func handleCreateAutomationToken(catalog controlplane.CatalogStore, authz *auth.
 
 		var body createTokenRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteAPIError(w, httputil.APIError{
-				Status: http.StatusBadRequest,
-				Code:   "invalid_request_body",
-				Detail: "Invalid request body.",
-			})
+			writeDecodeJSONAPIError(w, err)
 			return
 		}
 		scopes, err := normalizeScopes(body.Scopes, defaultAutomationScopes, allowedAutomationScopes)

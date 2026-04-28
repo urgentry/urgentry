@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"urgentry/internal/httputil"
+	"urgentry/internal/requestmeta"
 )
 
 // ---------------------------------------------------------------------------
@@ -301,13 +302,13 @@ func (p *SAMLProvider) HandleACS(orgID, sessionCookieName, csrfCookieName string
 		}
 
 		// Create session.
-		rawToken, principal, err := p.authStore.CreateSession(r.Context(), user.ID, r.UserAgent(), requestIP(r), p.sessionTTL)
+		rawToken, principal, err := p.authStore.CreateSession(r.Context(), user.ID, r.UserAgent(), requestmeta.ClientIP(r), p.sessionTTL)
 		if err != nil {
 			httputil.WriteError(w, http.StatusInternalServerError, "Session creation failed.")
 			return
 		}
 
-		secure := strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") || r.TLS != nil
+		secure := requestmeta.IsSecure(r)
 		http.SetCookie(w, &http.Cookie{
 			Name:     sessionCookieName,
 			Value:    rawToken,
@@ -421,15 +422,6 @@ func RegisterOrgSAMLRoutes(mux *http.ServeMux, store Store, provider *SAMLProvid
 		}
 		provider.HandleACS(org.ID, sessionCookieName, csrfCookieName).ServeHTTP(w, r)
 	}))
-}
-
-// requestIP extracts the client IP from a request.
-func requestIP(r *http.Request) string {
-	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
-		parts := strings.Split(forwarded, ",")
-		return strings.TrimSpace(parts[0])
-	}
-	return strings.TrimSpace(r.RemoteAddr)
 }
 
 // MemorySAMLConfigStore is an in-memory SAMLConfigStore for tests and

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"io"
+	"errors"
 	"net/http"
 
 	"urgentry/internal/controlplane"
@@ -167,7 +167,7 @@ func handleInstallIntegration(
 
 		var body installIntegrationRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 
@@ -256,8 +256,12 @@ func handleIntegrationWebhook(
 			return
 		}
 
-		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1 MiB max
+		body, err := readAtMost(r.Body, 1<<20)
 		if err != nil {
+			if errors.Is(err, errRequestBodyTooLarge) {
+				httputil.WriteError(w, http.StatusRequestEntityTooLarge, "Request body too large.")
+				return
+			}
 			httputil.WriteError(w, http.StatusBadRequest, "Failed to read request body.")
 			return
 		}

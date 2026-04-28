@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"urgentry/internal/sourcemap"
@@ -37,7 +36,7 @@ func (s *SourceMapStore) SaveArtifact(ctx context.Context, a *sourcemap.Artifact
 	if err := ensureReleaseForOwner(ctx, s.db, a.ProjectID, a.ReleaseID); err != nil {
 		return err
 	}
-	blobKey := fmt.Sprintf("sourcemaps/%s/%s/%s", a.ProjectID, a.ReleaseID, a.Name)
+	blobKey := sourceMapObjectKey(a.ProjectID, a.ReleaseID, a.ID)
 	a.ObjectKey = blobKey
 
 	if err := s.blobs.Put(ctx, blobKey, data); err != nil {
@@ -208,7 +207,7 @@ func (s *SourceMapStore) SaveOrgArtifact(ctx context.Context, a *sourcemap.Artif
 	if a.CreatedAt.IsZero() {
 		a.CreatedAt = time.Now().UTC()
 	}
-	blobKey := fmt.Sprintf("release-files/%s/%s/%s", a.OrganizationID, a.ReleaseID, a.Name)
+	blobKey := releaseFileObjectKey(a.OrganizationID, a.ReleaseID, a.ID)
 	a.ObjectKey = blobKey
 
 	if err := s.blobs.Put(ctx, blobKey, data); err != nil {
@@ -327,4 +326,12 @@ func (s *SourceMapStore) DeleteOrgArtifact(ctx context.Context, orgID, releaseVe
 
 	_ = s.blobs.Delete(ctx, blobKey)
 	return nil
+}
+
+func sourceMapObjectKey(projectID, releaseID, artifactID string) string {
+	return "sourcemaps/" + sanitizeKeySegment(projectID) + "/" + sanitizeKeySegment(releaseID) + "/" + sanitizeKeySegment(artifactID)
+}
+
+func releaseFileObjectKey(orgID, releaseID, artifactID string) string {
+	return "release-files/" + sanitizeKeySegment(orgID) + "/" + sanitizeKeySegment(releaseID) + "/" + sanitizeKeySegment(artifactID)
 }

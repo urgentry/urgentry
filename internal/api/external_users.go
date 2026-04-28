@@ -52,7 +52,7 @@ func handleCreateExternalUser(
 		}
 		var body createExternalUserRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Provider == "" {
@@ -97,7 +97,7 @@ func handleUpdateExternalUser(
 		}
 		var body updateExternalUserRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		u := &store.ExternalUser{

@@ -41,8 +41,8 @@ type dashboardWidgetView struct {
 type dashboardWidgetDetailPageData struct {
 	Title              string
 	Nav                string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment        string   // selected environment ("" = all)
+	Environments       []string // available environments for global nav
 	Dashboard          *sqlite.Dashboard
 	DashboardURL       string
 	WidgetView         dashboardWidgetView

@@ -82,11 +82,7 @@ func handleCreateBackfill(db *sql.DB, backfills *sqlite.BackfillStore, native *s
 		}
 		var body createBackfillRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteAPIError(w, httputil.APIError{
-				Status: http.StatusBadRequest,
-				Code:   "invalid_request_body",
-				Detail: "Invalid request body.",
-			})
+			writeDecodeJSONAPIError(w, err)
 			return
 		}
 		kind := sqlite.BackfillKind(strings.TrimSpace(body.Kind))

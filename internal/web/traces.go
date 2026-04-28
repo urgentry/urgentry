@@ -101,8 +101,8 @@ func (h *Handler) traceDetailPage(w http.ResponseWriter, r *http.Request) {
 		Nav:          "profiles",
 		Environment:  readSelectedEnvironment(r),
 		Environments: h.loadEnvironments(r.Context()),
-		TraceID: traceID,
-		Guide:   traceGuide(),
+		TraceID:      traceID,
+		Guide:        traceGuide(),
 	}
 	for _, item := range transactions {
 		data.Transactions = append(data.Transactions, traceTransactionRow{

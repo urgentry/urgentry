@@ -60,7 +60,7 @@ func handleCreateNotificationAction(catalog controlplane.CatalogStore, actions *
 		}
 		var body notificationActionRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		serviceType := strings.TrimSpace(body.ServiceType)
@@ -121,7 +121,7 @@ func handleUpdateNotificationAction(catalog controlplane.CatalogStore, actions *
 		}
 		var body notificationActionRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		actionID := PathParam(r, "action_id")

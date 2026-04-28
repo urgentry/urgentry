@@ -88,7 +88,7 @@ func handleCreateOrgForwarding(
 		}
 		var body createOrgForwarderRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.URL == "" {
@@ -147,7 +147,7 @@ func handleUpdateOrgForwarding(
 		}
 		var body updateOrgForwarderRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		body.URL = strings.TrimSpace(body.URL)

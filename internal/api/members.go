@@ -3,7 +3,6 @@ package api
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	authpkg "urgentry/internal/auth"
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/requestmeta"
 	"urgentry/internal/sqlite"
 )
 
@@ -237,7 +237,7 @@ func handleUpdateOrgMember(admin controlplane.AdminStore, auth authFunc) http.Ha
 		}
 		var body orgMemberRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		role := strings.TrimSpace(body.Role)
@@ -305,7 +305,7 @@ func handleAddTeamMember(admin controlplane.AdminStore, auth authFunc) http.Hand
 		}
 		var body teamMemberRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		body.UserID = strings.TrimSpace(body.UserID)
@@ -389,7 +389,7 @@ func handleCreateInvite(admin controlplane.AdminStore, auth authFunc) http.Handl
 		}
 		var body inviteRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		body.Email = strings.TrimSpace(body.Email)
@@ -456,7 +456,7 @@ func handleAcceptInvite(admin controlplane.AdminStore) http.HandlerFunc {
 		}
 		var body inviteAcceptRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		result, err := admin.AcceptInvite(r.Context(), inviteToken, strings.TrimSpace(body.DisplayName), strings.TrimSpace(body.Password))
@@ -490,20 +490,7 @@ func writeRateLimitError(w http.ResponseWriter, retryAfter time.Duration, messag
 }
 
 func requestClientIP(r *http.Request) string {
-	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
-		if first, _, ok := strings.Cut(forwarded, ","); ok {
-			return strings.TrimSpace(first)
-		}
-		return forwarded
-	}
-	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
-		return realIP
-	}
-	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
-	if err == nil && host != "" {
-		return host
-	}
-	return strings.TrimSpace(r.RemoteAddr)
+	return requestmeta.ClientIP(r)
 }
 
 func inviteAcceptTokenKey(token string) string {
@@ -555,7 +542,7 @@ func handleUpdateProjectMemberRole(admin controlplane.AdminStore, authCheck auth
 		}
 		var body projectMemberRoleRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		role := strings.TrimSpace(body.Role)

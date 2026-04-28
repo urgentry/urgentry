@@ -46,7 +46,7 @@ func handleCreateDashboard(dashboards analyticsservice.DashboardStore, authentic
 		}
 		var body dashboardRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := dashboards.CreateDashboard(r.Context(), PathParam(r, "org_slug"), principal.User.ID, sqlite.DashboardInput{
@@ -92,7 +92,7 @@ func handleUpdateDashboard(dashboards analyticsservice.DashboardStore, authentic
 		}
 		var body dashboardRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := dashboards.UpdateDashboard(r.Context(), PathParam(r, "org_slug"), PathParam(r, "dashboard_id"), principal.User.ID, sqlite.DashboardInput{
@@ -137,7 +137,7 @@ func handleCreateDashboardWidget(dashboards analyticsservice.DashboardStore, aut
 		}
 		var body dashboardWidgetRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := dashboards.CreateWidget(r.Context(), PathParam(r, "org_slug"), PathParam(r, "dashboard_id"), principal.User.ID, body.toStore())
@@ -160,7 +160,7 @@ func handleUpdateDashboardWidget(dashboards analyticsservice.DashboardStore, aut
 		}
 		var body dashboardWidgetRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		item, err := dashboards.UpdateWidget(r.Context(), PathParam(r, "org_slug"), PathParam(r, "dashboard_id"), PathParam(r, "widget_id"), principal.User.ID, body.toStore())

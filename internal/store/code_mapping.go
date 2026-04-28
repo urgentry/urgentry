@@ -12,9 +12,9 @@ type CodeMapping struct {
 	ID            string    `json:"id"`
 	ProjectID     string    `json:"projectId"`
 	StackRoot     string    `json:"stackRoot"`     // prefix in stack frames, e.g. "src/"
-	SourceRoot    string    `json:"sourceRoot"`     // prefix in repo, e.g. "app/src/"
-	DefaultBranch string    `json:"defaultBranch"`  // e.g. "main"
-	RepoURL       string    `json:"repoUrl"`        // e.g. "https://github.com/org/repo"
+	SourceRoot    string    `json:"sourceRoot"`    // prefix in repo, e.g. "app/src/"
+	DefaultBranch string    `json:"defaultBranch"` // e.g. "main"
+	RepoURL       string    `json:"repoUrl"`       // e.g. "https://github.com/org/repo"
 	CreatedAt     time.Time `json:"createdAt"`
 }
 

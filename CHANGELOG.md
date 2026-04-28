@@ -6,6 +6,31 @@ The release workflow requires a section for every published tag.
 
 ## [Unreleased]
 
+## [v0.2.10] - 2026-04-28
+
+### Security
+
+- Multipart artifact uploads now enforce hard request limits before parsing and return `413` on oversized bodies.
+- JSON API handlers now reject oversized bodies and trailing data after the first JSON value.
+- Forwarded headers are trusted only from configured proxy CIDRs.
+- Source map and release-file blob keys are generated server-side instead of using upload filenames as storage paths.
+- Tiny-mode SQLite and blob files now use owner-only filesystem permissions.
+- Auto-generated bootstrap passwords and PATs are written once to `bootstrap-credentials.txt` with `0600` permissions instead of being logged.
+- ID generation now fails closed if system entropy is unavailable.
+
+### Changed
+
+- CLI help and command errors now use stable stdout, stderr, and exit-code behavior for automation.
+- Runtime config loading now fails fast on malformed numbers, booleans, durations, CIDRs, and unreadable secret files.
+- Docker images now run as a non-root user by default.
+- Compose and Kubernetes smoke paths use `urgentry:dev` for local images instead of `latest`.
+- Public container examples now use the pinned release tag.
+
+### Fixed
+
+- Installer self-check failures are now fatal.
+- Embedded JetStream tests now run serially so release gates do not race multiple in-process NATS servers.
+
 ## [v0.2.9] - 2026-04-14
 
 ### Changed

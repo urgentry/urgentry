@@ -126,7 +126,7 @@ func (r *InstallationReconciler) applyOwned(ctx context.Context, owner *Urgentry
 
 func defaults(spec UrgentryInstallationSpec) UrgentryInstallationSpec {
 	if spec.Image == "" {
-		spec.Image = "urgentry:latest"
+		spec.Image = "urgentry:dev"
 	}
 	if spec.ConfigMapName == "" {
 		spec.ConfigMapName = "urgentry-config"

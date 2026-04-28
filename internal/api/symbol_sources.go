@@ -65,7 +65,7 @@ func handleCreateSymbolSource(
 
 		var body symbolSourceRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Type == "" {
@@ -113,7 +113,7 @@ func handleUpdateSymbolSource(
 
 		var body symbolSourceRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.ID == "" {
@@ -167,7 +167,7 @@ func handleDeleteSymbolSource(
 
 		var body deleteSymbolSourceRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.ID == "" {

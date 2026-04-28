@@ -89,7 +89,7 @@ func handleUpdateProjectEnvironment(catalog controlplane.CatalogStore, auth auth
 
 		var body updateProjectEnvironmentRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.IsHidden == nil {

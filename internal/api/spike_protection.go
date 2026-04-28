@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"urgentry/internal/controlplane"
-	"urgentry/internal/httputil"
 )
 
 // spikeProtectionRequest is the body for enabling/disabling spike protection.
@@ -32,7 +31,7 @@ func handleEnableSpikeProtection(
 
 		var body spikeProtectionRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 
@@ -68,7 +67,7 @@ func handleDisableSpikeProtection(
 
 		var body spikeProtectionRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 

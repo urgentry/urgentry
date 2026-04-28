@@ -9,14 +9,14 @@ import (
 )
 
 type quotaPageData struct {
-	Title      string
-	Nav        string
+	Title        string
+	Nav          string
 	Environment  string
 	Environments []string
-	Hours      int
-	Usage      []sqlite.QuotaUsage
-	RateLimits []sqlite.QuotaRateLimit
-	Projects   []projectRef
+	Hours        int
+	Usage        []sqlite.QuotaUsage
+	RateLimits   []sqlite.QuotaRateLimit
+	Projects     []projectRef
 }
 
 type projectRef struct {

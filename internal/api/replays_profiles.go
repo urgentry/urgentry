@@ -340,7 +340,6 @@ func mapProfileBreakdowns(items []sharedstore.ProfileBreakdown) []ProfileBreakdo
 	return result
 }
 
-
 func firstNonEmptyString(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

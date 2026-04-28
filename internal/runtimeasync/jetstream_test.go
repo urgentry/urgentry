@@ -7,8 +7,6 @@ import (
 )
 
 func TestJetStreamQueueRequeuesAndAcknowledges(t *testing.T) {
-	t.Parallel()
-
 	srv := startJetStreamTestServer(t)
 	queue, err := NewJetStreamQueue(srv.ClientURL(), "worker-a", sqliteEventKind)
 	if err != nil {
@@ -57,8 +55,6 @@ func TestJetStreamQueueRequeuesAndAcknowledges(t *testing.T) {
 }
 
 func TestJetStreamQueueSharesOneConsumerAcrossWorkers(t *testing.T) {
-	t.Parallel()
-
 	srv := startJetStreamTestServer(t)
 	queueA, err := NewJetStreamQueue(srv.ClientURL(), "worker-a", sqliteEventKind)
 	if err != nil {
@@ -122,8 +118,6 @@ func TestJetStreamQueueSharesOneConsumerAcrossWorkers(t *testing.T) {
 }
 
 func TestJetStreamQueueOnlyDedupesSupportedKinds(t *testing.T) {
-	t.Parallel()
-
 	srv := startJetStreamTestServer(t)
 	queue, err := NewJetStreamQueue(srv.ClientURL(), "worker-a", sqliteNativeKind, "backfill")
 	if err != nil {

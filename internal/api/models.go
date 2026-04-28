@@ -11,64 +11,64 @@ type Organization = sharedstore.Organization
 
 // OrganizationDetail is the enriched organization response for GET /organizations/{slug}/.
 type OrganizationDetail struct {
-	ID                    string               `json:"id"`
-	Slug                  string               `json:"slug"`
-	Name                  string               `json:"name"`
-	DateCreated           time.Time            `json:"dateCreated"`
-	Features              []string             `json:"features"`
-	Access                []string             `json:"access"`
-	AllowMemberInvite     bool                 `json:"allowMemberInvite"`
-	AllowMemberProjectCreation bool            `json:"allowMemberProjectCreation"`
-	AllowSuperuserAccess  bool                 `json:"allowSuperuserAccess"`
-	Teams                 []OrgTeamResponse    `json:"teams"`
-	Projects              []OrgProjectResponse `json:"projects"`
-	Avatar                OrgAvatar            `json:"avatar"`
-	HasAuthProvider       bool                 `json:"hasAuthProvider"`
-	Links                 OrgLinks             `json:"links"`
-	Require2FA            bool                 `json:"require2FA"`
-	ExtraOptions          map[string]any       `json:"extraOptions"`
-	Status                OrgStatus            `json:"status"`
-	IsEarlyAdopter        bool                 `json:"isEarlyAdopter"`
-	AllowJoinRequests     bool                 `json:"allowJoinRequests"`
-	OpenMembership        bool                 `json:"openMembership"`
-	DefaultRole           string               `json:"defaultRole"`
-	EnhancedPrivacy       bool                 `json:"enhancedPrivacy"`
-	DataScrubber          bool                 `json:"dataScrubber"`
-	DataScrubberDefaults  bool                 `json:"dataScrubberDefaults"`
-	SensitiveFields       []string             `json:"sensitiveFields"`
-	SafeFields            []string             `json:"safeFields"`
-	ScrubIPAddresses      bool                 `json:"scrubIPAddresses"`
-	StoreCrashReports     int                  `json:"storeCrashReports"`
-	RelayPiiConfig        string               `json:"relayPiiConfig"`
-	AllowSharedIssues     bool                 `json:"allowSharedIssues"`
-	TrustedRelays         []string             `json:"trustedRelays"`
-	OnboardingTasks       []any                `json:"onboardingTasks"`
+	ID                         string               `json:"id"`
+	Slug                       string               `json:"slug"`
+	Name                       string               `json:"name"`
+	DateCreated                time.Time            `json:"dateCreated"`
+	Features                   []string             `json:"features"`
+	Access                     []string             `json:"access"`
+	AllowMemberInvite          bool                 `json:"allowMemberInvite"`
+	AllowMemberProjectCreation bool                 `json:"allowMemberProjectCreation"`
+	AllowSuperuserAccess       bool                 `json:"allowSuperuserAccess"`
+	Teams                      []OrgTeamResponse    `json:"teams"`
+	Projects                   []OrgProjectResponse `json:"projects"`
+	Avatar                     OrgAvatar            `json:"avatar"`
+	HasAuthProvider            bool                 `json:"hasAuthProvider"`
+	Links                      OrgLinks             `json:"links"`
+	Require2FA                 bool                 `json:"require2FA"`
+	ExtraOptions               map[string]any       `json:"extraOptions"`
+	Status                     OrgStatus            `json:"status"`
+	IsEarlyAdopter             bool                 `json:"isEarlyAdopter"`
+	AllowJoinRequests          bool                 `json:"allowJoinRequests"`
+	OpenMembership             bool                 `json:"openMembership"`
+	DefaultRole                string               `json:"defaultRole"`
+	EnhancedPrivacy            bool                 `json:"enhancedPrivacy"`
+	DataScrubber               bool                 `json:"dataScrubber"`
+	DataScrubberDefaults       bool                 `json:"dataScrubberDefaults"`
+	SensitiveFields            []string             `json:"sensitiveFields"`
+	SafeFields                 []string             `json:"safeFields"`
+	ScrubIPAddresses           bool                 `json:"scrubIPAddresses"`
+	StoreCrashReports          int                  `json:"storeCrashReports"`
+	RelayPiiConfig             string               `json:"relayPiiConfig"`
+	AllowSharedIssues          bool                 `json:"allowSharedIssues"`
+	TrustedRelays              []string             `json:"trustedRelays"`
+	OnboardingTasks            []any                `json:"onboardingTasks"`
 }
 
 // OrgTeamResponse is the nested team shape inside an organization detail response.
 type OrgTeamResponse struct {
-	ID          string    `json:"id"`
-	Slug        string    `json:"slug"`
-	Name        string    `json:"name"`
-	DateCreated time.Time `json:"dateCreated"`
-	IsMember    bool      `json:"isMember"`
-	MemberCount int       `json:"memberCount"`
+	ID          string     `json:"id"`
+	Slug        string     `json:"slug"`
+	Name        string     `json:"name"`
+	DateCreated time.Time  `json:"dateCreated"`
+	IsMember    bool       `json:"isMember"`
+	MemberCount int        `json:"memberCount"`
 	Avatar      teamAvatar `json:"avatar"`
-	HasAccess   bool      `json:"hasAccess"`
-	IsPending   bool      `json:"isPending"`
+	HasAccess   bool       `json:"hasAccess"`
+	IsPending   bool       `json:"isPending"`
 }
 
 // OrgProjectResponse is the nested project shape inside an organization detail response.
 type OrgProjectResponse struct {
-	ID          string    `json:"id"`
-	Slug        string    `json:"slug"`
-	Name        string    `json:"name"`
-	Platform    string    `json:"platform,omitempty"`
-	Status      string    `json:"status,omitempty"`
-	DateCreated time.Time `json:"dateCreated"`
-	HasAccess   bool      `json:"hasAccess"`
-	IsBookmarked bool     `json:"isBookmarked"`
-	IsMember    bool      `json:"isMember"`
+	ID           string    `json:"id"`
+	Slug         string    `json:"slug"`
+	Name         string    `json:"name"`
+	Platform     string    `json:"platform,omitempty"`
+	Status       string    `json:"status,omitempty"`
+	DateCreated  time.Time `json:"dateCreated"`
+	HasAccess    bool      `json:"hasAccess"`
+	IsBookmarked bool      `json:"isBookmarked"`
+	IsMember     bool      `json:"isMember"`
 }
 
 // OrgAvatar is the avatar shape in organization detail responses.
@@ -133,55 +133,55 @@ type DSNURLs struct {
 
 // Issue represents a grouped set of events.
 type Issue struct {
-	ID                string           `json:"id"`
-	ShortID           string           `json:"shortId"`
-	Title             string           `json:"title"`
-	Culprit           string           `json:"culprit"`
-	Level             string           `json:"level"`
-	Status            string           `json:"status"`
-	Type              string           `json:"type"`
-	AssignedTo        *IssueUser       `json:"assignedTo"`
-	HasSeen           bool             `json:"hasSeen"`
-	IsBookmarked      bool             `json:"isBookmarked"`
-	IsPublic          bool             `json:"isPublic"`
-	IsSubscribed      bool             `json:"isSubscribed"`
-	Priority          int              `json:"priority"`
-	Substatus         string           `json:"substatus"`
-	Logger            *string          `json:"logger"`
-	Metadata          Metadata         `json:"metadata"`
-	Annotations       []IssueAnnotation `json:"annotations"`
-	NumComments       int              `json:"numComments"`
-	UserCount         int              `json:"userCount"`
-	UserReportCount   int              `json:"userReportCount"`
-	Stats             IssueStats       `json:"stats"`
-	Permalink         string           `json:"permalink"`
-	PluginActions     [][]string       `json:"pluginActions"`
-	PluginContexts    []string         `json:"pluginContexts"`
-	PluginIssues      []Metadata       `json:"pluginIssues"`
-	ShareID           *string          `json:"shareId"`
-	StatusDetails     Metadata         `json:"statusDetails"`
-	SubscriptionDetails Metadata       `json:"subscriptionDetails"`
-	ResolvedInRelease string           `json:"resolvedInRelease,omitempty"`
-	MergedIntoIssueID string           `json:"mergedIntoIssueId,omitempty"`
-	FirstSeen         time.Time        `json:"firstSeen"`
-	LastSeen          time.Time        `json:"lastSeen"`
-	Count             string           `json:"count"`
-	ProjectRef        ProjectRef       `json:"project"`
-	Activity          []IssueActivitySummary `json:"activity"`
-	Tags              []IssueTagFacet  `json:"tags"`
-	FirstRelease      *IssueRelease    `json:"firstRelease"`
-	LastRelease       *IssueRelease    `json:"lastRelease"`
-	SeenBy            []IssueUser      `json:"seenBy"`
-	Participants      []IssueUser      `json:"participants"`
+	ID                  string                 `json:"id"`
+	ShortID             string                 `json:"shortId"`
+	Title               string                 `json:"title"`
+	Culprit             string                 `json:"culprit"`
+	Level               string                 `json:"level"`
+	Status              string                 `json:"status"`
+	Type                string                 `json:"type"`
+	AssignedTo          *IssueUser             `json:"assignedTo"`
+	HasSeen             bool                   `json:"hasSeen"`
+	IsBookmarked        bool                   `json:"isBookmarked"`
+	IsPublic            bool                   `json:"isPublic"`
+	IsSubscribed        bool                   `json:"isSubscribed"`
+	Priority            int                    `json:"priority"`
+	Substatus           string                 `json:"substatus"`
+	Logger              *string                `json:"logger"`
+	Metadata            Metadata               `json:"metadata"`
+	Annotations         []IssueAnnotation      `json:"annotations"`
+	NumComments         int                    `json:"numComments"`
+	UserCount           int                    `json:"userCount"`
+	UserReportCount     int                    `json:"userReportCount"`
+	Stats               IssueStats             `json:"stats"`
+	Permalink           string                 `json:"permalink"`
+	PluginActions       [][]string             `json:"pluginActions"`
+	PluginContexts      []string               `json:"pluginContexts"`
+	PluginIssues        []Metadata             `json:"pluginIssues"`
+	ShareID             *string                `json:"shareId"`
+	StatusDetails       Metadata               `json:"statusDetails"`
+	SubscriptionDetails Metadata               `json:"subscriptionDetails"`
+	ResolvedInRelease   string                 `json:"resolvedInRelease,omitempty"`
+	MergedIntoIssueID   string                 `json:"mergedIntoIssueId,omitempty"`
+	FirstSeen           time.Time              `json:"firstSeen"`
+	LastSeen            time.Time              `json:"lastSeen"`
+	Count               string                 `json:"count"`
+	ProjectRef          ProjectRef             `json:"project"`
+	Activity            []IssueActivitySummary `json:"activity"`
+	Tags                []IssueTagFacet        `json:"tags"`
+	FirstRelease        *IssueRelease          `json:"firstRelease"`
+	LastRelease         *IssueRelease          `json:"lastRelease"`
+	SeenBy              []IssueUser            `json:"seenBy"`
+	Participants        []IssueUser            `json:"participants"`
 }
 
 // IssueActivitySummary is a compact activity entry for issue detail enrichment.
 type IssueActivitySummary struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
+	ID          string     `json:"id"`
+	Type        string     `json:"type"`
 	User        *IssueUser `json:"user,omitempty"`
-	Data        any       `json:"data,omitempty"`
-	DateCreated time.Time `json:"dateCreated"`
+	Data        any        `json:"data,omitempty"`
+	DateCreated time.Time  `json:"dateCreated"`
 }
 
 // IssueAnnotation is a lightweight issue annotation entry.
@@ -192,10 +192,10 @@ type IssueAnnotation struct {
 
 // IssueTagFacet is a top tag key with value counts for issue detail.
 type IssueTagFacet struct {
-	Key        string         `json:"key"`
-	Name       string         `json:"name"`
+	Key         string        `json:"key"`
+	Name        string        `json:"name"`
 	TotalValues int           `json:"totalValues"`
-	TopValues  []IssueTagVal  `json:"topValues"`
+	TopValues   []IssueTagVal `json:"topValues"`
 }
 
 // IssueTagVal is one value in a tag facet.
@@ -402,40 +402,40 @@ type Attachment struct {
 
 // Release represents a release version.
 type Release struct {
-	ID                       string     `json:"id"`
-	OrgSlug                  string     `json:"-"`
-	Version                  string     `json:"version"`
-	ShortVersion             string     `json:"shortVersion"`
-	Ref                      string     `json:"ref,omitempty"`
-	URL                      string     `json:"url,omitempty"`
-	DateCreated              time.Time  `json:"dateCreated"`
-	DateReleased             *time.Time `json:"dateReleased,omitempty"`
-	NewGroups                int        `json:"newGroups"`
-	SessionCount             int        `json:"sessionCount,omitempty"`
-	ErroredSessions          int        `json:"erroredSessions,omitempty"`
-	CrashedSessions          int        `json:"crashedSessions,omitempty"`
-	AbnormalSessions         int        `json:"abnormalSessions,omitempty"`
-	AffectedUsers            int        `json:"affectedUsers,omitempty"`
-	CrashFreeRate            float64    `json:"crashFreeRate,omitempty"`
-	LastSessionSeenAt        *time.Time `json:"lastSessionSeenAt,omitempty"`
-	NativeEventCount         int        `json:"nativeEventCount,omitempty"`
-	NativePendingEvents      int        `json:"nativePendingEvents,omitempty"`
-	NativeProcessingEvents   int        `json:"nativeProcessingEvents,omitempty"`
-	NativeFailedEvents       int        `json:"nativeFailedEvents,omitempty"`
-	NativeResolvedFrames     int        `json:"nativeResolvedFrames,omitempty"`
-	NativeUnresolvedFrames   int        `json:"nativeUnresolvedFrames,omitempty"`
-	NativeLastError          string     `json:"nativeLastError,omitempty"`
-	NativeReprocessRunID     string     `json:"nativeReprocessRunId,omitempty"`
-	NativeReprocessStatus    string     `json:"nativeReprocessStatus,omitempty"`
-	NativeReprocessLastError string     `json:"nativeReprocessLastError,omitempty"`
-	NativeReprocessUpdatedAt *time.Time     `json:"nativeReprocessUpdatedAt,omitempty"`
-	Projects                 []string       `json:"projects,omitempty"`
-	Status                   string         `json:"status"`
-	CommitCount              int            `json:"commitCount"`
-	DeployCount              int            `json:"deployCount"`
-	LastDeploy               *ReleaseDeploy `json:"lastDeploy,omitempty"`
+	ID                       string          `json:"id"`
+	OrgSlug                  string          `json:"-"`
+	Version                  string          `json:"version"`
+	ShortVersion             string          `json:"shortVersion"`
+	Ref                      string          `json:"ref,omitempty"`
+	URL                      string          `json:"url,omitempty"`
+	DateCreated              time.Time       `json:"dateCreated"`
+	DateReleased             *time.Time      `json:"dateReleased,omitempty"`
+	NewGroups                int             `json:"newGroups"`
+	SessionCount             int             `json:"sessionCount,omitempty"`
+	ErroredSessions          int             `json:"erroredSessions,omitempty"`
+	CrashedSessions          int             `json:"crashedSessions,omitempty"`
+	AbnormalSessions         int             `json:"abnormalSessions,omitempty"`
+	AffectedUsers            int             `json:"affectedUsers,omitempty"`
+	CrashFreeRate            float64         `json:"crashFreeRate,omitempty"`
+	LastSessionSeenAt        *time.Time      `json:"lastSessionSeenAt,omitempty"`
+	NativeEventCount         int             `json:"nativeEventCount,omitempty"`
+	NativePendingEvents      int             `json:"nativePendingEvents,omitempty"`
+	NativeProcessingEvents   int             `json:"nativeProcessingEvents,omitempty"`
+	NativeFailedEvents       int             `json:"nativeFailedEvents,omitempty"`
+	NativeResolvedFrames     int             `json:"nativeResolvedFrames,omitempty"`
+	NativeUnresolvedFrames   int             `json:"nativeUnresolvedFrames,omitempty"`
+	NativeLastError          string          `json:"nativeLastError,omitempty"`
+	NativeReprocessRunID     string          `json:"nativeReprocessRunId,omitempty"`
+	NativeReprocessStatus    string          `json:"nativeReprocessStatus,omitempty"`
+	NativeReprocessLastError string          `json:"nativeReprocessLastError,omitempty"`
+	NativeReprocessUpdatedAt *time.Time      `json:"nativeReprocessUpdatedAt,omitempty"`
+	Projects                 []string        `json:"projects,omitempty"`
+	Status                   string          `json:"status"`
+	CommitCount              int             `json:"commitCount"`
+	DeployCount              int             `json:"deployCount"`
+	LastDeploy               *ReleaseDeploy  `json:"lastDeploy,omitempty"`
 	Authors                  []ReleaseAuthor `json:"authors,omitempty"`
-	VersionInfo              *VersionInfo   `json:"versionInfo,omitempty"`
+	VersionInfo              *VersionInfo    `json:"versionInfo,omitempty"`
 }
 
 // ReleaseAuthor is a commit author in a release.
@@ -649,33 +649,33 @@ type TraceDetail struct {
 // Replay is one stored session replay metadata row.
 // Uses Sentry-compatible snake_case JSON field names.
 type Replay struct {
-	ID              string           `json:"id"`
-	Title           string           `json:"title"`
-	ProjectID       string           `json:"project_id"`
-	TraceIDs        []string         `json:"trace_ids"`
-	ErrorIDs        []string         `json:"error_ids"`
-	URLs            []string         `json:"urls"`
-	Releases        []string         `json:"releases,omitempty"`
-	ReplayType      string           `json:"replay_type"`
-	Platform        string           `json:"platform"`
-	Environment     string           `json:"environment"`
-	Duration        int64            `json:"duration"`
-	CountErrors     int              `json:"count_errors"`
-	CountSegments   int              `json:"count_segments"`
-	CountURLs       int              `json:"count_urls"`
-	CountDeadClicks int              `json:"count_dead_clicks"`
-	CountRageClicks int              `json:"count_rage_clicks"`
-	Activity        float64          `json:"activity"`
-	StartedAt       *time.Time       `json:"started_at"`
-	FinishedAt      *time.Time       `json:"finished_at"`
-	User            *ReplayUser      `json:"user"`
-	SDK             *ReplaySDK       `json:"sdk"`
-	OS              *ReplayTagObj    `json:"os"`
-	Browser         *ReplayTagObj    `json:"browser"`
-	Device          *ReplayTagObj    `json:"device"`
-	Tags            map[string]any   `json:"tags,omitempty"`
-	Attachments     []Attachment     `json:"attachments,omitempty"`
-	Payload         json.RawMessage  `json:"payload,omitempty"`
+	ID              string          `json:"id"`
+	Title           string          `json:"title"`
+	ProjectID       string          `json:"project_id"`
+	TraceIDs        []string        `json:"trace_ids"`
+	ErrorIDs        []string        `json:"error_ids"`
+	URLs            []string        `json:"urls"`
+	Releases        []string        `json:"releases,omitempty"`
+	ReplayType      string          `json:"replay_type"`
+	Platform        string          `json:"platform"`
+	Environment     string          `json:"environment"`
+	Duration        int64           `json:"duration"`
+	CountErrors     int             `json:"count_errors"`
+	CountSegments   int             `json:"count_segments"`
+	CountURLs       int             `json:"count_urls"`
+	CountDeadClicks int             `json:"count_dead_clicks"`
+	CountRageClicks int             `json:"count_rage_clicks"`
+	Activity        float64         `json:"activity"`
+	StartedAt       *time.Time      `json:"started_at"`
+	FinishedAt      *time.Time      `json:"finished_at"`
+	User            *ReplayUser     `json:"user"`
+	SDK             *ReplaySDK      `json:"sdk"`
+	OS              *ReplayTagObj   `json:"os"`
+	Browser         *ReplayTagObj   `json:"browser"`
+	Device          *ReplayTagObj   `json:"device"`
+	Tags            map[string]any  `json:"tags,omitempty"`
+	Attachments     []Attachment    `json:"attachments,omitempty"`
+	Payload         json.RawMessage `json:"payload,omitempty"`
 }
 
 // ReplayUser represents the user associated with a replay.

@@ -8,6 +8,7 @@ import (
 
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
+	"urgentry/internal/requestmeta"
 	"urgentry/internal/store"
 )
 
@@ -51,7 +52,7 @@ func handleCreateKey(catalog controlplane.CatalogStore, auth authFunc) http.Hand
 
 		var body createKeyRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		label := body.Label
@@ -73,14 +74,8 @@ func handleCreateKey(catalog controlplane.CatalogStore, auth authFunc) http.Hand
 }
 
 func baseURLFromRequest(r *http.Request) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
-		scheme = forwarded
-	}
-	host := r.Host
+	scheme := requestmeta.Scheme(r)
+	host := requestmeta.Host(r)
 	if host == "" {
 		host = "localhost:8080"
 	}
@@ -130,7 +125,7 @@ func handleUpdateKey(catalog controlplane.CatalogStore, auth authFunc) http.Hand
 
 		var body updateKeyRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 

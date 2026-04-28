@@ -21,11 +21,11 @@ type projectSettingsData struct {
 	ActiveTab    string
 
 	// Project identity
-	ProjectID   string
-	ProjectName string
-	ProjectSlug string
-	OrgSlug     string
-	Platform    string
+	ProjectID     string
+	ProjectName   string
+	ProjectSlug   string
+	OrgSlug       string
+	Platform      string
 	ProjectStatus string
 
 	// Keys / DSN (keys sub-page)

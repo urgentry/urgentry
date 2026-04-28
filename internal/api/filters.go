@@ -96,7 +96,7 @@ func handleUpdateDataFilter(
 
 		var body updateFilterRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 

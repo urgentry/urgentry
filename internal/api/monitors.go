@@ -94,7 +94,7 @@ func handleCreateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 		}
 		var body monitorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		monitor := &sqlite.Monitor{
@@ -160,7 +160,7 @@ func handleUpdateMonitor(catalog controlplane.CatalogStore, monitors controlplan
 		}
 		var body monitorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if slug := strings.TrimSpace(body.Slug); slug != "" {
@@ -229,7 +229,7 @@ func handleCreateOrgMonitor(catalog controlplane.CatalogStore, monitors controlp
 		}
 		var body monitorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		project, ok := orgMonitorProjectFromBody(w, r, catalog, strings.TrimSpace(body.Project))
@@ -281,7 +281,7 @@ func handleUpdateOrgMonitor(catalog controlplane.CatalogStore, monitors controlp
 		}
 		var body monitorRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if slug := monitorRequestSlug(body); slug != "" {

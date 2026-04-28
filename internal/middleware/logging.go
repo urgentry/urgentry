@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"urgentry/internal/requestmeta"
 	"urgentry/pkg/id"
 
 	"github.com/rs/zerolog"
@@ -91,16 +92,8 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// clientIP returns the client IP, preferring X-Forwarded-For over RemoteAddr.
 func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// First IP in the chain is the original client.
-		if idx := strings.IndexByte(xff, ','); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
-	}
-	return r.RemoteAddr
+	return requestmeta.ClientIP(r)
 }
 
 func loggedPath(path string) string {

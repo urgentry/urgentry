@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"urgentry/internal/auth"
+	"urgentry/internal/requestmeta"
 	"urgentry/internal/sqlite"
 	sharedstore "urgentry/internal/store"
 )
@@ -20,8 +21,8 @@ import (
 type settingsData struct {
 	Title                   string
 	Nav                     string
-	Environment  string   // selected environment ("" = all)
-	Environments []string // available environments for global nav
+	Environment             string   // selected environment ("" = all)
+	Environments            []string // available environments for global nav
 	ProjectID               string
 	ProjectName             string
 	ProjectSlug             string
@@ -314,14 +315,8 @@ func projectStoreDSN(r *http.Request, publicKey, projectID string) string {
 	}
 	base := strings.TrimSpace(os.Getenv("URGENTRY_BASE_URL"))
 	if base == "" && r != nil {
-		scheme := "http"
-		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
-			scheme = forwarded
-		} else if r.TLS != nil {
-			scheme = "https"
-		}
-		if host := strings.TrimSpace(r.Host); host != "" {
-			base = scheme + "://" + host
+		if host := strings.TrimSpace(requestmeta.Host(r)); host != "" {
+			base = requestmeta.Scheme(r) + "://" + host
 		}
 	}
 	if base == "" {

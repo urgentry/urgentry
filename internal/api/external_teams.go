@@ -84,7 +84,7 @@ func handleCreateExternalTeam(
 		}
 		var body createExternalTeamRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Provider == "" {
@@ -133,7 +133,7 @@ func handleUpdateExternalTeam(
 		}
 		var body updateExternalTeamRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		t := &store.ExternalTeam{
@@ -184,7 +184,7 @@ func handleCreateTeamExternalTeam(catalog controlplane.CatalogStore, externalTea
 		}
 		var body createExternalTeamRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if strings.TrimSpace(body.Provider) == "" {
@@ -218,7 +218,7 @@ func handleUpdateTeamExternalTeam(externalTeams store.ExternalTeamStore, auth au
 		}
 		var body updateExternalTeamRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		t := &store.ExternalTeam{

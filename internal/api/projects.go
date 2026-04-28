@@ -18,24 +18,24 @@ type projectUpdateStore interface {
 }
 
 type updateProjectRequest struct {
-	Name                *string        `json:"name"`
-	Slug                *string        `json:"slug"`
-	Platform            *string        `json:"platform"`
-	IsBookmarked        *bool          `json:"isBookmarked"`
-	ResolveAge          *int           `json:"resolveAge"`
-	SubjectPrefix       *string        `json:"subjectPrefix"`
-	SubjectTemplate     *string        `json:"subjectTemplate"`
-	DigestsMinDelay     *int           `json:"digestsMinDelay"`
-	DigestsMaxDelay     *int           `json:"digestsMaxDelay"`
-	DefaultEnvironment  *string        `json:"defaultEnvironment"`
-	ScrubIPAddresses    *bool          `json:"scrubIPAddresses"`
-	DataScrubber        *bool          `json:"dataScrubber"`
-	DataScrubberDefaults *bool         `json:"dataScrubberDefaults"`
-	SensitiveFields     []string       `json:"sensitiveFields"`
-	SafeFields          []string       `json:"safeFields"`
-	AllowedDomains      []string       `json:"allowedDomains"`
-	ScrapeJavaScript    *bool          `json:"scrapeJavaScript"`
-	Options             map[string]any `json:"options"`
+	Name                 *string        `json:"name"`
+	Slug                 *string        `json:"slug"`
+	Platform             *string        `json:"platform"`
+	IsBookmarked         *bool          `json:"isBookmarked"`
+	ResolveAge           *int           `json:"resolveAge"`
+	SubjectPrefix        *string        `json:"subjectPrefix"`
+	SubjectTemplate      *string        `json:"subjectTemplate"`
+	DigestsMinDelay      *int           `json:"digestsMinDelay"`
+	DigestsMaxDelay      *int           `json:"digestsMaxDelay"`
+	DefaultEnvironment   *string        `json:"defaultEnvironment"`
+	ScrubIPAddresses     *bool          `json:"scrubIPAddresses"`
+	DataScrubber         *bool          `json:"dataScrubber"`
+	DataScrubberDefaults *bool          `json:"dataScrubberDefaults"`
+	SensitiveFields      []string       `json:"sensitiveFields"`
+	SafeFields           []string       `json:"safeFields"`
+	AllowedDomains       []string       `json:"allowedDomains"`
+	ScrapeJavaScript     *bool          `json:"scrapeJavaScript"`
+	Options              map[string]any `json:"options"`
 }
 
 // handleListAllProjects handles GET /api/0/projects/.
@@ -182,7 +182,7 @@ func handleUpdateProject(catalog controlplane.CatalogStore, auth authFunc) http.
 		}
 		var body updateProjectRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 
@@ -264,7 +264,7 @@ func handleCreateProject(catalog controlplane.CatalogStore, auth authFunc) http.
 
 		var body createProjectRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name == "" {

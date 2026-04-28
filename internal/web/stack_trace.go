@@ -37,9 +37,9 @@ type richFrame struct {
 	MappedFrom  string
 	SourceURL   string // clickable link to source code (populated by code mappings)
 	ContextLine string
-	PreContext   []contextLine
-	PostContext  []contextLine
-	HasContext   bool
+	PreContext  []contextLine
+	PostContext []contextLine
+	HasContext  bool
 	Collapsed   bool // true = collapsed by default (library frames)
 }
 
@@ -85,7 +85,7 @@ type payloadFrame struct {
 	ContextLine string   `json:"context_line"`
 	PreContext  []string `json:"pre_context"`
 	PostContext []string `json:"post_context"`
-	InApp      *bool    `json:"in_app"`
+	InApp       *bool    `json:"in_app"`
 }
 
 // stackTraceFromPayload parses the event payload JSON and returns a list of

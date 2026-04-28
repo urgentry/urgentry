@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -85,21 +84,9 @@ func handleUploadReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.
 		}
 		version := PathParam(r, "version")
 
-		if err := r.ParseMultipartForm(maxSourceMapSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form: "+err.Error())
-			return
-		}
-
-		file, header, err := r.FormFile("file")
+		data, header, err := readMultipartFile(w, r, "file", maxSourceMapSize)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Missing 'file' field in multipart form.")
-			return
-		}
-		defer file.Close()
-
-		data, err := io.ReadAll(io.LimitReader(file, maxSourceMapSize))
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Failed to read file.")
+			writeMultipartError(w, err, "Invalid multipart form.")
 			return
 		}
 
@@ -174,7 +161,7 @@ func handleUpdateReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.
 
 		var body updateReleaseFileRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.Name == "" {
@@ -219,12 +206,12 @@ func handleDeleteReleaseFile(catalog controlplane.CatalogStore, smStore *sqlite.
 // It describes the server's chunked-upload capabilities and any chunks that
 // were accepted in the current request.
 type chunkUploadResponse struct {
-	Accept        []string       `json:"accept"`
-	ChunkSize     int            `json:"chunkSize"`
-	Concurrency   int            `json:"concurrency"`
-	HashAlgorithm string         `json:"hashAlgorithm"`
-	Compression   []string       `json:"compression"`
-	Chunks        []chunkResult  `json:"chunks"`
+	Accept        []string      `json:"accept"`
+	ChunkSize     int           `json:"chunkSize"`
+	Concurrency   int           `json:"concurrency"`
+	HashAlgorithm string        `json:"hashAlgorithm"`
+	Compression   []string      `json:"compression"`
+	Chunks        []chunkResult `json:"chunks"`
 }
 
 // chunkResult describes a single chunk that was accepted by the server.
@@ -261,9 +248,13 @@ func handleChunkUpload(blobs store.BlobStore, auth authFunc) http.HandlerFunc {
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, chunkUploadMaxSize+multipartEnvelopeOverhead)
 		if err := r.ParseMultipartForm(chunkUploadMaxSize); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid multipart form: "+err.Error())
+			writeMultipartError(w, normalizeBodyLimitError(err), "Invalid multipart form.")
 			return
+		}
+		if r.MultipartForm != nil {
+			defer func() { _ = r.MultipartForm.RemoveAll() }()
 		}
 
 		files := r.MultipartForm.File["file"]
@@ -274,10 +265,10 @@ func handleChunkUpload(blobs store.BlobStore, auth authFunc) http.HandlerFunc {
 				httputil.WriteError(w, http.StatusBadRequest, "Failed to open uploaded chunk.")
 				return
 			}
-			data, err := io.ReadAll(io.LimitReader(f, chunkUploadMaxSize))
+			data, err := readAtMost(f, chunkUploadMaxSize)
 			f.Close()
 			if err != nil {
-				httputil.WriteError(w, http.StatusBadRequest, "Failed to read chunk data.")
+				writeMultipartError(w, err, "Failed to read chunk data.")
 				return
 			}
 

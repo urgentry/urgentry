@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ingest
-          image: urgentry:latest
+          image: urgentry:dev
           imagePullPolicy: IfNotPresent
           args: ["serve", "--role=ingest", "--addr=:8081"]
           ports:

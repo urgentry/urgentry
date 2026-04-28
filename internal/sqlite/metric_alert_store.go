@@ -157,12 +157,12 @@ func (s *MetricAlertStore) DeleteMetricAlertRule(ctx context.Context, id string)
 // scanMetricAlertRule scans a single row from a QueryRow call.
 func scanMetricAlertRule(row *sql.Row) (*alert.MetricAlertRule, error) {
 	var (
-		id, projectID, name, metric        string
-		thresholdType, environment, status  string
-		actionsJSON, state                  string
+		id, projectID, name, metric           string
+		thresholdType, environment, status    string
+		actionsJSON, state                    string
 		lastTriggeredAt, createdAt, updatedAt string
-		threshold, resolveThreshold        float64
-		timeWindowSecs                     int
+		threshold, resolveThreshold           float64
+		timeWindowSecs                        int
 	)
 	err := row.Scan(
 		&id, &projectID, &name, &metric, &threshold, &thresholdType,
@@ -183,12 +183,12 @@ func scanMetricAlertRule(row *sql.Row) (*alert.MetricAlertRule, error) {
 // scanMetricAlertRuleRows scans one row from a Rows iterator.
 func scanMetricAlertRuleRows(rows *sql.Rows) (*alert.MetricAlertRule, error) {
 	var (
-		id, projectID, name, metric        string
-		thresholdType, environment, status  string
-		actionsJSON, state                  string
+		id, projectID, name, metric           string
+		thresholdType, environment, status    string
+		actionsJSON, state                    string
 		lastTriggeredAt, createdAt, updatedAt string
-		threshold, resolveThreshold        float64
-		timeWindowSecs                     int
+		threshold, resolveThreshold           float64
+		timeWindowSecs                        int
 	)
 	err := rows.Scan(
 		&id, &projectID, &name, &metric, &threshold, &thresholdType,

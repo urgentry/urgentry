@@ -58,7 +58,7 @@ func handleCreateCodeMapping(
 		}
 		var body codeMappingRequest
 		if err := decodeJSON(r, &body); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request body.")
+			writeDecodeJSONError(w, err)
 			return
 		}
 		if body.RepoURL == "" {

@@ -83,7 +83,7 @@ test-merge: check-links check-tidy test vulncheck
 
 ## docker: Build a local Docker image
 docker:
-	docker build --build-arg VERSION=$(VERSION) -t urgentry:$(VERSION) -t urgentry:latest .
+	docker build --build-arg VERSION=$(VERSION) -t urgentry:$(VERSION) -t urgentry:dev .
 
 ## release: Build release binaries and tarballs
 release:
