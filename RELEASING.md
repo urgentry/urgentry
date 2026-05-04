@@ -29,9 +29,15 @@ git push origin v0.2.7
 
 - GitHub Release assets for Linux, macOS, and Windows
 - checksums in `SHA256SUMS`
-- a GHCR image from the Docker job for maintainers
+- public multi-arch GHCR images at `ghcr.io/urgentry/urgentry:<tag>`, the semver alias without the leading `v`, and `ghcr.io/urgentry/urgentry:latest`
 
-Verify anonymous GHCR pulls before documenting the image as a public install path.
+`latest` is reserved for the newest published tagged release. Do not publish default-branch snapshots to `latest`.
+
+Verify anonymous GHCR pulls after each release:
+
+```bash
+docker pull ghcr.io/urgentry/urgentry:latest
+```
 
 ## Contributor note
 
