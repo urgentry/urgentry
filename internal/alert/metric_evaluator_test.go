@@ -42,6 +42,22 @@ func (s *memoryMetricAlertStore) ListMetricAlertRules(_ context.Context, project
 	return result, nil
 }
 
+func (s *memoryMetricAlertStore) ListMetricAlertRulesForProjects(_ context.Context, projectIDs []string) ([]*MetricAlertRule, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	allowed := make(map[string]struct{}, len(projectIDs))
+	for _, projectID := range projectIDs {
+		allowed[projectID] = struct{}{}
+	}
+	var result []*MetricAlertRule
+	for _, r := range s.rules {
+		if _, ok := allowed[r.ProjectID]; ok {
+			result = append(result, r)
+		}
+	}
+	return result, nil
+}
+
 func (s *memoryMetricAlertStore) ListAllActiveMetricAlertRules(_ context.Context) ([]*MetricAlertRule, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

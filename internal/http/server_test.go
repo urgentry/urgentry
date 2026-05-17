@@ -210,8 +210,13 @@ func TestReadyzUnhealthyDB(t *testing.T) {
 		t.Errorf("status = %q, want unavailable", body.Status)
 	}
 	for _, c := range body.Checks {
-		if c.Name == "database" && c.Status != "error" {
-			t.Errorf("database check status = %q, want error", c.Status)
+		if c.Name == "database" {
+			if c.Status != "error" {
+				t.Errorf("database check status = %q, want error", c.Status)
+			}
+			if c.Detail != "unreachable" {
+				t.Errorf("database check detail = %q, want sanitized detail", c.Detail)
+			}
 		}
 	}
 }

@@ -6,6 +6,26 @@ The release workflow requires a section for every published tag.
 
 ## [Unreleased]
 
+## [v0.2.11] - 2026-05-17
+
+### Security
+
+- Remediated the May audit findings across security-sensitive request handling, architecture boundaries, dependency posture, and public reconnaissance exposure.
+- Kept Cloudflare DNS remediation explicit through the release trail instead of silently leaving the release state ambiguous.
+- Linked public legal-entity references to Wraxle so ownership and trust copy resolves consistently.
+
+### Changed
+
+- Split analytics, Discover, Logs, dashboard, issue, organization query, release, artifact, integration, Prevent, identity, and SCIM route registration into focused module registrars.
+- Extended route-inventory checks so registrar files remain covered by route and auth drift detection.
+- Made production analytics verification prove real browser event delivery.
+
+### Fixed
+
+- Preserved the existing 480-route API surface with unchanged authentication counts after the route split.
+- Stabilized Ubicloud CI and runner configuration for the public release lane.
+- Cleared obsolete backlog records so public release work no longer carries stale cloud-launch or distribution planning state.
+
 ## [v0.2.10] - 2026-04-28
 
 ### Security

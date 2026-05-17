@@ -57,6 +57,7 @@ type rawEvent struct {
 	Dist           string                 `json:"dist,omitempty"`
 	Environment    string                 `json:"environment,omitempty"`
 	Message        normalizedMessage      `json:"message,omitempty"`
+	LogEntry       normalizedMessage      `json:"logentry,omitempty"`
 	Fingerprint    []string               `json:"fingerprint,omitempty"`
 	Tags           normalizedTags         `json:"tags,omitempty"`
 	Extra          map[string]any         `json:"extra,omitempty"`
@@ -168,16 +169,16 @@ type Span struct {
 }
 
 type rawSpan struct {
-	TraceID        string          `json:"trace_id,omitempty"`
-	SpanID         string          `json:"span_id,omitempty"`
-	ParentSpanID   string          `json:"parent_span_id,omitempty"`
-	Op             string          `json:"op,omitempty"`
-	Description    string          `json:"description,omitempty"`
-	Status         string          `json:"status,omitempty"`
+	TraceID        string              `json:"trace_id,omitempty"`
+	SpanID         string              `json:"span_id,omitempty"`
+	ParentSpanID   string              `json:"parent_span_id,omitempty"`
+	Op             string              `json:"op,omitempty"`
+	Description    string              `json:"description,omitempty"`
+	Status         string              `json:"status,omitempty"`
 	StartTimestamp normalizedTimestamp `json:"start_timestamp,omitempty"`
 	Timestamp      normalizedTimestamp `json:"timestamp,omitempty"`
 	Tags           normalizedTags      `json:"tags,omitempty"`
-	Data           map[string]any  `json:"data,omitempty"`
+	Data           map[string]any      `json:"data,omitempty"`
 }
 
 type normalizedTimestamp struct {
@@ -259,6 +260,8 @@ func Normalize(raw []byte) (*Event, error) {
 	// Normalize message (string or message object)
 	if r.Message != "" {
 		evt.Message = string(r.Message)
+	} else if r.LogEntry != "" {
+		evt.Message = string(r.LogEntry)
 	}
 
 	// Normalize level

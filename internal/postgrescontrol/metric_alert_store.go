@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"urgentry/internal/alert"
@@ -62,14 +64,14 @@ func (s *MetricAlertStore) CreateMetricAlertRule(ctx context.Context, r *alert.M
 // GetMetricAlertRule retrieves a metric alert rule by ID.
 func (s *MetricAlertStore) GetMetricAlertRule(ctx context.Context, ruleID string) (*alert.MetricAlertRule, error) {
 	var (
-		rID                                    string
-		projectID, name, metric                sql.NullString
-		thresholdType, environment, status     sql.NullString
-		state                                  sql.NullString
-		actionsJSON                            []byte
-		threshold, resolveThreshold            float64
-		timeWindowSecs                         int
-		lastTriggeredAt, createdAt, updatedAt  sql.NullTime
+		rID                                   string
+		projectID, name, metric               sql.NullString
+		thresholdType, environment, status    sql.NullString
+		state                                 sql.NullString
+		actionsJSON                           []byte
+		threshold, resolveThreshold           float64
+		timeWindowSecs                        int
+		lastTriggeredAt, createdAt, updatedAt sql.NullTime
 	)
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, name, metric, threshold, threshold_type,
@@ -100,38 +102,35 @@ func (s *MetricAlertStore) ListMetricAlertRules(ctx context.Context, projectID s
 		        time_window_secs, resolve_threshold, environment, status,
 		        trigger_actions_json, state, last_triggered_at, created_at, updated_at
 		   FROM metric_alert_rules WHERE project_id = $1
-		  ORDER BY created_at DESC`, projectID)
+		  ORDER BY created_at DESC, id DESC`, projectID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return scanPgMetricAlertRules(rows)
+}
 
-	var rules []*alert.MetricAlertRule
-	for rows.Next() {
-		var (
-			rID                                    string
-			pID, name, metric                      sql.NullString
-			thresholdType, environment, status      sql.NullString
-			state                                  sql.NullString
-			actionsJSON                            []byte
-			threshold, resolveThreshold            float64
-			timeWindowSecs                         int
-			lastTriggeredAt, createdAt, updatedAt  sql.NullTime
-		)
-		if err := rows.Scan(
-			&rID, &pID, &name, &metric, &threshold, &thresholdType,
-			&timeWindowSecs, &resolveThreshold, &environment, &status,
-			&actionsJSON, &state, &lastTriggeredAt, &createdAt, &updatedAt,
-		); err != nil {
-			return nil, err
-		}
-		r := buildPgMetricAlertRule(rID, nullString(pID), nullString(name), nullString(metric),
-			threshold, nullString(thresholdType), timeWindowSecs, resolveThreshold,
-			nullString(environment), nullString(status), actionsJSON, nullString(state),
-			lastTriggeredAt, createdAt, updatedAt)
-		rules = append(rules, r)
+// ListMetricAlertRulesForProjects returns all metric alert rules for the
+// provided project IDs using one bounded query.
+func (s *MetricAlertStore) ListMetricAlertRulesForProjects(ctx context.Context, projectIDs []string) ([]*alert.MetricAlertRule, error) {
+	if len(projectIDs) == 0 {
+		return []*alert.MetricAlertRule{}, nil
 	}
-	return rules, rows.Err()
+	holders := make([]string, 0, len(projectIDs))
+	args := make([]any, 0, len(projectIDs))
+	for i, projectID := range projectIDs {
+		holders = append(holders, fmt.Sprintf("$%d", i+1))
+		args = append(args, projectID)
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, name, metric, threshold, threshold_type,
+		        time_window_secs, resolve_threshold, environment, status,
+		        trigger_actions_json, state, last_triggered_at, created_at, updated_at
+		   FROM metric_alert_rules WHERE project_id IN (`+strings.Join(holders, ",")+`)
+		  ORDER BY created_at DESC, id DESC`, args...)
+	if err != nil {
+		return nil, err
+	}
+	return scanPgMetricAlertRules(rows)
 }
 
 // ListAllActiveMetricAlertRules returns all metric alert rules with status "active" across all projects.
@@ -150,14 +149,44 @@ func (s *MetricAlertStore) ListAllActiveMetricAlertRules(ctx context.Context) ([
 	var rules []*alert.MetricAlertRule
 	for rows.Next() {
 		var (
-			rID                                    string
-			pID, name, metric                      sql.NullString
-			thresholdType, environment, status      sql.NullString
-			state                                  sql.NullString
-			actionsJSON                            []byte
-			threshold, resolveThreshold            float64
-			timeWindowSecs                         int
-			lastTriggeredAt, createdAt, updatedAt  sql.NullTime
+			rID                                   string
+			pID, name, metric                     sql.NullString
+			thresholdType, environment, status    sql.NullString
+			state                                 sql.NullString
+			actionsJSON                           []byte
+			threshold, resolveThreshold           float64
+			timeWindowSecs                        int
+			lastTriggeredAt, createdAt, updatedAt sql.NullTime
+		)
+		if err := rows.Scan(
+			&rID, &pID, &name, &metric, &threshold, &thresholdType,
+			&timeWindowSecs, &resolveThreshold, &environment, &status,
+			&actionsJSON, &state, &lastTriggeredAt, &createdAt, &updatedAt,
+		); err != nil {
+			return nil, err
+		}
+		r := buildPgMetricAlertRule(rID, nullString(pID), nullString(name), nullString(metric),
+			threshold, nullString(thresholdType), timeWindowSecs, resolveThreshold,
+			nullString(environment), nullString(status), actionsJSON, nullString(state),
+			lastTriggeredAt, createdAt, updatedAt)
+		rules = append(rules, r)
+	}
+	return rules, rows.Err()
+}
+
+func scanPgMetricAlertRules(rows *sql.Rows) ([]*alert.MetricAlertRule, error) {
+	defer rows.Close()
+	var rules []*alert.MetricAlertRule
+	for rows.Next() {
+		var (
+			rID                                   string
+			pID, name, metric                     sql.NullString
+			thresholdType, environment, status    sql.NullString
+			state                                 sql.NullString
+			actionsJSON                           []byte
+			threshold, resolveThreshold           float64
+			timeWindowSecs                        int
+			lastTriggeredAt, createdAt, updatedAt sql.NullTime
 		)
 		if err := rows.Scan(
 			&rID, &pID, &name, &metric, &threshold, &thresholdType,

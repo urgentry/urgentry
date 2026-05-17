@@ -20,6 +20,7 @@ type MetricAlertStore interface {
 	CreateMetricAlertRule(ctx context.Context, r *alert.MetricAlertRule) error
 	GetMetricAlertRule(ctx context.Context, id string) (*alert.MetricAlertRule, error)
 	ListMetricAlertRules(ctx context.Context, projectID string) ([]*alert.MetricAlertRule, error)
+	ListMetricAlertRulesForProjects(ctx context.Context, projectIDs []string) ([]*alert.MetricAlertRule, error)
 	ListAllActiveMetricAlertRules(ctx context.Context) ([]*alert.MetricAlertRule, error)
 	UpdateMetricAlertRule(ctx context.Context, r *alert.MetricAlertRule) error
 	DeleteMetricAlertRule(ctx context.Context, id string) error

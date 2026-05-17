@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"urgentry/internal/alert"
@@ -78,12 +79,38 @@ func (s *MetricAlertStore) ListMetricAlertRules(ctx context.Context, projectID s
 		        time_window_secs, resolve_threshold, environment, status,
 		        trigger_actions_json, state, last_triggered_at, created_at, updated_at
 		   FROM metric_alert_rules WHERE project_id = ?
-		  ORDER BY created_at DESC`, projectID)
+		  ORDER BY created_at DESC, id DESC`, projectID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return scanMetricAlertRuleList(rows)
+}
 
+// ListMetricAlertRulesForProjects returns all metric alert rules for the
+// provided project IDs using one bounded query.
+func (s *MetricAlertStore) ListMetricAlertRulesForProjects(ctx context.Context, projectIDs []string) ([]*alert.MetricAlertRule, error) {
+	if len(projectIDs) == 0 {
+		return []*alert.MetricAlertRule{}, nil
+	}
+	holders := strings.TrimSuffix(strings.Repeat("?,", len(projectIDs)), ",")
+	args := make([]any, 0, len(projectIDs))
+	for _, projectID := range projectIDs {
+		args = append(args, projectID)
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, name, metric, threshold, threshold_type,
+		        time_window_secs, resolve_threshold, environment, status,
+		        trigger_actions_json, state, last_triggered_at, created_at, updated_at
+		   FROM metric_alert_rules WHERE project_id IN (`+holders+`)
+		  ORDER BY created_at DESC, id DESC`, args...)
+	if err != nil {
+		return nil, err
+	}
+	return scanMetricAlertRuleList(rows)
+}
+
+func scanMetricAlertRuleList(rows *sql.Rows) ([]*alert.MetricAlertRule, error) {
+	defer rows.Close()
 	var rules []*alert.MetricAlertRule
 	for rows.Next() {
 		r, err := scanMetricAlertRuleRows(rows)

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	crewjamsaml "github.com/crewjam/saml"
 )
 
 type samlRouteStore struct {
@@ -113,16 +116,17 @@ func TestMemorySAMLConfigStore(t *testing.T) {
 }
 
 func TestRegisterOrgSAMLRoutes_MetadataAndACS(t *testing.T) {
-	certPEM := generateTestCertificatePEM(t)
-	cfgStore := NewMemorySAMLConfigStore()
-	if err := cfgStore.UpsertSAMLConfig(t.Context(), &SAMLConfig{
+	testCert := generateTestCertificate(t)
+	cfg := &SAMLConfig{
 		OrganizationID: "org-1",
 		EntityID:       "https://idp.example.com/metadata",
 		SSOURL:         "https://idp.example.com/sso",
-		Certificate:    certPEM,
+		Certificate:    testCert.pem,
 		SPEntityID:     "https://sp.example.com/metadata",
 		ACSURL:         "https://sp.example.com/auth/saml/acme/acs",
-	}); err != nil {
+	}
+	cfgStore := NewMemorySAMLConfigStore()
+	if err := cfgStore.UpsertSAMLConfig(t.Context(), cfg); err != nil {
 		t.Fatalf("UpsertSAMLConfig: %v", err)
 	}
 
@@ -143,7 +147,7 @@ func TestRegisterOrgSAMLRoutes_MetadataAndACS(t *testing.T) {
 	}
 
 	form := url.Values{
-		"SAMLResponse": {encodeTestSAMLResponse(t, time.Now().Add(-time.Minute), time.Now().Add(5*time.Minute), "saml-user@example.com", "SAML User")},
+		"SAMLResponse": {encodeSignedTestSAMLResponse(t, testCert, cfg, "assertion-route-1", time.Now().Add(-time.Minute), time.Now().Add(5*time.Minute), "saml-user@example.com", "SAML User")},
 		"RelayState":   {"/issues/"},
 	}
 	acsReq := httptest.NewRequest(http.MethodPost, "/auth/saml/acme/acs", strings.NewReader(form.Encode()))
@@ -173,7 +177,110 @@ func TestRegisterOrgSAMLRoutes_MetadataAndACS(t *testing.T) {
 	}
 }
 
-func generateTestCertificatePEM(t *testing.T) string {
+func TestRegisterOrgSAMLRoutes_RejectsInvalidSAMLResponses(t *testing.T) {
+	testCert := generateTestCertificate(t)
+	cfg := &SAMLConfig{
+		OrganizationID: "org-1",
+		EntityID:       "https://idp.example.com/metadata",
+		SSOURL:         "https://idp.example.com/sso",
+		Certificate:    testCert.pem,
+		SPEntityID:     "https://sp.example.com/metadata",
+		ACSURL:         "https://sp.example.com/auth/saml/acme/acs",
+	}
+	cfgStore := NewMemorySAMLConfigStore()
+	if err := cfgStore.UpsertSAMLConfig(t.Context(), cfg); err != nil {
+		t.Fatalf("UpsertSAMLConfig: %v", err)
+	}
+
+	store := samlRouteStore{org: &Organization{ID: "org-1", Slug: "acme"}}
+	provider := NewSAMLProvider(cfgStore, samlRouteProvisioner{}, store, time.Hour)
+	mux := http.NewServeMux()
+	RegisterOrgSAMLRoutes(mux, store, provider, "urgentry_session", "urgentry_csrf")
+
+	valid := encodeSignedTestSAMLResponse(t, testCert, cfg, "assertion-valid-1", time.Now().Add(-time.Minute), time.Now().Add(5*time.Minute), "saml-user@example.com", "SAML User")
+
+	tests := []struct {
+		name     string
+		response string
+	}{
+		{
+			name:     "unsigned",
+			response: encodeUnsignedTestSAMLResponse(t, cfg, time.Now().Add(-time.Minute), time.Now().Add(5*time.Minute), "saml-user@example.com", "SAML User"),
+		},
+		{
+			name:     "tampered",
+			response: tamperSAMLResponse(t, valid),
+		},
+		{
+			name:     "expired",
+			response: encodeSignedTestSAMLResponse(t, testCert, cfg, "assertion-expired-1", time.Now().Add(-20*time.Minute), time.Now().Add(-10*time.Minute), "saml-user@example.com", "SAML User"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := postSAMLResponse(t, mux, tt.response)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400, body=%s", rec.Code, rec.Body.String())
+			}
+			if got := rec.Body.String(); !strings.Contains(got, "Invalid SAML response.") {
+				t.Fatalf("body = %q, want generic SAML error", got)
+			}
+			for _, cookie := range rec.Result().Cookies() {
+				if cookie.Name == "urgentry_session" || cookie.Name == "urgentry_csrf" {
+					t.Fatalf("unexpected auth cookie on rejected response: %+v", cookie)
+				}
+			}
+		})
+	}
+}
+
+func TestRegisterOrgSAMLRoutes_RejectsReplay(t *testing.T) {
+	testCert := generateTestCertificate(t)
+	cfg := &SAMLConfig{
+		OrganizationID: "org-1",
+		EntityID:       "https://idp.example.com/metadata",
+		SSOURL:         "https://idp.example.com/sso",
+		Certificate:    testCert.pem,
+		SPEntityID:     "https://sp.example.com/metadata",
+		ACSURL:         "https://sp.example.com/auth/saml/acme/acs",
+	}
+	cfgStore := NewMemorySAMLConfigStore()
+	if err := cfgStore.UpsertSAMLConfig(t.Context(), cfg); err != nil {
+		t.Fatalf("UpsertSAMLConfig: %v", err)
+	}
+
+	store := samlRouteStore{org: &Organization{ID: "org-1", Slug: "acme"}}
+	provider := NewSAMLProvider(cfgStore, samlRouteProvisioner{}, store, time.Hour)
+	mux := http.NewServeMux()
+	RegisterOrgSAMLRoutes(mux, store, provider, "urgentry_session", "urgentry_csrf")
+
+	response := encodeSignedTestSAMLResponse(t, testCert, cfg, "assertion-replay-1", time.Now().Add(-time.Minute), time.Now().Add(5*time.Minute), "saml-user@example.com", "SAML User")
+	if rec := postSAMLResponse(t, mux, response); rec.Code != http.StatusSeeOther {
+		t.Fatalf("first status = %d, want 303, body=%s", rec.Code, rec.Body.String())
+	}
+	if rec := postSAMLResponse(t, mux, response); rec.Code != http.StatusBadRequest {
+		t.Fatalf("replay status = %d, want 400, body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func postSAMLResponse(t *testing.T, mux *http.ServeMux, response string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	form := url.Values{"SAMLResponse": {response}, "RelayState": {"/issues/"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/saml/acme/acs", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+type samlTestCertificate struct {
+	key  *rsa.PrivateKey
+	cert *x509.Certificate
+	pem  string
+}
+
+func generateTestCertificate(t *testing.T) samlTestCertificate {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -195,12 +302,114 @@ func generateTestCertificatePEM(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
-	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+	return samlTestCertificate{
+		key:  privateKey,
+		cert: cert,
+		pem:  string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})),
+	}
 }
 
-func encodeTestSAMLResponse(t *testing.T, notBefore, notOnOrAfter time.Time, email, displayName string) string {
+func encodeSignedTestSAMLResponse(t *testing.T, testCert samlTestCertificate, cfg *SAMLConfig, assertionID string, notBefore, notOnOrAfter time.Time, email, displayName string) string {
 	t.Helper()
 
-	xmlPayload := `<Response><Assertion><Issuer>https://idp.example.com/metadata</Issuer><Subject><NameID>` + email + `</NameID></Subject><Conditions NotBefore="` + notBefore.UTC().Format(time.RFC3339) + `" NotOnOrAfter="` + notOnOrAfter.UTC().Format(time.RFC3339) + `"></Conditions><AttributeStatement><Attribute Name="email"><AttributeValue>` + email + `</AttributeValue></Attribute><Attribute Name="displayName"><AttributeValue>` + displayName + `</AttributeValue></Attribute></AttributeStatement></Assertion></Response>`
+	now := time.Now().UTC()
+	req := &crewjamsaml.IdpAuthnRequest{
+		IDP: &crewjamsaml.IdentityProvider{
+			Key:         testCert.key,
+			Certificate: testCert.cert,
+			MetadataURL: mustParseTestURL(t, cfg.EntityID),
+			SSOURL:      mustParseTestURL(t, cfg.SSOURL),
+		},
+		HTTPRequest:             httptest.NewRequest(http.MethodPost, cfg.SSOURL, nil),
+		Request:                 crewjamsaml.AuthnRequest{},
+		ServiceProviderMetadata: &crewjamsaml.EntityDescriptor{EntityID: cfg.SPEntityID},
+		SPSSODescriptor:         &crewjamsaml.SPSSODescriptor{},
+		ACSEndpoint: &crewjamsaml.IndexedEndpoint{
+			Binding:  crewjamsaml.HTTPPostBinding,
+			Location: cfg.ACSURL,
+			Index:    0,
+		},
+		Assertion: &crewjamsaml.Assertion{
+			ID:           assertionID,
+			IssueInstant: now,
+			Version:      "2.0",
+			Issuer: crewjamsaml.Issuer{
+				Format: "urn:oasis:names:tc:SAML:2.0:nameid-format:entity",
+				Value:  cfg.EntityID,
+			},
+			Subject: &crewjamsaml.Subject{
+				NameID: &crewjamsaml.NameID{
+					Format: string(crewjamsaml.EmailAddressNameIDFormat),
+					Value:  email,
+				},
+				SubjectConfirmations: []crewjamsaml.SubjectConfirmation{{
+					Method: "urn:oasis:names:tc:SAML:2.0:cm:bearer",
+					SubjectConfirmationData: &crewjamsaml.SubjectConfirmationData{
+						NotOnOrAfter: notOnOrAfter.UTC(),
+						Recipient:    cfg.ACSURL,
+					},
+				}},
+			},
+			Conditions: &crewjamsaml.Conditions{
+				NotBefore:    notBefore.UTC(),
+				NotOnOrAfter: notOnOrAfter.UTC(),
+				AudienceRestrictions: []crewjamsaml.AudienceRestriction{{
+					Audience: crewjamsaml.Audience{Value: cfg.SPEntityID},
+				}},
+			},
+			AttributeStatements: []crewjamsaml.AttributeStatement{{
+				Attributes: []crewjamsaml.Attribute{
+					{
+						Name:   "email",
+						Values: []crewjamsaml.AttributeValue{{Type: "xs:string", Value: email}},
+					},
+					{
+						Name:   "displayName",
+						Values: []crewjamsaml.AttributeValue{{Type: "xs:string", Value: displayName}},
+					},
+				},
+			}},
+		},
+		Now: now,
+	}
+	form, err := req.PostBinding()
+	if err != nil {
+		t.Fatalf("PostBinding: %v", err)
+	}
+	return form.SAMLResponse
+}
+
+func encodeUnsignedTestSAMLResponse(t *testing.T, cfg *SAMLConfig, notBefore, notOnOrAfter time.Time, email, displayName string) string {
+	t.Helper()
+
+	xmlPayload := `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="` + cfg.ACSURL + `" ID="response-unsigned-1" IssueInstant="` + time.Now().UTC().Format(time.RFC3339) + `" Version="2.0"><saml:Issuer>` + cfg.EntityID + `</saml:Issuer><samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"></samlp:StatusCode></samlp:Status><saml:Assertion ID="assertion-unsigned-1" IssueInstant="` + time.Now().UTC().Format(time.RFC3339) + `" Version="2.0"><saml:Issuer>` + cfg.EntityID + `</saml:Issuer><saml:Subject><saml:NameID>` + email + `</saml:NameID><saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"><saml:SubjectConfirmationData NotOnOrAfter="` + notOnOrAfter.UTC().Format(time.RFC3339) + `" Recipient="` + cfg.ACSURL + `"></saml:SubjectConfirmationData></saml:SubjectConfirmation></saml:Subject><saml:Conditions NotBefore="` + notBefore.UTC().Format(time.RFC3339) + `" NotOnOrAfter="` + notOnOrAfter.UTC().Format(time.RFC3339) + `"><saml:AudienceRestriction><saml:Audience>` + cfg.SPEntityID + `</saml:Audience></saml:AudienceRestriction></saml:Conditions><saml:AttributeStatement><saml:Attribute Name="email"><saml:AttributeValue>` + email + `</saml:AttributeValue></saml:Attribute><saml:Attribute Name="displayName"><saml:AttributeValue>` + displayName + `</saml:AttributeValue></saml:Attribute></saml:AttributeStatement></saml:Assertion></samlp:Response>`
 	return base64.StdEncoding.EncodeToString([]byte(xmlPayload))
+}
+
+func tamperSAMLResponse(t *testing.T, encoded string) string {
+	t.Helper()
+
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("DecodeString: %v", err)
+	}
+	tampered := bytes.Replace(raw, []byte("saml-user@example.com"), []byte("evil-user@example.com"), 1)
+	if bytes.Equal(tampered, raw) {
+		t.Fatal("test fixture did not contain value to tamper")
+	}
+	return base64.StdEncoding.EncodeToString(tampered)
+}
+
+func mustParseTestURL(t *testing.T, raw string) url.URL {
+	t.Helper()
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse URL %q: %v", raw, err)
+	}
+	return *u
 }

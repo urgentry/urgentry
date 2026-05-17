@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
 	"urgentry/internal/alert"
+	"urgentry/internal/auth"
 	"urgentry/internal/controlplane"
 	"urgentry/internal/httputil"
 	"urgentry/pkg/id"
@@ -42,6 +44,30 @@ type orgMetricAlertTrigger struct {
 	Label          string  `json:"label"`
 	AlertThreshold float64 `json:"alertThreshold"`
 	Actions        []any   `json:"actions"`
+}
+
+type policyAuthFunc func(auth.Policy) authFunc
+
+type MetricAlertRoutes struct {
+	Catalog  controlplane.CatalogStore
+	Store    controlplane.MetricAlertStore
+	WithAuth policyAuthFunc
+}
+
+func RegisterMetricAlertRoutes(mux *http.ServeMux, routes MetricAlertRoutes) {
+	if routes.Store == nil {
+		return
+	}
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/", handleListMetricAlertRules(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("POST /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/", handleCreateMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/{rule_id}/", handleGetMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeProjectRead, Resource: auth.ResourceProjectPath})))
+	mux.Handle("PUT /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/{rule_id}/", handleUpdateMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
+	mux.Handle("DELETE /api/0/projects/{org_slug}/{proj_slug}/metric-alerts/{rule_id}/", handleDeleteMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeProjectWrite, Resource: auth.ResourceProjectPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/alert-rules/", handleListOrgMetricAlertRules(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("POST /api/0/organizations/{org_slug}/alert-rules/", handleCreateOrgMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("GET /api/0/organizations/{org_slug}/alert-rules/{rule_id}/", handleGetOrgMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeOrgQueryRead, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("PUT /api/0/organizations/{org_slug}/alert-rules/{rule_id}/", handleUpdateOrgMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
+	mux.Handle("DELETE /api/0/organizations/{org_slug}/alert-rules/{rule_id}/", handleDeleteOrgMetricAlertRule(routes.Catalog, routes.Store, routes.WithAuth(auth.Policy{Scope: auth.ScopeOrgAdmin, Resource: auth.ResourceOrganizationPath})))
 }
 
 var validMetrics = map[string]bool{
@@ -276,14 +302,15 @@ func handleListOrgMetricAlertRules(catalog controlplane.CatalogStore, store cont
 		if !ok {
 			return
 		}
-		rules := make([]*alert.MetricAlertRule, 0)
+		projectIDs := make([]string, 0, len(projects))
 		for projectID := range projects {
-			items, err := store.ListMetricAlertRules(r.Context(), projectID)
-			if err != nil {
-				httputil.WriteError(w, http.StatusInternalServerError, "Failed to list metric alert rules.")
-				return
-			}
-			rules = append(rules, items...)
+			projectIDs = append(projectIDs, projectID)
+		}
+		sort.Strings(projectIDs)
+		rules, err := store.ListMetricAlertRulesForProjects(r.Context(), projectIDs)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "Failed to list metric alert rules.")
+			return
 		}
 		if rules == nil {
 			rules = []*alert.MetricAlertRule{}

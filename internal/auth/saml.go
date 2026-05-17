@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"compress/flate"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -9,11 +8,13 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	crewjamsaml "github.com/crewjam/saml"
 
 	"urgentry/internal/httputil"
 	"urgentry/internal/requestmeta"
@@ -42,37 +43,6 @@ type SAMLConfigStore interface {
 	UpsertSAMLConfig(ctx context.Context, cfg *SAMLConfig) error
 }
 
-// ---------------------------------------------------------------------------
-// Minimal SAML assertion parsing (no external SAML library)
-// ---------------------------------------------------------------------------
-
-// samlResponse is the top-level XML wrapper.
-type samlResponse struct {
-	XMLName   xml.Name      `xml:"Response"`
-	Assertion samlAssertion `xml:"Assertion"`
-}
-
-type samlAssertion struct {
-	Issuer     string          `xml:"Issuer"`
-	Subject    samlSubject     `xml:"Subject"`
-	Conditions samlConditions  `xml:"Conditions"`
-	Attributes []samlAttribute `xml:"AttributeStatement>Attribute"`
-}
-
-type samlSubject struct {
-	NameID string `xml:"NameID"`
-}
-
-type samlConditions struct {
-	NotBefore    string `xml:"NotBefore,attr"`
-	NotOnOrAfter string `xml:"NotOnOrAfter,attr"`
-}
-
-type samlAttribute struct {
-	Name   string   `xml:"Name,attr"`
-	Values []string `xml:"AttributeValue"`
-}
-
 // SAMLUser is the identity extracted from a SAML assertion.
 type SAMLUser struct {
 	NameID      string
@@ -82,77 +52,43 @@ type SAMLUser struct {
 	LastName    string
 }
 
-// parseSAMLResponse decodes a base64 SAMLResponse form value into structured
-// assertion data. It validates the XML structure and time window but does NOT
-// perform cryptographic signature verification (that requires the full
-// xml-dsig stack; see verifySAMLSignature below for certificate-based
-// validation of the raw XML).
-func parseSAMLResponse(encoded string) (*samlResponse, []byte, error) {
-	raw, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		// Try decoding deflated content (HTTP-Redirect binding).
-		compressed, err2 := base64.StdEncoding.DecodeString(encoded)
-		if err2 != nil {
-			return nil, nil, fmt.Errorf("base64 decode: %w", err)
-		}
-		reader := flate.NewReader(strings.NewReader(string(compressed)))
-		defer reader.Close()
-		raw, err = io.ReadAll(reader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("deflate: %w", err)
+// extractSAMLUser pulls common attributes from a verified assertion.
+func extractSAMLUser(assertion *crewjamsaml.Assertion) SAMLUser {
+	var u SAMLUser
+	if assertion == nil {
+		return u
+	}
+	if assertion.Subject != nil && assertion.Subject.NameID != nil {
+		u.NameID = assertion.Subject.NameID.Value
+	}
+	for _, statement := range assertion.AttributeStatements {
+		for _, attr := range statement.Attributes {
+			if len(attr.Values) == 0 {
+				continue
+			}
+			v := attr.Values[0].Value
+			name := strings.ToLower(strings.TrimSpace(attr.Name + " " + attr.FriendlyName))
+			switch {
+			case strings.Contains(name, "emailaddress") ||
+				strings.Contains(name, "email") ||
+				strings.Contains(name, "mail"):
+				u.Email = v
+			case strings.Contains(name, "displayname") ||
+				strings.Contains(name, "commonname") ||
+				strings.Contains(name, " cn") ||
+				strings.TrimSpace(name) == "name":
+				u.DisplayName = v
+			case strings.Contains(name, "givenname") ||
+				strings.Contains(name, "firstname"):
+				u.FirstName = v
+			case strings.Contains(name, "surname") ||
+				strings.Contains(name, "lastname"):
+				u.LastName = v
+			}
 		}
 	}
-
-	var resp samlResponse
-	if err := xml.Unmarshal(raw, &resp); err != nil {
-		return nil, nil, fmt.Errorf("xml unmarshal: %w", err)
-	}
-
-	// Validate time window when conditions are present.
-	if resp.Assertion.Conditions.NotBefore != "" {
-		nb, err := time.Parse(time.RFC3339, resp.Assertion.Conditions.NotBefore)
-		if err == nil && time.Now().Before(nb.Add(-2*time.Minute)) {
-			return nil, nil, errors.New("assertion not yet valid")
-		}
-	}
-	if resp.Assertion.Conditions.NotOnOrAfter != "" {
-		noa, err := time.Parse(time.RFC3339, resp.Assertion.Conditions.NotOnOrAfter)
-		if err == nil && time.Now().After(noa.Add(2*time.Minute)) {
-			return nil, nil, errors.New("assertion expired")
-		}
-	}
-
-	return &resp, raw, nil
-}
-
-// extractSAMLUser pulls common attributes from the parsed assertion.
-func extractSAMLUser(resp *samlResponse) SAMLUser {
-	u := SAMLUser{NameID: resp.Assertion.Subject.NameID}
-	for _, attr := range resp.Assertion.Attributes {
-		if len(attr.Values) == 0 {
-			continue
-		}
-		v := attr.Values[0]
-		switch {
-		case strings.Contains(strings.ToLower(attr.Name), "emailaddress") ||
-			strings.Contains(strings.ToLower(attr.Name), "email"):
-			u.Email = v
-		case strings.Contains(strings.ToLower(attr.Name), "displayname") ||
-			strings.Contains(strings.ToLower(attr.Name), "name"):
-			u.DisplayName = v
-		case strings.Contains(strings.ToLower(attr.Name), "givenname") ||
-			strings.Contains(strings.ToLower(attr.Name), "firstname"):
-			u.FirstName = v
-		case strings.Contains(strings.ToLower(attr.Name), "surname") ||
-			strings.Contains(strings.ToLower(attr.Name), "lastname"):
-			u.LastName = v
-		}
-	}
-	if u.Email == "" {
-		// Fall back to NameID when it looks like an email.
-		if strings.Contains(u.NameID, "@") {
-			u.Email = u.NameID
-		}
+	if u.Email == "" && strings.Contains(u.NameID, "@") {
+		u.Email = u.NameID
 	}
 	if u.DisplayName == "" && (u.FirstName != "" || u.LastName != "") {
 		u.DisplayName = strings.TrimSpace(u.FirstName + " " + u.LastName)
@@ -160,24 +96,155 @@ func extractSAMLUser(resp *samlResponse) SAMLUser {
 	return u
 }
 
-// verifySAMLSignature performs basic certificate-based validation: it parses
-// the IdP certificate from PEM and checks that it is valid. Full XML-DSig
-// envelope verification is left for a production xml-dsig library; this
-// provides the trust anchor setup.
-func verifySAMLSignature(pemCert string) (*x509.Certificate, error) {
+func parseSAMLSigningCertificate(pemCert string) (*x509.Certificate, string, error) {
 	block, _ := pem.Decode([]byte(pemCert))
 	if block == nil {
-		return nil, errors.New("failed to decode PEM certificate")
+		return nil, "", errors.New("failed to decode PEM certificate")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("parse certificate: %w", err)
+		return nil, "", fmt.Errorf("parse certificate: %w", err)
 	}
 	now := time.Now()
 	if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
-		return nil, errors.New("IdP certificate is not within its validity period")
+		return nil, "", errors.New("IdP certificate is not within its validity period")
 	}
-	return cert, nil
+	return cert, base64.StdEncoding.EncodeToString(cert.Raw), nil
+}
+
+func samlServiceProvider(cfg *SAMLConfig) (*crewjamsaml.ServiceProvider, error) {
+	if cfg == nil {
+		return nil, errors.New("SAML config is required")
+	}
+	_, certData, err := parseSAMLSigningCertificate(cfg.Certificate)
+	if err != nil {
+		return nil, err
+	}
+	acsURL, err := url.Parse(strings.TrimSpace(cfg.ACSURL))
+	if err != nil || acsURL.Scheme == "" || acsURL.Host == "" {
+		return nil, errors.New("SAML ACS URL must be an absolute URL")
+	}
+	metadataURL, err := url.Parse(strings.TrimSpace(cfg.SPEntityID))
+	if err != nil || metadataURL.Scheme == "" || metadataURL.Host == "" {
+		metadataURL = &url.URL{
+			Scheme: acsURL.Scheme,
+			Host:   acsURL.Host,
+			Path:   strings.TrimSuffix(acsURL.Path, "/acs") + "/metadata",
+		}
+	}
+	spEntityID := strings.TrimSpace(cfg.SPEntityID)
+	if spEntityID == "" {
+		spEntityID = metadataURL.String()
+	}
+	idpEntityID := strings.TrimSpace(cfg.EntityID)
+	if idpEntityID == "" {
+		return nil, errors.New("SAML IdP entity ID is required")
+	}
+	return &crewjamsaml.ServiceProvider{
+		EntityID:          spEntityID,
+		MetadataURL:       *metadataURL,
+		AcsURL:            *acsURL,
+		IDPMetadata:       &crewjamsaml.EntityDescriptor{EntityID: idpEntityID},
+		IDPCertificate:    &certData,
+		AllowIDPInitiated: true,
+		AuthnNameIDFormat: crewjamsaml.EmailAddressNameIDFormat,
+	}, nil
+}
+
+func validateSAMLResponse(r *http.Request, cfg *SAMLConfig) (*crewjamsaml.Assertion, error) {
+	sp, err := samlServiceProvider(cfg)
+	if err != nil {
+		return nil, err
+	}
+	assertion, err := sp.ParseResponse(r, nil)
+	if err != nil {
+		return nil, err
+	}
+	if assertion == nil {
+		return nil, errors.New("SAML assertion missing")
+	}
+	return assertion, nil
+}
+
+func assertionReplayExpiry(assertion *crewjamsaml.Assertion, now time.Time) time.Time {
+	if assertion != nil && assertion.Conditions != nil && !assertion.Conditions.NotOnOrAfter.IsZero() {
+		return assertion.Conditions.NotOnOrAfter.Add(5 * time.Minute)
+	}
+	return now.Add(5 * time.Minute)
+}
+
+// markSAMLAssertionSeen returns false when the assertion ID has already been
+// accepted by this provider instance.
+func (p *SAMLProvider) markSAMLAssertionSeen(assertion *crewjamsaml.Assertion) bool {
+	if assertion == nil || strings.TrimSpace(assertion.ID) == "" {
+		return false
+	}
+	now := time.Now()
+	expiresAt := assertionReplayExpiry(assertion, now)
+	p.replayMu.Lock()
+	defer p.replayMu.Unlock()
+	for id, expiry := range p.seenAssertions {
+		if !expiry.After(now) {
+			delete(p.seenAssertions, id)
+		}
+	}
+	id := strings.TrimSpace(assertion.ID)
+	if expiry, ok := p.seenAssertions[id]; ok && expiry.After(now) {
+		return false
+	}
+	p.seenAssertions[id] = expiresAt
+	return true
+}
+
+func samlPublicError(err error) string {
+	if err == nil {
+		return "Invalid SAML response."
+	}
+	var badStatus crewjamsaml.ErrBadStatus
+	if errors.As(err, &badStatus) {
+		return "Invalid SAML response status."
+	}
+	return "Invalid SAML response."
+}
+
+// idpMetadata is the minimal IdP metadata XML structure.
+type idpMetadata struct {
+	XMLName  xml.Name `xml:"EntityDescriptor"`
+	EntityID string   `xml:"entityID,attr"`
+	SSO      []idpSSO `xml:"IDPSSODescriptor>SingleSignOnService"`
+	Certs    []string `xml:"IDPSSODescriptor>KeyDescriptor>KeyInfo>X509Data>X509Certificate"`
+}
+
+type idpSSO struct {
+	Binding  string `xml:"Binding,attr"`
+	Location string `xml:"Location,attr"`
+}
+
+// ParseIdPMetadata extracts entity ID, SSO URL, and certificate from IdP
+// metadata XML.
+func ParseIdPMetadata(data []byte) (entityID, ssoURL, certPEM string, err error) {
+	var md idpMetadata
+	if err := xml.Unmarshal(data, &md); err != nil {
+		return "", "", "", fmt.Errorf("parse IdP metadata: %w", err)
+	}
+	entityID = md.EntityID
+	for _, sso := range md.SSO {
+		if strings.Contains(sso.Binding, "HTTP-POST") || strings.Contains(sso.Binding, "HTTP-Redirect") {
+			ssoURL = sso.Location
+			break
+		}
+	}
+	if len(md.Certs) > 0 {
+		raw := strings.TrimSpace(md.Certs[0])
+		certPEM = "-----BEGIN CERTIFICATE-----\n" + raw + "\n-----END CERTIFICATE-----"
+	}
+	if entityID == "" {
+		return "", "", "", errors.New("IdP metadata missing entityID")
+	}
+	if ssoURL == "" {
+		return "", "", "", errors.New("IdP metadata missing SSO URL")
+	}
+	return entityID, ssoURL, certPEM, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +265,9 @@ type SAMLProvider struct {
 	provisioner SAMLUserProvisioner
 	authStore   Store
 	sessionTTL  time.Duration
+
+	replayMu       sync.Mutex
+	seenAssertions map[string]time.Time
 }
 
 // NewSAMLProvider creates a SAML authentication provider.
@@ -210,6 +280,8 @@ func NewSAMLProvider(cfgStore SAMLConfigStore, provisioner SAMLUserProvisioner, 
 		provisioner: provisioner,
 		authStore:   authStore,
 		sessionTTL:  sessionTTL,
+
+		seenAssertions: make(map[string]time.Time),
 	}
 }
 
@@ -276,19 +348,17 @@ func (p *SAMLProvider) HandleACS(orgID, sessionCookieName, csrfCookieName string
 			return
 		}
 
-		// Validate IdP certificate is still trusted.
-		if _, err := verifySAMLSignature(cfg.Certificate); err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "IdP certificate validation failed: "+err.Error())
-			return
-		}
-
-		resp, _, err := parseSAMLResponse(encoded)
+		assertion, err := validateSAMLResponse(r, cfg)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid SAML response: "+err.Error())
+			httputil.WriteError(w, http.StatusBadRequest, samlPublicError(err))
+			return
+		}
+		if !p.markSAMLAssertionSeen(assertion) {
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid SAML response.")
 			return
 		}
 
-		samlUser := extractSAMLUser(resp)
+		samlUser := extractSAMLUser(assertion)
 		if samlUser.Email == "" {
 			httputil.WriteError(w, http.StatusBadRequest, "SAML assertion missing email.")
 			return
@@ -335,50 +405,6 @@ func (p *SAMLProvider) HandleACS(orgID, sessionCookieName, csrfCookieName string
 		}
 		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// IdP metadata import helper
-// ---------------------------------------------------------------------------
-
-// idpMetadata is the minimal IdP metadata XML structure.
-type idpMetadata struct {
-	XMLName  xml.Name `xml:"EntityDescriptor"`
-	EntityID string   `xml:"entityID,attr"`
-	SSO      []idpSSO `xml:"IDPSSODescriptor>SingleSignOnService"`
-	Certs    []string `xml:"IDPSSODescriptor>KeyDescriptor>KeyInfo>X509Data>X509Certificate"`
-}
-
-type idpSSO struct {
-	Binding  string `xml:"Binding,attr"`
-	Location string `xml:"Location,attr"`
-}
-
-// ParseIdPMetadata extracts entity ID, SSO URL, and certificate from IdP
-// metadata XML.
-func ParseIdPMetadata(data []byte) (entityID, ssoURL, certPEM string, err error) {
-	var md idpMetadata
-	if err := xml.Unmarshal(data, &md); err != nil {
-		return "", "", "", fmt.Errorf("parse IdP metadata: %w", err)
-	}
-	entityID = md.EntityID
-	for _, sso := range md.SSO {
-		if strings.Contains(sso.Binding, "HTTP-POST") || strings.Contains(sso.Binding, "HTTP-Redirect") {
-			ssoURL = sso.Location
-			break
-		}
-	}
-	if len(md.Certs) > 0 {
-		raw := strings.TrimSpace(md.Certs[0])
-		certPEM = "-----BEGIN CERTIFICATE-----\n" + raw + "\n-----END CERTIFICATE-----"
-	}
-	if entityID == "" {
-		return "", "", "", errors.New("IdP metadata missing entityID")
-	}
-	if ssoURL == "" {
-		return "", "", "", errors.New("IdP metadata missing SSO URL")
-	}
-	return entityID, ssoURL, certPEM, nil
 }
 
 // RegisterSAMLRoutes registers /auth/saml/metadata and /auth/saml/acs on

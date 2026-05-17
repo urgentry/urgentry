@@ -280,7 +280,7 @@ func handleTestAlertWebhook(catalog controlplane.CatalogStore, deliveries contro
 
 		notifier := notify.NewNotifier(nil, deliveries)
 		if err := notifier.SendTestWebhook(r.Context(), projectID, url); err != nil {
-			httputil.WriteError(w, http.StatusBadGateway, err.Error())
+			httputil.WriteError(w, http.StatusBadGateway, "Webhook test delivery failed.")
 			return
 		}
 		httputil.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "queued"})

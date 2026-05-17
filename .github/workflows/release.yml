@@ -68,7 +68,7 @@ jobs:
         with:
           images: ghcr.io/urgentry/urgentry
           flavor: |
-            latest=auto
+            latest=false
           tags: |
             type=raw,value=${{ github.ref_name }}
             type=semver,pattern={{version}}

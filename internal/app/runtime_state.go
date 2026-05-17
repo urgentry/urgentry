@@ -463,6 +463,10 @@ func (s *runtimeState) buildRuntimeServices() error {
 	}
 	s.pipeline.SetAlertCallback(pipeline.NewAlertCallback(*s.alertDeps()))
 
+	serviceChecks := ghttp.OperatorServiceChecks(s.db, s.queueDB, s.cfg)
+	if s.control.shadowProjector != nil {
+		serviceChecks = append(serviceChecks, s.control.shadowProjector.OperatorCheck(10*time.Minute))
+	}
 	opStore := sqlite.NewOperatorStore(
 		s.db,
 		store.OperatorRuntime{
@@ -486,7 +490,7 @@ func (s *runtimeState) buildRuntimeServices() error {
 			}
 			return s.jobStore.Len(ctx)
 		},
-		ghttp.OperatorServiceChecks(s.db, s.queueDB, s.cfg)...,
+		serviceChecks...,
 	)
 	if s.telemetryDB != nil {
 		projector := s.newTelemetryProjector()

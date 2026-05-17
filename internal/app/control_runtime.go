@@ -44,6 +44,7 @@ type runtimeControlPlane struct {
 	sentryAppStore   integration.AppStore
 	externalIssues   integration.ExternalIssueStore
 	groupStore       issue.GroupStore
+	shadowProjector  *PrincipalShadowProjector
 	close            func() error
 	defaultKey       func(context.Context) (string, error)
 	bootstrap        func(context.Context, config.Config) (*bootstrapResult, error)
@@ -57,9 +58,7 @@ func openRuntimeControlPlane(ctx context.Context, cfg config.Config, queryDB *sq
 		}
 		control := buildPostgresRuntimeControlPlane(controlDB, queryDB)
 		control.keyStore = auth.NewCachedKeyStore(control.keyStore, 0, 0)
-		if err := retrySQLiteBusy(90*time.Second, func() error {
-			return syncPostgresControlPlaneShadows(ctx, controlDB, sqlite.NewPrincipalShadowStore(queryDB))
-		}); err != nil {
+		if err := control.shadowProjector.SyncWithRetry(ctx, 90*time.Second); err != nil {
 			_ = control.close()
 			return runtimeControlPlane{}, fmt.Errorf("sync control-plane sqlite shadows: %w", err)
 		}
@@ -123,6 +122,7 @@ func buildSQLiteRuntimeControlPlane(queryDB *sql.DB) runtimeControlPlane {
 func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControlPlane {
 	baseAuthStore := postgrescontrol.NewAuthStore(controlDB)
 	shadowStore := sqlite.NewPrincipalShadowStore(queryDB)
+	shadowProjector := NewPrincipalShadowProjector(controlDB, shadowStore)
 	authStore := newShadowingAuthStore(baseAuthStore, shadowStore)
 	groupStore := postgrescontrol.NewGroupStore(controlDB)
 	adminStore := newShadowingAdminStore(postgrescontrol.NewAdminStore(controlDB), shadowStore)
@@ -157,6 +157,7 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 		sentryAppStore:   postgrescontrol.NewSentryAppStore(controlDB),
 		externalIssues:   postgrescontrol.NewExternalIssueStore(controlDB),
 		groupStore:       groupStore,
+		shadowProjector:  shadowProjector,
 		close:            controlDB.Close,
 		defaultKey: func(ctx context.Context) (string, error) {
 			publicKey, err := postgrescontrol.EnsureDefaultKey(ctx, controlDB)
@@ -182,12 +183,10 @@ func buildPostgresRuntimeControlPlane(controlDB, queryDB *sql.DB) runtimeControl
 				return nil, err
 			}
 			if result.Created {
-				if err := syncBootstrapUserShadow(ctx, baseAuthStore, shadowStore, result.Email, result.Password); err != nil {
+				if err := shadowProjector.SyncBootstrapUser(ctx, baseAuthStore, result.Email, result.Password); err != nil {
 					return nil, err
 				}
-				if err := retrySQLiteBusy(90*time.Second, func() error {
-					return syncPostgresControlPlaneShadows(ctx, controlDB, shadowStore)
-				}); err != nil {
+				if err := shadowProjector.SyncWithRetry(ctx, 90*time.Second); err != nil {
 					return nil, err
 				}
 				if err := retrySQLiteBusy(90*time.Second, func() error {

@@ -60,9 +60,11 @@ func (s *QuotaStore) GetUsage(ctx context.Context, projectID string, since time.
 		return nil, fmt.Errorf("count transactions: %w", err)
 	}
 
-	// Count rejected events from outcomes.
+	// Count rejected events from outcomes by receipt time. Client reports may
+	// describe older discarded events, but quota windows track when Urgentry
+	// received the accounting report.
 	row = s.db.QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(quantity), 0) FROM outcomes WHERE project_id = ? AND recorded_at >= ?`,
+		`SELECT COALESCE(SUM(quantity), 0) FROM outcomes WHERE project_id = ? AND created_at >= ?`,
 		projectID, since.UTC().Format(time.RFC3339),
 	)
 	if err := row.Scan(&usage.EventsRejected); err != nil {
@@ -80,7 +82,7 @@ func (s *QuotaStore) GetAllProjectUsage(ctx context.Context, since time.Time) ([
 		`SELECT p.id, p.slug,
 			COALESCE((SELECT COUNT(*) FROM events e WHERE e.project_id = p.id AND e.event_type = 'error' AND e.ingested_at >= ?), 0),
 			COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.project_id = p.id AND t.created_at >= ?), 0),
-			COALESCE((SELECT SUM(o.quantity) FROM outcomes o WHERE o.project_id = p.id AND o.recorded_at >= ?), 0)
+			COALESCE((SELECT SUM(o.quantity) FROM outcomes o WHERE o.project_id = p.id AND o.created_at >= ?), 0)
 		 FROM projects p
 		 ORDER BY p.slug ASC`,
 		sinceStr, sinceStr, sinceStr,

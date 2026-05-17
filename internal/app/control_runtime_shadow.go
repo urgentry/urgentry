@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"urgentry/internal/auth"
@@ -11,7 +12,103 @@ import (
 	"urgentry/internal/postgrescontrol"
 	scimcore "urgentry/internal/scim"
 	"urgentry/internal/sqlite"
+	"urgentry/internal/store"
 )
+
+type PrincipalShadowProjector struct {
+	controlDB *sql.DB
+	shadows   *sqlite.PrincipalShadowStore
+
+	mu          sync.Mutex
+	now         func() time.Time
+	syncFunc    func(context.Context) error
+	lastRun     time.Time
+	lastSuccess time.Time
+	lastError   string
+	runs        uint64
+}
+
+func NewPrincipalShadowProjector(controlDB *sql.DB, shadows *sqlite.PrincipalShadowStore) *PrincipalShadowProjector {
+	return &PrincipalShadowProjector{
+		controlDB: controlDB,
+		shadows:   shadows,
+		now:       time.Now,
+	}
+}
+
+func (p *PrincipalShadowProjector) Sync(ctx context.Context) error {
+	if p == nil || p.controlDB == nil || p.shadows == nil {
+		return nil
+	}
+	syncFunc := p.syncFunc
+	if syncFunc == nil {
+		syncFunc = func(ctx context.Context) error {
+			return syncPostgresControlPlaneShadows(ctx, p.controlDB, p.shadows)
+		}
+	}
+	err := syncFunc(ctx)
+	p.record(err)
+	return err
+}
+
+func (p *PrincipalShadowProjector) SyncWithRetry(ctx context.Context, timeout time.Duration) error {
+	if p == nil {
+		return nil
+	}
+	return retrySQLiteBusy(timeout, func() error {
+		return p.Sync(ctx)
+	})
+}
+
+func (p *PrincipalShadowProjector) SyncBootstrapUser(ctx context.Context, authStore *postgrescontrol.AuthStore, email, password string) error {
+	if p == nil || authStore == nil || p.shadows == nil {
+		return nil
+	}
+	err := syncBootstrapUserShadow(ctx, authStore, p.shadows, email, password)
+	p.record(err)
+	return err
+}
+
+func (p *PrincipalShadowProjector) OperatorCheck(maxAge time.Duration) sqlite.OperatorCheck {
+	return sqlite.OperatorCheck{
+		Name: "principal-shadow-projector",
+		Check: func(context.Context) (store.OperatorServiceStatus, error) {
+			return p.Status(maxAge), nil
+		},
+	}
+}
+
+func (p *PrincipalShadowProjector) Status(maxAge time.Duration) store.OperatorServiceStatus {
+	if p == nil || p.controlDB == nil || p.shadows == nil {
+		return store.OperatorServiceStatus{Name: "principal-shadow-projector", Status: "skipped", Detail: "not configured"}
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	now := p.now()
+	switch {
+	case p.lastError != "":
+		return store.OperatorServiceStatus{Name: "principal-shadow-projector", Status: "error", Detail: "last sync failed"}
+	case p.lastSuccess.IsZero():
+		return store.OperatorServiceStatus{Name: "principal-shadow-projector", Status: "warn", Detail: "not synced"}
+	case maxAge > 0 && now.Sub(p.lastSuccess) > maxAge:
+		return store.OperatorServiceStatus{Name: "principal-shadow-projector", Status: "warn", Detail: "last sync stale"}
+	default:
+		return store.OperatorServiceStatus{Name: "principal-shadow-projector", Status: "ok", Detail: "last success " + p.lastSuccess.UTC().Format(time.RFC3339)}
+	}
+}
+
+func (p *PrincipalShadowProjector) record(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.runs++
+	p.lastRun = p.now()
+	if err != nil {
+		p.lastError = err.Error()
+		return
+	}
+	p.lastError = ""
+	p.lastSuccess = p.lastRun
+}
 
 type shadowingAuthStore struct {
 	base    *postgrescontrol.AuthStore

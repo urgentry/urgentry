@@ -70,6 +70,10 @@ type readyResponse struct {
 	Checks []readyCheckResult `json:"checks"`
 }
 
+func readyError(name, detail string) readyCheckResult {
+	return readyCheckResult{Name: name, Status: "error", Detail: detail}
+}
+
 // Deps holds all dependencies for the HTTP server.
 type Deps struct {
 	KeyStore    auth.KeyStore
@@ -227,7 +231,7 @@ func BuildServer(role string, cfg config.Config, deps Deps) (http.Handler, error
 		// Database — required for all roles.
 		if deps.DB != nil {
 			if err := deps.DB.PingContext(ctx); err != nil {
-				checks = append(checks, readyCheckResult{Name: "database", Status: "error", Detail: err.Error()})
+				checks = append(checks, readyError("database", "unreachable"))
 				healthy = false
 			} else {
 				checks = append(checks, readyCheckResult{Name: "database", Status: "ok"})
@@ -237,12 +241,12 @@ func BuildServer(role string, cfg config.Config, deps Deps) (http.Handler, error
 		// Queue (NATS/JetStream) — critical for ingest, worker, and all roles.
 		if needsQueue(role) && strings.EqualFold(strings.TrimSpace(cfg.AsyncBackend), "jetstream") {
 			if strings.TrimSpace(cfg.NATSURL) == "" {
-				checks = append(checks, readyCheckResult{Name: "queue", Status: "error", Detail: "missing nats url"})
+				checks = append(checks, readyError("queue", "not configured"))
 				healthy = false
 			} else {
 				nc, err := nats.Connect(cfg.NATSURL, nats.Name("urgentry-readyz"), nats.MaxReconnects(0), nats.Timeout(2*time.Second))
 				if err != nil {
-					checks = append(checks, readyCheckResult{Name: "queue", Status: "error", Detail: err.Error()})
+					checks = append(checks, readyError("queue", "unreachable"))
 					healthy = false
 				} else {
 					nc.Close()
@@ -251,7 +255,7 @@ func BuildServer(role string, cfg config.Config, deps Deps) (http.Handler, error
 			}
 			if deps.QueueDB != nil {
 				if err := deps.QueueDB.PingContext(ctx); err != nil {
-					checks = append(checks, readyCheckResult{Name: "queue_database", Status: "error", Detail: err.Error()})
+					checks = append(checks, readyError("queue_database", "unreachable"))
 					healthy = false
 				} else {
 					checks = append(checks, readyCheckResult{Name: "queue_database", Status: "ok"})
@@ -262,18 +266,18 @@ func BuildServer(role string, cfg config.Config, deps Deps) (http.Handler, error
 		// Cache (Valkey) — critical for api and all roles when configured.
 		if needsCache(role) && strings.EqualFold(strings.TrimSpace(cfg.CacheBackend), "valkey") {
 			if strings.TrimSpace(cfg.ValkeyURL) == "" {
-				checks = append(checks, readyCheckResult{Name: "cache", Status: "error", Detail: "missing valkey url"})
+				checks = append(checks, readyError("cache", "not configured"))
 				healthy = false
 			} else {
 				opts, err := redis.ParseURL(cfg.ValkeyURL)
 				if err != nil {
-					checks = append(checks, readyCheckResult{Name: "cache", Status: "error", Detail: err.Error()})
+					checks = append(checks, readyError("cache", "invalid configuration"))
 					healthy = false
 				} else {
 					opts.DisableIdentity = true
 					client := redis.NewClient(opts)
 					if err := client.Ping(ctx).Err(); err != nil {
-						checks = append(checks, readyCheckResult{Name: "cache", Status: "error", Detail: err.Error()})
+						checks = append(checks, readyError("cache", "unreachable"))
 						healthy = false
 					} else {
 						checks = append(checks, readyCheckResult{Name: "cache", Status: "ok"})

@@ -35,6 +35,41 @@ func TestAPIOrgMetricAlertRules_SQLite(t *testing.T) {
 	if created.ProjectID != "test-proj-id" || created.Metric != "error_count" || created.TimeWindowSecs != 300 {
 		t.Fatalf("unexpected create response: %+v", created)
 	}
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('test-proj-id-2', 'test-org-id', 'test-project-two', 'Test Project Two', 'go', 'active')`); err != nil {
+		t.Fatalf("insert second project: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO organizations (id, slug, name) VALUES ('other-org-id', 'other-org', 'Other Org')`); err != nil {
+		t.Fatalf("insert other org: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('other-proj-id', 'other-org-id', 'other-project', 'Other Project', 'go', 'active')`); err != nil {
+		t.Fatalf("insert other project: %v", err)
+	}
+	metricStore := sqlite.NewMetricAlertStore(db)
+	second := &alert.MetricAlertRule{
+		ID:             "rule-second-project",
+		ProjectID:      "test-proj-id-2",
+		Name:           "Second project errors",
+		Metric:         "error_count",
+		Threshold:      10,
+		ThresholdType:  "above",
+		TimeWindowSecs: 300,
+		Status:         "active",
+	}
+	if err := metricStore.CreateMetricAlertRule(t.Context(), second); err != nil {
+		t.Fatalf("create second project rule: %v", err)
+	}
+	if err := metricStore.CreateMetricAlertRule(t.Context(), &alert.MetricAlertRule{
+		ID:             "rule-other-org",
+		ProjectID:      "other-proj-id",
+		Name:           "Other org errors",
+		Metric:         "error_count",
+		Threshold:      10,
+		ThresholdType:  "above",
+		TimeWindowSecs: 300,
+		Status:         "active",
+	}); err != nil {
+		t.Fatalf("create other org rule: %v", err)
+	}
 
 	list := authzJSONRequest(t, ts, http.MethodGet, "/api/0/organizations/test-org/alert-rules/", pat, nil)
 	if list.StatusCode != http.StatusOK {
@@ -42,7 +77,11 @@ func TestAPIOrgMetricAlertRules_SQLite(t *testing.T) {
 	}
 	var listed []alert.MetricAlertRule
 	decodeBody(t, list, &listed)
-	if len(listed) != 1 || listed[0].ID != created.ID {
+	listedIDs := map[string]bool{}
+	for _, item := range listed {
+		listedIDs[item.ID] = true
+	}
+	if len(listed) != 2 || !listedIDs[created.ID] || !listedIDs[second.ID] || listedIDs["rule-other-org"] {
 		t.Fatalf("unexpected list response: %+v", listed)
 	}
 

@@ -38,8 +38,8 @@ type Rule struct {
 	Conditions  []Condition     `json:"conditions"`
 	Actions     []Action        `json:"actions"`
 	Filters     []Filter        `json:"filters"`
-	Frequency   int             `json:"frequency"`              // minutes between alerts (throttle)
-	Environment string          `json:"environment,omitempty"`  // filter by environment ("" = all)
+	Frequency   int             `json:"frequency"`             // minutes between alerts (throttle)
+	Environment string          `json:"environment,omitempty"` // filter by environment ("" = all)
 	Config      json.RawMessage `json:"config,omitempty"`
 	CreatedAt   time.Time       `json:"dateCreated"`
 	UpdatedAt   time.Time       `json:"dateModified"`
@@ -135,14 +135,14 @@ type MetricAlertRule struct {
 	Metric           string     `json:"metric"`                     // "error_count", "transaction_count", "p95_latency", "failure_rate", "apdex", "custom_metric"
 	CustomMetricName string     `json:"customMetricName,omitempty"` // bucket name when Metric == "custom_metric"
 	Threshold        float64    `json:"threshold"`                  // trigger threshold
-	ThresholdType    string     `json:"thresholdType"`     // "above", "below"
-	TimeWindowSecs   int        `json:"timeWindowSecs"`    // evaluation window: 60, 300, 600, 900, 1800, 3600
-	ResolveThreshold float64    `json:"resolveThreshold"`  // auto-resolve when metric crosses this (0 = no auto-resolve)
-	Environment      string     `json:"environment"`       // filter by environment ("" = all)
-	Status           string     `json:"status"`            // "active", "disabled"
-	TriggerActions   []string   `json:"triggerActions"`    // JSON array of action configs (email, webhook, slack URLs)
-	State            string     `json:"state"`             // "ok", "triggered", "resolved"
-	LastTriggeredAt  *time.Time `json:"lastTriggeredAt"`   // last time this rule fired
+	ThresholdType    string     `json:"thresholdType"`              // "above", "below"
+	TimeWindowSecs   int        `json:"timeWindowSecs"`             // evaluation window: 60, 300, 600, 900, 1800, 3600
+	ResolveThreshold float64    `json:"resolveThreshold"`           // auto-resolve when metric crosses this (0 = no auto-resolve)
+	Environment      string     `json:"environment"`                // filter by environment ("" = all)
+	Status           string     `json:"status"`                     // "active", "disabled"
+	TriggerActions   []string   `json:"triggerActions"`             // JSON array of action configs (email, webhook, slack URLs)
+	State            string     `json:"state"`                      // "ok", "triggered", "resolved"
+	LastTriggeredAt  *time.Time `json:"lastTriggeredAt"`            // last time this rule fired
 	CreatedAt        time.Time  `json:"dateCreated"`
 	UpdatedAt        time.Time  `json:"dateModified"`
 }
@@ -152,6 +152,7 @@ type MetricAlertRuleStore interface {
 	CreateMetricAlertRule(ctx context.Context, r *MetricAlertRule) error
 	GetMetricAlertRule(ctx context.Context, id string) (*MetricAlertRule, error)
 	ListMetricAlertRules(ctx context.Context, projectID string) ([]*MetricAlertRule, error)
+	ListMetricAlertRulesForProjects(ctx context.Context, projectIDs []string) ([]*MetricAlertRule, error)
 	ListAllActiveMetricAlertRules(ctx context.Context) ([]*MetricAlertRule, error)
 	UpdateMetricAlertRule(ctx context.Context, r *MetricAlertRule) error
 	DeleteMetricAlertRule(ctx context.Context, id string) error

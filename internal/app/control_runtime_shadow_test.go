@@ -2,7 +2,11 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"urgentry/internal/auth"
 	"urgentry/internal/controlplane"
@@ -185,5 +189,69 @@ func TestShadowingAdminStoreSyncsMembershipLifecycle(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("removed membership count = %d, want 0", count)
+	}
+}
+
+func TestPrincipalShadowProjectorStatusTransitions(t *testing.T) {
+	now := time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC)
+	projector := &PrincipalShadowProjector{
+		controlDB: &sql.DB{},
+		shadows:   sqlite.NewPrincipalShadowStore(nil),
+		now: func() time.Time {
+			return now
+		},
+	}
+
+	status := projector.Status(10 * time.Minute)
+	if status.Status != "warn" || status.Detail != "not synced" {
+		t.Fatalf("initial status = %+v, want warn/not synced", status)
+	}
+
+	projector.record(errors.New("database is locked: dsn=postgres://secret@example"))
+	status = projector.Status(10 * time.Minute)
+	if status.Status != "error" || status.Detail != "last sync failed" {
+		t.Fatalf("error status = %+v, want generic failure detail", status)
+	}
+	if strings.Contains(status.Detail, "postgres://") {
+		t.Fatalf("error status detail leaked backend detail: %q", status.Detail)
+	}
+
+	projector.record(nil)
+	status = projector.Status(10 * time.Minute)
+	if status.Status != "ok" || !strings.Contains(status.Detail, "2026-05-17T12:00:00Z") {
+		t.Fatalf("success status = %+v, want last success timestamp", status)
+	}
+
+	now = now.Add(11 * time.Minute)
+	status = projector.Status(10 * time.Minute)
+	if status.Status != "warn" || status.Detail != "last sync stale" {
+		t.Fatalf("stale status = %+v, want warn/stale", status)
+	}
+}
+
+func TestPrincipalShadowProjectorRetriesSQLiteBusy(t *testing.T) {
+	attempts := 0
+	projector := &PrincipalShadowProjector{
+		controlDB: &sql.DB{},
+		shadows:   sqlite.NewPrincipalShadowStore(nil),
+		now:       time.Now,
+		syncFunc: func(context.Context) error {
+			attempts++
+			if attempts < 3 {
+				return errors.New("database is locked")
+			}
+			return nil
+		},
+	}
+
+	if err := projector.SyncWithRetry(context.Background(), time.Second); err != nil {
+		t.Fatalf("SyncWithRetry() error = %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("attempts = %d, want 3", attempts)
+	}
+	status := projector.Status(time.Minute)
+	if status.Status != "ok" {
+		t.Fatalf("status after retry = %+v, want ok", status)
 	}
 }

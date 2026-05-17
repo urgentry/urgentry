@@ -184,7 +184,7 @@ func EnvelopeHandlerWithDeps(deps IngestDeps) http.Handler {
 			if deps.Metrics != nil {
 				deps.Metrics.RecordIngest(len(body), err)
 			}
-			writeErr(http.StatusInternalServerError, err.Error(), err)
+			writeErr(http.StatusInternalServerError, "failed to process envelope side effects", err)
 			return
 		}
 
