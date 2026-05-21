@@ -141,6 +141,23 @@ type BreadcrumbList struct {
 	Values []Breadcrumb `json:"values"`
 }
 
+func (b *BreadcrumbList) UnmarshalJSON(data []byte) error {
+	var values []Breadcrumb
+	if err := json.Unmarshal(data, &values); err == nil {
+		b.Values = values
+		return nil
+	}
+
+	var wrapped struct {
+		Values []Breadcrumb `json:"values"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err != nil {
+		return err
+	}
+	b.Values = wrapped.Values
+	return nil
+}
+
 type Breadcrumb struct {
 	Timestamp any            `json:"timestamp,omitempty"` // string or float64
 	Type      string         `json:"type,omitempty"`
