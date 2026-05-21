@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -226,8 +228,27 @@ type sessionAggregate struct {
 }
 
 type clientReportPayload struct {
-	Timestamp       string                       `json:"timestamp"`
+	Timestamp       clientReportTimestamp        `json:"timestamp"`
 	DiscardedEvents []clientReportDiscardedEvent `json:"discarded_events"`
+}
+
+type clientReportTimestamp string
+
+func (t *clientReportTimestamp) UnmarshalJSON(data []byte) error {
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		*t = clientReportTimestamp(text)
+		return nil
+	}
+
+	value, err := strconv.ParseFloat(strings.TrimSpace(string(data)), 64)
+	if err != nil {
+		return err
+	}
+	seconds, fraction := math.Modf(value)
+	nanos := int64(fraction * 1e9)
+	*t = clientReportTimestamp(time.Unix(int64(seconds), nanos).UTC().Format(time.RFC3339Nano))
+	return nil
 }
 
 type clientReportDiscardedEvent struct {
@@ -432,7 +453,7 @@ func saveClientReport(ctx context.Context, store *sqlite.OutcomeStore, projectID
 		return
 	}
 
-	recordedAt := parseSessionTime(report.Timestamp)
+	recordedAt := parseSessionTime(string(report.Timestamp))
 	for idx, discarded := range report.DiscardedEvents {
 		if strings.TrimSpace(discarded.Category) == "" || strings.TrimSpace(discarded.Reason) == "" {
 			continue
