@@ -6,6 +6,22 @@ The release workflow requires a section for every published tag.
 
 ## [Unreleased]
 
+## [v0.2.12] - 2026-05-22
+
+### Added
+
+- Added web project creation at `/manage/projects/`, including default public key provisioning and a redirect to the new project's Keys & DSN page.
+- Added a topbar project selector so project-scoped analytics pages can switch between accessible projects.
+
+### Changed
+
+- Hardened the public release workflow around current GitHub Actions versions and Dependabot coverage.
+
+### Fixed
+
+- Kept generated SDK DSNs parseable by Sentry SDKs while preserving internal project lookup behavior.
+- Preserved selected project scope across web pages through the project selector cookie.
+
 ## [v0.2.11] - 2026-05-17
 
 ### Security
