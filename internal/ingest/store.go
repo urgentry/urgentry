@@ -83,10 +83,7 @@ func StoreHandlerWithMetrics(pipe *pipeline.Pipeline, met *metrics.Metrics) http
 
 		// Enqueue for async processing (normalize -> group -> persist).
 		if pipe != nil {
-			projectID := r.PathValue("project_id")
-			if projectID == "" {
-				projectID = "1"
-			}
+			projectID := canonicalProjectID(r)
 			enqueueStarted := time.Now()
 			ok := pipe.EnqueueContext(r.Context(), pipeline.Item{
 				ProjectID: projectID,

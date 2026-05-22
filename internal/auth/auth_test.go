@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"urgentry/pkg/dsn"
 )
 
 func TestParseSentryAuth_Valid(t *testing.T) {
@@ -133,7 +135,7 @@ func TestMiddleware_ValidHeader(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "abc", ProjectID: "42", Status: "active"})
 	handler := testMiddleware(store)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/42/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/42/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=abc,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -150,7 +152,7 @@ func TestMiddleware_QueryParamFallback(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "qkey", ProjectID: "7", Status: "active"})
 	handler := testMiddleware(store)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/7/store/?sentry_key=qkey", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/7/store/?sentry_key=qkey", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -166,7 +168,7 @@ func TestMiddleware_ProjectMismatch(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "abc", ProjectID: "42", Status: "active"})
 	handler := testMiddleware(store)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/99/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/99/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=abc,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -176,11 +178,29 @@ func TestMiddleware_ProjectMismatch(t *testing.T) {
 	}
 }
 
+func TestMiddleware_NumericProjectAlias(t *testing.T) {
+	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "abc", ProjectID: "default-project", Status: "active"})
+	handler := testMiddleware(store)(okHandler)
+	publicProjectID := dsn.PublicProjectID("default-project")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/"+publicProjectID+"/store/", nil)
+	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=abc,sentry_version=7")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if got := w.Header().Get("X-Project-ID"); got != "default-project" {
+		t.Fatalf("X-Project-ID = %q, want %q", got, "default-project")
+	}
+}
+
 func TestMiddleware_MissingKey(t *testing.T) {
 	store := NewMemoryKeyStore()
 	handler := testMiddleware(store)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/1/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/1/store/", nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -196,7 +216,7 @@ func TestMiddleware_UnknownKey(t *testing.T) {
 	store := NewMemoryKeyStore()
 	handler := testMiddleware(store)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/1/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/1/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=unknown,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -210,7 +230,7 @@ func TestMiddleware_DisabledKey(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "dis", ProjectID: "3", Status: "disabled"})
 	handler := testMiddleware(store)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/3/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/3/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=dis,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -228,7 +248,7 @@ func TestMiddleware_RateLimited(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "rl", ProjectID: "9", Status: "active", RateLimit: 1})
 	handler := Middleware(store, NewFixedWindowRateLimiter(time.Minute), 60)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/9/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/9/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=rl,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -236,7 +256,7 @@ func TestMiddleware_RateLimited(t *testing.T) {
 		t.Fatalf("first request status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	req = httptest.NewRequest(http.MethodPost,"/api/9/store/", nil)
+	req = httptest.NewRequest(http.MethodPost, "/api/9/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=rl,sentry_version=7")
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -256,7 +276,7 @@ func TestMiddleware_SuccessWithoutLimiterOmitsRateLimitHeader(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "nolimit", ProjectID: "10", Status: "active"})
 	handler := Middleware(store, nil, 60)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/10/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/10/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=nolimit,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -273,7 +293,7 @@ func TestMiddleware_SuccessWithLimiterSetsEmptyRateLimitHeader(t *testing.T) {
 	store := NewMemoryKeyStore(&ProjectKey{PublicKey: "rl-ok", ProjectID: "11", Status: "active", RateLimit: 10})
 	handler := Middleware(store, NewFixedWindowRateLimiter(time.Minute), 60)(okHandler)
 
-	req := httptest.NewRequest(http.MethodPost,"/api/11/store/", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/11/store/", nil)
 	req.Header.Set("X-Sentry-Auth", "Sentry sentry_key=rl-ok,sentry_version=7")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)

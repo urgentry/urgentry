@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"urgentry/pkg/dsn"
 )
 
 const testToken = "Bearer gpat_test_admin_token"
@@ -447,6 +449,13 @@ func TestListKeys(t *testing.T) {
 	if keys[0].DSN.Public == "" {
 		t.Fatal("expected DSN public to be set")
 	}
+	parsed, err := dsn.Parse(keys[0].DSN.Public)
+	if err != nil {
+		t.Fatalf("parse public DSN: %v", err)
+	}
+	if parsed.ProjectID != dsn.PublicProjectID("test-proj-id") {
+		t.Fatalf("DSN project ID = %q, want public numeric ID for test-proj-id", parsed.ProjectID)
+	}
 	if keys[0].DSN.Minidump == "" || keys[0].DSN.Security == "" || keys[0].DSN.OTLPLogs == "" {
 		t.Fatalf("expected expanded DSN URLs, got %+v", keys[0].DSN)
 	}
@@ -470,6 +479,13 @@ func TestCreateKey(t *testing.T) {
 	}
 	if key.DSN.Public == "" {
 		t.Fatal("expected DSN public to be set")
+	}
+	parsed, err := dsn.Parse(key.DSN.Public)
+	if err != nil {
+		t.Fatalf("parse public DSN: %v", err)
+	}
+	if parsed.ProjectID != dsn.PublicProjectID("test-proj-id") {
+		t.Fatalf("DSN project ID = %q, want public numeric ID for test-proj-id", parsed.ProjectID)
 	}
 	if key.DSN.Secret == "" {
 		t.Fatal("expected DSN secret to be set")

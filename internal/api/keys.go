@@ -10,6 +10,7 @@ import (
 	"urgentry/internal/httputil"
 	"urgentry/internal/requestmeta"
 	"urgentry/internal/store"
+	"urgentry/pkg/dsn"
 )
 
 // handleListKeys handles GET /api/0/projects/{org_slug}/{proj_slug}/keys/.
@@ -195,9 +196,10 @@ func apiProjectKeyFromMeta(r *http.Request, rec store.ProjectKeyMeta) *ProjectKe
 
 func apiProjectKeyDSNURLs(r *http.Request, rec store.ProjectKeyMeta) DSNURLs {
 	baseURL := strings.TrimSuffix(baseURLFromRequest(r), "/")
-	publicDSN := fmt.Sprintf("%s://%s@%s/%s", dsnScheme(baseURL), rec.PublicKey, dsnHost(baseURL), rec.ProjectID)
-	secretDSN := fmt.Sprintf("%s://%s:%s@%s/%s", dsnScheme(baseURL), rec.PublicKey, rec.SecretKey, dsnHost(baseURL), rec.ProjectID)
-	apiPath := fmt.Sprintf("%s/api/%s", baseURL, rec.ProjectID)
+	publicProjectID := dsn.PublicProjectID(rec.ProjectID)
+	publicDSN := fmt.Sprintf("%s://%s@%s/%s", dsnScheme(baseURL), rec.PublicKey, dsnHost(baseURL), publicProjectID)
+	secretDSN := fmt.Sprintf("%s://%s:%s@%s/%s", dsnScheme(baseURL), rec.PublicKey, rec.SecretKey, dsnHost(baseURL), publicProjectID)
+	apiPath := fmt.Sprintf("%s/api/%s", baseURL, publicProjectID)
 	integrationPath := apiPath + "/integration/"
 	return DSNURLs{
 		Public:      publicDSN,

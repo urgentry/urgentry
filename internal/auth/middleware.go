@@ -10,6 +10,7 @@ import (
 
 	"urgentry/internal/httputil"
 	"urgentry/internal/metrics"
+	"urgentry/pkg/dsn"
 )
 
 type contextKey int
@@ -52,7 +53,7 @@ func MiddlewareWithMetrics(store KeyStore, limiter RateLimiter, defaultRateLimit
 			if projectID == "" {
 				projectID, err = ExtractProjectID(r.URL.Path)
 			}
-			if err != nil || projectID == "" || pk.ProjectID != projectID {
+			if err != nil || projectID == "" || !dsn.ProjectIDMatches(pk.ProjectID, projectID) {
 				httputil.WriteError(w, http.StatusUnauthorized, "Project key does not match the requested project")
 				return
 			}

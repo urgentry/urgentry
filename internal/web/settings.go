@@ -12,6 +12,7 @@ import (
 	"urgentry/internal/requestmeta"
 	"urgentry/internal/sqlite"
 	sharedstore "urgentry/internal/store"
+	"urgentry/pkg/dsn"
 )
 
 // ---------------------------------------------------------------------------
@@ -309,8 +310,8 @@ func (h *Handler) settingsPage(w http.ResponseWriter, r *http.Request) {
 
 func projectStoreDSN(r *http.Request, publicKey, projectID string) string {
 	publicKey = strings.TrimSpace(publicKey)
-	projectID = strings.TrimSpace(projectID)
-	if publicKey == "" || projectID == "" {
+	publicProjectID := dsn.PublicProjectID(projectID)
+	if publicKey == "" || publicProjectID == "" {
 		return ""
 	}
 	base := strings.TrimSpace(os.Getenv("URGENTRY_BASE_URL"))
@@ -324,11 +325,11 @@ func projectStoreDSN(r *http.Request, publicKey, projectID string) string {
 	}
 	u, err := url.Parse(base)
 	if err != nil || strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Host) == "" {
-		return fmt.Sprintf("http://%s@localhost:8080/api/%s/store/", publicKey, projectID)
+		return fmt.Sprintf("http://%s@localhost:8080/%s", publicKey, publicProjectID)
 	}
 	u.User = url.User(publicKey)
 	basePath := strings.TrimRight(u.Path, "/")
-	u.Path = basePath + "/api/" + projectID + "/store/"
+	u.Path = basePath + "/" + publicProjectID
 	u.RawPath = ""
 	u.RawQuery = ""
 	u.Fragment = ""

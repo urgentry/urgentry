@@ -67,10 +67,7 @@ func MinidumpHandlerWithDeps(deps IngestDeps) http.Handler {
 			return
 		}
 
-		projectID := r.PathValue("project_id")
-		if projectID == "" {
-			projectID = "1"
-		}
+		projectID := canonicalProjectID(r)
 		eventPayload, eventID, err := buildMinidumpEvent(r, header)
 		if err != nil {
 			if deps.Metrics != nil {

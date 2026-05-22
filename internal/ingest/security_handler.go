@@ -36,10 +36,7 @@ func SecurityReportHandler(pipe *pipeline.Pipeline, met *metrics.Metrics) http.H
 			httputil.WriteError(w, http.StatusBadRequest, "invalid security report payload")
 			return
 		}
-		projectID := r.PathValue("project_id")
-		if projectID == "" {
-			projectID = "1"
-		}
+		projectID := canonicalProjectID(r)
 		for _, item := range items {
 			if pipe == nil || !pipe.EnqueueContext(r.Context(), pipeline.Item{ProjectID: projectID, RawEvent: item}) {
 				if met != nil {

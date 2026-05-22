@@ -48,10 +48,7 @@ func OTLPMetricsHandler(store *sqlite.MetricBucketStore, met *metrics.Metrics) h
 			return
 		}
 
-		projectID := r.PathValue("project_id")
-		if projectID == "" {
-			projectID = "1"
-		}
+		projectID := canonicalProjectID(r)
 
 		if len(events) > 0 && store != nil {
 			buckets := make([]*sqlite.MetricBucket, 0, len(events))
@@ -87,4 +84,3 @@ func OTLPMetricsHandler(store *sqlite.MetricBucketStore, met *metrics.Metrics) h
 		writeOTLPJSON(w, contentType, http.StatusOK, otlpTraceExportResponse{})
 	})
 }
-

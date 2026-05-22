@@ -10,6 +10,7 @@ import (
 	"urgentry/internal/sqlite"
 	"urgentry/internal/store"
 	profilefixtures "urgentry/internal/testfixtures/profiles"
+	"urgentry/pkg/dsn"
 )
 
 func TestSettingsAndReleaseDetailPages(t *testing.T) {
@@ -258,6 +259,12 @@ func TestSettingsPage(t *testing.T) {
 	}
 	if !strings.Contains(body, "abc123testkey") {
 		t.Error("expected DSN key in settings page")
+	}
+	if !strings.Contains(body, "abc123testkey@") || !strings.Contains(body, "/"+dsn.PublicProjectID("proj-1")) {
+		t.Error("expected settings DSN to use the numeric SDK project ID")
+	}
+	if strings.Contains(body, "/api/proj-1/store/") {
+		t.Error("settings DSN should not use the legacy store endpoint format")
 	}
 }
 

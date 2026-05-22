@@ -115,10 +115,7 @@ func EnvelopeHandlerWithDeps(deps IngestDeps) http.Handler {
 			return
 		}
 
-		projectID := r.PathValue("project_id")
-		if projectID == "" {
-			projectID = "1"
-		}
+		projectID := canonicalProjectID(r)
 
 		ctx := r.Context()
 

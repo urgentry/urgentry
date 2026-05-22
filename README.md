@@ -92,7 +92,7 @@ If you only know that you need Sentry compatibility on one machine, start with T
 - Issue tracking with grouping, merge and unmerge, assignment, comments, and subscriptions
 - Discover, logs, traces, replay, and profiling surfaces in the same product
 - Alerts and cron monitor support
-- A web UI plus API routes that cover existing Sentry SDK clients on the common paths
+- A web UI plus API routes that cover existing Sentry SDK clients on the common paths, including generated SDK DSNs with numeric project IDs
 - One codebase for both the single-node and split-role paths
 
 ## Downloads and releases
