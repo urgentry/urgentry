@@ -3,7 +3,9 @@ package web
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
 	"runtime"
+	"strings"
 	"time"
 
 	"urgentry/internal/auth"
@@ -161,16 +163,36 @@ type manageProject struct {
 	DateCreated string
 }
 
+type manageProjectTeamOption struct {
+	Value    string
+	OrgSlug  string
+	TeamSlug string
+	Label    string
+}
+
+type manageCreateProjectForm struct {
+	Name      string
+	Slug      string
+	TeamValue string
+	Platform  string
+	Error     string
+	Teams     []manageProjectTeamOption
+}
+
 type manageProjectsData struct {
 	manageBase
-	Projects []manageProject
+	Projects   []manageProject
+	CreateForm manageCreateProjectForm
 }
 
 func (h *Handler) manageProjectsPage(w http.ResponseWriter, r *http.Request) {
 	if h.manageGuard(w, r) == nil {
 		return
 	}
+	h.renderManageProjectsPage(w, r, manageCreateProjectForm{Platform: "go"})
+}
 
+func (h *Handler) renderManageProjectsPage(w http.ResponseWriter, r *http.Request, form manageCreateProjectForm) {
 	// ListProjects with empty org returns all projects.
 	projects, err := h.catalog.ListProjects(r.Context(), "")
 	if err != nil {
@@ -190,6 +212,12 @@ func (h *Handler) manageProjectsPage(w http.ResponseWriter, r *http.Request) {
 			DateCreated: timeAgo(p.DateCreated),
 		})
 	}
+	teams, err := h.manageProjectTeamOptions(r)
+	if err != nil {
+		http.Error(w, "Failed to load teams", http.StatusInternalServerError)
+		return
+	}
+	form.Teams = teams
 
 	h.render(w, "manage-projects.html", manageProjectsData{
 		manageBase: manageBase{
@@ -199,8 +227,122 @@ func (h *Handler) manageProjectsPage(w http.ResponseWriter, r *http.Request) {
 			Environment:  readSelectedEnvironment(r),
 			Environments: h.loadEnvironments(r.Context()),
 		},
-		Projects: items,
+		Projects:   items,
+		CreateForm: form,
 	})
+}
+
+func (h *Handler) createManagedProject(w http.ResponseWriter, r *http.Request) {
+	if h.manageGuard(w, r) == nil {
+		return
+	}
+	if h.authz != nil && !h.authz.ValidateCSRF(r) {
+		writeWebForbidden(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		writeWebBadRequest(w, r, "Invalid form")
+		return
+	}
+
+	form := manageCreateProjectForm{
+		Name:      strings.TrimSpace(r.FormValue("name")),
+		Slug:      strings.TrimSpace(r.FormValue("slug")),
+		TeamValue: strings.TrimSpace(r.FormValue("team")),
+		Platform:  strings.TrimSpace(r.FormValue("platform")),
+	}
+	if form.Platform == "" {
+		form.Platform = "go"
+	}
+	if form.Name == "" {
+		h.renderManageProjectsPage(w, r, withCreateProjectError(form, "Project name is required."))
+		return
+	}
+	orgSlug, teamSlug, ok := splitProjectSwitcherValue(form.TeamValue)
+	if !ok {
+		h.renderManageProjectsPage(w, r, withCreateProjectError(form, "Team is required."))
+		return
+	}
+	slug := normalizeProjectSlug(form.Slug)
+	if slug == "" {
+		slug = normalizeProjectSlug(form.Name)
+	}
+	if slug == "" {
+		h.renderManageProjectsPage(w, r, withCreateProjectError(form, "Project slug must contain a letter or number."))
+		return
+	}
+	form.Slug = slug
+	if h.authz != nil && !h.canAdminOrgByProject(r, orgSlug) {
+		writeWebForbidden(w, r)
+		return
+	}
+
+	existing, err := h.catalog.GetProject(r.Context(), orgSlug, slug)
+	if err != nil {
+		http.Error(w, "Failed to check project slug", http.StatusInternalServerError)
+		return
+	}
+	if existing != nil {
+		h.renderManageProjectsPage(w, r, withCreateProjectError(form, "A project with that slug already exists in this organization."))
+		return
+	}
+
+	project, err := h.catalog.CreateProject(r.Context(), orgSlug, teamSlug, sharedstore.ProjectCreateInput{
+		Name:     form.Name,
+		Slug:     slug,
+		Platform: form.Platform,
+	})
+	if err != nil {
+		h.renderManageProjectsPage(w, r, withCreateProjectError(form, "Failed to create project."))
+		return
+	}
+	if project == nil {
+		h.renderManageProjectsPage(w, r, withCreateProjectError(form, "Organization or team not found."))
+		return
+	}
+	if _, err := h.catalog.CreateProjectKey(r.Context(), project.OrgSlug, project.Slug, "Default"); err != nil {
+		http.Error(w, "Failed to create project key", http.StatusInternalServerError)
+		return
+	}
+
+	setSelectedProjectCookie(w, project.OrgSlug, project.Slug)
+	http.Redirect(w, r, "/settings/project/"+url.PathEscape(project.Slug)+"/keys/", http.StatusSeeOther)
+}
+
+func withCreateProjectError(form manageCreateProjectForm, message string) manageCreateProjectForm {
+	form.Error = message
+	return form
+}
+
+func (h *Handler) canAdminOrgByProject(r *http.Request, orgSlug string) bool {
+	projects, err := h.catalog.ListProjects(r.Context(), orgSlug)
+	if err != nil || len(projects) == 0 {
+		return false
+	}
+	return h.authz == nil || h.authz.AuthorizeProject(r, projects[0].ID, auth.ScopeOrgAdmin) == nil
+}
+
+func (h *Handler) manageProjectTeamOptions(r *http.Request) ([]manageProjectTeamOption, error) {
+	orgs, err := h.catalog.ListOrganizations(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	options := []manageProjectTeamOption{}
+	for _, org := range orgs {
+		teams, err := h.catalog.ListTeams(r.Context(), org.Slug)
+		if err != nil {
+			return nil, err
+		}
+		for _, team := range teams {
+			options = append(options, manageProjectTeamOption{
+				Value:    projectSwitcherValue(org.Slug, team.Slug),
+				OrgSlug:  org.Slug,
+				TeamSlug: team.Slug,
+				Label:    org.Slug + " / " + team.Slug,
+			})
+		}
+	}
+	return options, nil
 }
 
 // ---------------------------------------------------------------------------

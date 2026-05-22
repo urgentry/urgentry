@@ -366,6 +366,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /manage/{$}", wrap(http.HandlerFunc(h.manageDashboardPage)))
 	mux.Handle("GET /manage/organizations/{$}", wrap(http.HandlerFunc(h.manageOrganizationsPage)))
 	mux.Handle("GET /manage/projects/{$}", wrap(http.HandlerFunc(h.manageProjectsPage)))
+	mux.Handle("POST /manage/projects/{$}", wrap(http.HandlerFunc(h.createManagedProject)))
 	mux.Handle("GET /manage/users/{$}", wrap(http.HandlerFunc(h.manageUsersPage)))
 	mux.Handle("GET /manage/settings/{$}", wrap(http.HandlerFunc(h.manageSettingsPage)))
 	mux.Handle("GET /manage/status/{$}", wrap(http.HandlerFunc(h.manageStatusPage)))
@@ -407,6 +408,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/ui/searches/clone/{id}", wrap(http.HandlerFunc(h.cloneSearch)))
 	mux.Handle("DELETE /api/ui/searches/{id}", wrap(http.HandlerFunc(h.deleteSearch)))
 	mux.Handle("GET /api/ui/environments", wrap(http.HandlerFunc(h.listEnvironments)))
+	mux.Handle("GET /api/ui/projects", wrap(http.HandlerFunc(h.listUIProjects)))
 	mux.Handle("POST /api/0/projects/{org}/{proj}/star/", wrap(handleToggleStarProject(h)))
 	mux.Handle("GET /api/search", wrap(api.HandleSearch(h.webStore)))
 }

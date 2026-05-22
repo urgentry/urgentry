@@ -20,9 +20,10 @@ type pageScope struct {
 }
 
 type pageRequestState struct {
-	defaultScope pageScopeResult
-	replayScopes map[string]pageScopeResult
-	metrics      map[string]int
+	defaultScope            pageScopeResult
+	replayScopes            map[string]pageScopeResult
+	metrics                 map[string]int
+	selectedProjectSwitcher string
 }
 
 type pageScopeResult struct {
@@ -40,8 +41,9 @@ func withPageRequestState(handler http.Handler) http.Handler {
 			return
 		}
 		state := &pageRequestState{
-			replayScopes: make(map[string]pageScopeResult),
-			metrics:      make(map[string]int),
+			replayScopes:            make(map[string]pageScopeResult),
+			metrics:                 make(map[string]int),
+			selectedProjectSwitcher: selectedProjectSwitcherValue(r),
 		}
 		handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), pageRequestStateKey{}, state)))
 	})
@@ -66,6 +68,15 @@ func (h *Handler) defaultPageScope(ctx context.Context) (pageScope, error) {
 	if state := pageRequestStateFromContext(ctx); state != nil && state.defaultScope.loaded {
 		state.inc("default_page_scope.cache_hit")
 		return state.defaultScope.scope, state.defaultScope.err
+	}
+	if state := pageRequestStateFromContext(ctx); state != nil && state.selectedProjectSwitcher != "" {
+		scope, ok, err := h.selectedProjectScope(ctx, state.selectedProjectSwitcher)
+		if err != nil {
+			return h.cacheDefaultPageScope(ctx, pageScope{}, err)
+		}
+		if ok {
+			return h.cacheDefaultPageScope(ctx, scope, nil)
+		}
 	}
 
 	var (

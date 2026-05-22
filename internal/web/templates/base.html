@@ -34,6 +34,10 @@
     function urgentryCSRFToken() {
       return urgentryGetCookie('urgentry_csrf');
     }
+
+    function urgentrySetCookie(name, value) {
+      document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=' + (86400 * 365) + '; SameSite=Lax';
+    }
   </script>
 </head>
 <body>
@@ -55,6 +59,14 @@
           <kbd>⌘K</kbd>
         </div>
         <div class="topbar-right">
+          <form class="project-switcher" id="projectSwitcherForm" hidden>
+            <select class="filter-select project-switcher-select" id="globalProjectSwitcher" aria-label="Project" onchange="setGlobalProject(this.value)">
+              <option value="">Projects</option>
+            </select>
+            <a href="/manage/projects/" class="topbar-btn project-switcher-settings" id="globalProjectSettingsLink" aria-label="Project settings" title="Project settings">
+              <i data-feather="settings" style="width:14px;height:14px;"></i>
+            </a>
+          </form>
           {{if .Environments}}
           {{range .Environments}}
           <button class="topbar-btn{{if eq . $.Environment}} active{{end}}" onclick="setGlobalEnvironment('{{.}}')">{{.}}</button>
@@ -318,6 +330,12 @@
       window.location.reload();
     }
 
+    function setGlobalProject(value) {
+      if (!value) return;
+      urgentrySetCookie('urgentry_project', value);
+      window.location.reload();
+    }
+
     // -----------------------------------------------------------------------
     // Compact Mode
     // -----------------------------------------------------------------------
@@ -557,6 +575,43 @@
         .catch(function() {
           var form = document.getElementById('envForm');
           if (form) form.style.display = 'none';
+        });
+    })();
+
+    (function() {
+      var form = document.getElementById('projectSwitcherForm');
+      var select = document.getElementById('globalProjectSwitcher');
+      var settings = document.getElementById('globalProjectSettingsLink');
+      if (!form || !select) return;
+      fetch('/api/ui/projects')
+        .then(function(resp) {
+          if (!resp.ok) throw new Error('projects unavailable');
+          return resp.json();
+        })
+        .then(function(data) {
+          var projects = data.projects || [];
+          if (projects.length === 0) return;
+          select.innerHTML = '';
+          projects.forEach(function(project) {
+            var option = document.createElement('option');
+            option.value = project.value;
+            option.textContent = project.orgSlug + ' / ' + project.slug;
+            if (project.name && project.name !== project.slug) {
+              option.textContent += ' - ' + project.name;
+            }
+            if (project.value === data.selected) {
+              option.selected = true;
+              if (settings && project.settingsUrl) settings.href = project.settingsUrl;
+            }
+            select.appendChild(option);
+          });
+          if (settings && settings.href.indexOf('/manage/projects/') !== -1 && projects[0].settingsUrl) {
+            settings.href = projects[0].settingsUrl;
+          }
+          form.hidden = false;
+        })
+        .catch(function() {
+          form.hidden = true;
         });
     })();
 

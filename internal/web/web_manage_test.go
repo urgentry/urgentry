@@ -3,6 +3,7 @@ package web
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -155,6 +156,67 @@ func TestManageOrganizationsListsOrg(t *testing.T) {
 	}
 	if !strings.Contains(body, "test-org") {
 		t.Errorf("manage organizations: expected 'test-org' in body")
+	}
+}
+
+func TestManageProjectsCreatesProjectWithDefaultKey(t *testing.T) {
+	srv, db, sessionToken, csrf := setupAuthorizedTestServerWithDeps(t, func(db *sql.DB, _ *auth.Authorizer, _ string, deps Dependencies) Dependencies {
+		if _, err := db.Exec(`INSERT INTO teams (id, organization_id, slug, name) VALUES ('team-1', 'test-org', 'backend', 'Backend')`); err != nil {
+			t.Fatalf("seed team: %v", err)
+		}
+		return deps
+	})
+	defer srv.Close()
+
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	form := url.Values{
+		"name":     {"Mobile App"},
+		"slug":     {"mobile-app"},
+		"team":     {"test-org/backend"},
+		"platform": {"javascript"},
+	}
+	resp := sessionRequest(t, client, http.MethodPost, srv.URL+"/manage/projects/", sessionToken, csrf, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if resp.StatusCode != http.StatusSeeOther {
+		body := getBody(t, resp)
+		t.Fatalf("create project status = %d, want 303; body: %s", resp.StatusCode, body)
+	}
+	if got := resp.Header.Get("Location"); got != "/settings/project/mobile-app/keys/" {
+		t.Fatalf("create project redirect = %q, want keys page", got)
+	}
+	var selectedCookie bool
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == selectedProjectCookie && cookie.Value == "test-org/mobile-app" {
+			selectedCookie = true
+		}
+	}
+	resp.Body.Close()
+	if !selectedCookie {
+		t.Fatal("create project response did not set selected project cookie")
+	}
+
+	var projectID string
+	if err := db.QueryRow(`SELECT id FROM projects WHERE organization_id = 'test-org' AND slug = 'mobile-app'`).Scan(&projectID); err != nil {
+		t.Fatalf("created project lookup: %v", err)
+	}
+	var keyCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM project_keys WHERE project_id = ? AND status = 'active'`, projectID).Scan(&keyCount); err != nil {
+		t.Fatalf("created key count: %v", err)
+	}
+	if keyCount != 1 {
+		t.Fatalf("created key count = %d, want 1", keyCount)
+	}
+
+	resp = sessionRequest(t, client, http.MethodGet, srv.URL+"/api/ui/projects", sessionToken, csrf, "", nil)
+	body := getBody(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("project switcher status = %d, want 200; body: %s", resp.StatusCode, body)
+	}
+	for _, want := range []string{`"value":"test-org/mobile-app"`, `"settingsUrl":"/settings/project/mobile-app/general/"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("project switcher missing %q in %s", want, body)
+		}
 	}
 }
 

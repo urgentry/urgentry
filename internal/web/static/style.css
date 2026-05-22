@@ -572,6 +572,28 @@ code, pre, .mono {
   margin-left: auto;
 }
 
+.project-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-switcher[hidden] {
+  display: none;
+}
+
+.project-switcher-select {
+  min-width: 190px;
+  max-width: 300px;
+}
+
+.project-switcher-settings {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
 .topbar-btn {
   height: 30px;
   padding: 0 10px;

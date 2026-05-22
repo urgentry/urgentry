@@ -99,6 +99,48 @@ func TestDefaultPageScopeCachesWithinRequestState(t *testing.T) {
 	}
 }
 
+func TestDefaultPageScopeUsesSelectedProjectCookie(t *testing.T) {
+	dataDir := t.TempDir()
+	db, err := sqlite.Open(dataDir)
+	if err != nil {
+		t.Fatalf("sqlite.Open: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if _, err := db.Exec(`INSERT INTO organizations (id, slug, name) VALUES ('test-org', 'test-org', 'Test Org')`); err != nil {
+		t.Fatalf("seed organization: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('test-proj', 'test-org', 'test-project', 'Test Project', 'go', 'active')`); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO projects (id, organization_id, slug, name, platform, status) VALUES ('mobile-proj', 'test-org', 'mobile-app', 'Mobile App', 'javascript', 'active')`); err != nil {
+		t.Fatalf("seed second project: %v", err)
+	}
+
+	spy := &webStoreSpy{WebStore: sqlite.NewWebStore(db)}
+	deps := testHandlerDeps(db, store.NewMemoryBlobStore(), dataDir, nil)
+	deps.WebStore = spy
+	handler := NewHandlerWithDeps(deps)
+
+	var got pageScope
+	wrapped := withPageRequestState(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		scope, err := handler.defaultPageScope(r.Context())
+		if err != nil {
+			t.Fatalf("defaultPageScope: %v", err)
+		}
+		got = scope
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/discover/", nil)
+	req.AddCookie(&http.Cookie{Name: selectedProjectCookie, Value: "test-org%2Fmobile-app"})
+	wrapped.ServeHTTP(httptest.NewRecorder(), req)
+
+	if spy.defaultProjectCalls != 0 {
+		t.Fatalf("DefaultProjectID calls = %d, want 0", spy.defaultProjectCalls)
+	}
+	if got.ProjectID != "mobile-proj" || got.ProjectSlug != "mobile-app" || got.OrganizationSlug != "test-org" {
+		t.Fatalf("selected scope = %+v", got)
+	}
+}
+
 func TestMonitorsPage(t *testing.T) {
 	srv, db := setupTestServer(t)
 	defer srv.Close()

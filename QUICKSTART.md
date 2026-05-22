@@ -32,6 +32,8 @@ On first boot, urgentry creates:
 
 Open `http://localhost:8080/login/` and use the bootstrap credentials from `bootstrap-credentials.txt` in the data directory.
 
+Create additional projects from `/manage/projects/`. The form creates the project under an existing team, provisions a default public key, selects the new project for this browser session, and sends you to that project's Keys & DSN page. Use the topbar project selector to switch project-scoped analytics pages between projects.
+
 ## Send a first event
 
 Use the public project key from startup logs. The default internal project ID is `default-project`; generated SDK DSNs use a numeric project ID alias so Sentry SDKs accept them unchanged. You can copy the SDK DSN from `/settings/project/default/keys/` or call the keys API. Manual curl requests may use the internal project ID.

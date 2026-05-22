@@ -9,6 +9,53 @@
 
 <div class="manage-body">
   <div class="settings-section">
+    <div class="section-header">Create Project</div>
+    {{if .CreateForm.Error}}
+    <div class="form-error" role="alert">{{.CreateForm.Error}}</div>
+    {{end}}
+    {{if .CreateForm.Teams}}
+    <form method="post" action="/manage/projects/" class="settings-form manage-project-form">
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>Name</span>
+          <input type="text" name="name" value="{{.CreateForm.Name}}" required>
+        </label>
+        <label class="settings-form-field">
+          <span>Slug</span>
+          <input type="text" name="slug" value="{{.CreateForm.Slug}}" placeholder="generated from name">
+        </label>
+        <label class="settings-form-field">
+          <span>Team</span>
+          <select name="team" required>
+            {{range .CreateForm.Teams}}
+            <option value="{{.Value}}" {{if eq .Value $.CreateForm.TeamValue}}selected{{end}}>{{.Label}}</option>
+            {{end}}
+          </select>
+        </label>
+        <label class="settings-form-field">
+          <span>Platform</span>
+          <select name="platform">
+            <option value="go" {{if eq .CreateForm.Platform "go"}}selected{{end}}>Go</option>
+            <option value="javascript" {{if eq .CreateForm.Platform "javascript"}}selected{{end}}>JavaScript</option>
+            <option value="python" {{if eq .CreateForm.Platform "python"}}selected{{end}}>Python</option>
+            <option value="node" {{if eq .CreateForm.Platform "node"}}selected{{end}}>Node</option>
+            <option value="cocoa" {{if eq .CreateForm.Platform "cocoa"}}selected{{end}}>Cocoa</option>
+            <option value="android" {{if eq .CreateForm.Platform "android"}}selected{{end}}>Android</option>
+          </select>
+        </label>
+      </div>
+      <div class="settings-form-actions">
+        <button type="submit" class="btn btn-primary">Create project</button>
+      </div>
+    </form>
+    {{else}}
+    <div class="empty-state empty-state-inline">
+      <div class="empty-text">Create a team before adding another project.</div>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="settings-section">
     <div class="section-header">Projects</div>
     <table class="events-table">
       <thead>
@@ -19,6 +66,7 @@
           <th>Platform</th>
           <th>Status</th>
           <th>Created</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -31,10 +79,11 @@
             <td>{{if .Platform}}{{.Platform}}{{else}}-{{end}}</td>
             <td><span class="issue-status-badge {{.Status}}">{{if .Status}}{{.Status}}{{else}}active{{end}}</span></td>
             <td>{{.DateCreated}}</td>
+            <td><a class="btn btn-sm" href="/settings/project/{{.Slug}}/general/">Open settings</a></td>
           </tr>
           {{end}}
         {{else}}
-          <tr><td colspan="6">No projects found.</td></tr>
+          <tr><td colspan="7">No projects found.</td></tr>
         {{end}}
       </tbody>
     </table>
@@ -88,6 +137,18 @@
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
+}
+.manage-project-form {
+  margin-top: 16px;
+}
+.form-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--error-border, rgba(248,81,73,.25));
+  border-radius: 6px;
+  background: var(--error-bg, rgba(248,81,73,.12));
+  color: var(--error, #f85149);
+  font-size: 13px;
 }
 </style>
 {{end}}
