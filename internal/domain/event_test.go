@@ -1,8 +1,75 @@
 package domain
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func boolPtr(v bool) *bool { return &v }
+
+func TestExceptionList_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantLen int
+		wantTyp string
+		wantVal string
+		wantErr bool
+	}{
+		{
+			name:    "bare array form",
+			input:   `[{"type":"testArrayForm","value":"array form"}]`,
+			wantLen: 1,
+			wantTyp: "testArrayForm",
+			wantVal: "array form",
+		},
+		{
+			name:    "object values form",
+			input:   `{"values":[{"type":"testObjectForm","value":"object form"}]}`,
+			wantLen: 1,
+			wantTyp: "testObjectForm",
+			wantVal: "object form",
+		},
+		{
+			name:    "empty array",
+			input:   `[]`,
+			wantLen: 0,
+		},
+		{
+			name:    "invalid string",
+			input:   `"not-a-list"`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var list ExceptionList
+			err := json.Unmarshal([]byte(tt.input), &list)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("UnmarshalJSON: %v", err)
+			}
+			if got := len(list.Values); got != tt.wantLen {
+				t.Fatalf("len(Values) = %d, want %d", got, tt.wantLen)
+			}
+			if tt.wantLen > 0 {
+				if list.Values[0].Type != tt.wantTyp {
+					t.Errorf("Type = %q, want %q", list.Values[0].Type, tt.wantTyp)
+				}
+				if list.Values[0].Value != tt.wantVal {
+					t.Errorf("Value = %q, want %q", list.Values[0].Value, tt.wantVal)
+				}
+			}
+		})
+	}
+}
+
 
 func TestEventTitle(t *testing.T) {
 	tests := []struct {
