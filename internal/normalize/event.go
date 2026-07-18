@@ -76,6 +76,26 @@ type ExceptionList struct {
 	Values []Exception `json:"values"`
 }
 
+// UnmarshalJSON accepts both the bare-array form used by sentry-go
+// ("exception":[{...}]) and the canonical object form
+// ("exception":{"values":[{...}]}).
+func (e *ExceptionList) UnmarshalJSON(data []byte) error {
+	var values []Exception
+	if err := json.Unmarshal(data, &values); err == nil {
+		e.Values = values
+		return nil
+	}
+
+	var wrapped struct {
+		Values []Exception `json:"values"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err != nil {
+		return err
+	}
+	e.Values = wrapped.Values
+	return nil
+}
+
 type Exception struct {
 	Type       string      `json:"type,omitempty"`
 	Value      string      `json:"value,omitempty"`

@@ -10,27 +10,37 @@ import (
 
 func makeErrorPayload(t *testing.T, excType, excValue string, fingerprint []string) []byte {
 	t.Helper()
-	payload := map[string]any{
-		"platform": "python",
-		"level":    "error",
-		"exception": map[string]any{
-			"values": []map[string]any{
+	return makeErrorPayloadForm(t, excType, excValue, fingerprint, false)
+}
+
+// makeErrorPayloadForm builds an error event. When bareArray is true, exception is
+// serialized as a bare JSON array (sentry-go wire form); otherwise as {"values":[...]}.
+func makeErrorPayloadForm(t *testing.T, excType, excValue string, fingerprint []string, bareArray bool) []byte {
+	t.Helper()
+	exc := map[string]any{
+		"type":  excType,
+		"value": excValue,
+		"stacktrace": map[string]any{
+			"frames": []map[string]any{
 				{
-					"type":  excType,
-					"value": excValue,
-					"stacktrace": map[string]any{
-						"frames": []map[string]any{
-							{
-								"filename": "app/views.py",
-								"function": "handle_request",
-								"lineno":   42,
-								"in_app":   true,
-							},
-						},
-					},
+					"filename": "app/views.py",
+					"function": "handle_request",
+					"lineno":   42,
+					"in_app":   true,
 				},
 			},
 		},
+	}
+	payload := map[string]any{
+		"platform": "python",
+		"level":    "error",
+	}
+	if bareArray {
+		payload["exception"] = []map[string]any{exc}
+	} else {
+		payload["exception"] = map[string]any{
+			"values": []map[string]any{exc},
+		}
 	}
 	if fingerprint != nil {
 		payload["fingerprint"] = fingerprint
@@ -126,6 +136,48 @@ func TestProcessor_BasicError(t *testing.T) {
 	}
 	if len(blob) == 0 {
 		t.Fatal("blob is empty")
+	}
+}
+
+// TestProcessor_BareArrayException covers the sentry-go wire form where exception
+// is a bare JSON array rather than {"values":[...]}. See urgentry/urgentry#23.
+func TestProcessor_BareArrayException(t *testing.T) {
+	ctx := context.Background()
+	proc := newProcessor()
+
+	raw := makeErrorPayloadForm(t, "ValueError", "bad input", nil, true)
+
+	result, err := proc.Process(ctx, "proj-1", raw)
+	if err != nil {
+		t.Fatalf("Process bare-array exception: %v", err)
+	}
+	if result.EventID == "" {
+		t.Fatal("EventID is empty")
+	}
+	if result.GroupID == "" {
+		t.Fatal("GroupID is empty")
+	}
+	if !result.IsNewGroup {
+		t.Fatal("expected IsNewGroup=true for first event")
+	}
+
+	evt, err := proc.Events.GetEvent(ctx, "proj-1", result.EventID)
+	if err != nil {
+		t.Fatalf("GetEvent: %v", err)
+	}
+	if evt.Title == "" {
+		t.Fatal("Title is empty")
+	}
+	if evt.Title != "ValueError: bad input" {
+		t.Fatalf("Title = %q, want %q", evt.Title, "ValueError: bad input")
+	}
+
+	group, err := proc.Groups.GetGroup(ctx, result.GroupID)
+	if err != nil {
+		t.Fatalf("GetGroup: %v", err)
+	}
+	if group.TimesSeen != 1 {
+		t.Fatalf("TimesSeen = %d, want 1", group.TimesSeen)
 	}
 }
 
